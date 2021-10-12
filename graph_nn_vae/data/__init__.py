@@ -1,0 +1,2 @@
+from .data_module import BaseDataModule
+from .synthetic_graphs_module import SyntheticGraphsDataModule
