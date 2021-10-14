@@ -1,0 +1,25 @@
+- config: generic-flags
+  flags:
+    max_epochs: 100
+    learning-rate: 0.01
+    gpus: "0,"
+    checkpoint-monitor: "loss/val"
+
+- config: model-base
+  operations:
+    num_edges:
+        main: 'graph_nn_vae.experiments.num_edges.{{ name }}_training'
+        flags:
+            $include: generic-flags
+        output-scalars: off
+        sourcecode:
+            select:
+                - "graph_nn_vae/*"
+            exclude:
+                - "**/__pycache__"
+
+
+- model: encoder
+  extends: model-base
+  params:
+    name: encoder
