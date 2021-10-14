@@ -9,6 +9,7 @@ from torch.utils.data import TensorDataset
 
 from graph_nn_vae.data.data_module import BaseDataModule
 from graph_nn_vae.data.synthetic_graphs_create import create_synthetic_graphs
+from graph_nn_vae.util import adjmatrix
 
 
 class SyntheticGraphsDataModule(BaseDataModule):
@@ -16,9 +17,10 @@ class SyntheticGraphsDataModule(BaseDataModule):
     pad_sequence = False
     adjacency_matrices = []
 
-    def __init__(self, graph_type: str, **kwargs):
+    def __init__(self, graph_type: str, num_dataset_graph_permutations: int, **kwargs):
         super().__init__(**kwargs)
         self.graph_type = graph_type
+        self.num_dataset_graph_permutations = num_dataset_graph_permutations
         self.data_name += "_" + graph_type
         self.prepare_data()
 
@@ -34,24 +36,34 @@ class SyntheticGraphsDataModule(BaseDataModule):
         self.adjacency_matrices = []
         for nx_graph in nx_graphs:
             np_adj_matrix = nx.to_numpy_array(nx_graph, dtype=np.float32)
-            np_adj_matrix = np.tril(np_adj_matrix)
-            padding_size = max_number_of_nodes - np_adj_matrix.shape[0]
-            padded_matrix = np.pad(
-                np_adj_matrix,
-                [(padding_size, 0), (0, padding_size)],
-                "constant",
-                constant_values=0.0,
-            )
-            # # invert the matrix in the y dim, so that the triangle is in the upper left corner
-            # flipped_matrix = np.flip(padded_matrix, 0)
-            # torch_matrix = torch.Tensor(flipped_matrix.copy())
-            torch_matrix = torch.Tensor(padded_matrix)
-            extended_matrix = torch_matrix[:, :, None]
-            self.adjacency_matrices.append(extended_matrix)
+            for _ in range(self.num_dataset_graph_permutations):
+                adj_matrix = adjmatrix.random_permute(np_adj_matrix)
+                adj_matrix = np.tril(adj_matrix)
+                padding_size = max_number_of_nodes - adj_matrix.shape[0]
+                padded_matrix = np.pad(
+                    adj_matrix,
+                    [(padding_size, 0), (0, padding_size)],
+                    "constant",
+                    constant_values=0.0,
+                )
+                torch_matrix = torch.Tensor(padded_matrix)
+                extended_matrix = torch_matrix[:, :, None]
+                self.adjacency_matrices.append(extended_matrix)
 
-        self.train_dataset = self.adjacency_matrices
-        self.val_dataset = self.adjacency_matrices
-        self.test_dataset = self.adjacency_matrices
+        train_dataset_size = int(0.8 * len(self.adjacency_matrices))
+        val_dataset_size = int(0.1 * len(self.adjacency_matrices))
+        test_dataset_size = (
+            len(self.adjacency_matrices) - train_dataset_size - val_dataset_size
+        )
+
+        (
+            self.train_dataset,
+            self.val_dataset,
+            self.test_dataset,
+        ) = torch.utils.data.random_split(
+            self.adjacency_matrices,
+            [train_dataset_size, val_dataset_size, test_dataset_size],
+        )
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
@@ -62,6 +74,13 @@ class SyntheticGraphsDataModule(BaseDataModule):
             default="grid_small",
             type=str,
             help="Type of synthethic graphs",
+        )
+        parser.add_argument(
+            "--num_dataset_graph_permutations",
+            dest="num_dataset_graph_permutations",
+            default=200,
+            type=int,
+            help="number of permuted copies of the same graphs to generate in the dataset",
         )
 
         return parser

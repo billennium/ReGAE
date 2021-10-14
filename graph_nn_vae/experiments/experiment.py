@@ -1,22 +1,31 @@
 import time
 import argparse
 import random
+import warnings
+from typing import Type
 
 import torch
 import pytorch_lightning as pl
 
 from graph_nn_vae.data import BaseDataModule
+from graph_nn_vae.models.base import BaseModel
 from graph_nn_vae.models.autoencoder_components import GraphEncoder
+
+warnings.filterwarnings(
+    "ignore",
+    message=r"The dataloader, (.*?) does not have many workers",
+    category=UserWarning,
+)
 
 
 class Experiment:
     def __init__(
         self,
-        # model: Type[BaseModel],
+        model: Type[BaseModel],
         data_module: BaseDataModule,
         parser_default: dict = None,
     ):
-        # self.model = model
+        self.model = model
         self.data_module = data_module
         # self.early_stopping = ThresholdedEarlyStopping
         self.parser_default = parser_default if parser_default is not None else {}
@@ -33,13 +42,10 @@ class Experiment:
             args.batch_size_test = args.batch_size
 
         data_module = self.data_module(**vars(args))
-        # model = self.model(
-        #     **vars(args),
-        #     input_size=data_module.input_size(),
-        #     output_size=data_module.output_size(),
-        #     loss_weight=data_module.loss_weight(),
-        #     pad_sequence=data_module.pad_sequence,
-        # )
+        model = self.model(
+            **vars(args),
+            loss_weight=data_module.loss_weight(),
+        )
         # early_stopping = self.early_stopping(**vars(args))
 
         logger = self.create_logger(logger_name=args.logger_name)
@@ -56,16 +62,8 @@ class Experiment:
         #     trainer.callbacks.append(early_stopping)
         trainer.logger.log_hyperparams(args)
 
-        data_module.prepare_data()
-        data_module.setup(stage="fit")
-        scratch_model = GraphEncoder(embedding_size=8, edge_size=1)
-        for batch in data_module.train_dataloader():
-            graph_embedding = scratch_model(batch)
-            break
-        print(f"{graph_embedding = }")
-
         start = time.time()
-        # trainer.fit(model, datamodule=data_module)
+        trainer.fit(model, datamodule=data_module)
         end = time.time()
 
         if not args.no_evaluate:
@@ -83,14 +81,14 @@ class Experiment:
                 name=self.data_module.data_name,
             )
         else:
-            raise RuntimeError(f"Wrong logger name: {logger_name}")
+            raise RuntimeError(f"unknown logger name: {logger_name}")
 
     def create_parser(self):
         parser = argparse.ArgumentParser(add_help=True)
         parser = self.add_trainer_parser(parser)
         parser = self.add_experiment_parser(parser)
         parser = self.data_module.add_model_specific_args(parser)
-        # parser = self.model.add_model_specific_args(parser)
+        parser = self.model.add_model_specific_args(parser)
         # parser = self.early_stopping.add_callback_specific_args(parser)
         parser.set_defaults(
             progress_bar_refresh_rate=2,

@@ -20,6 +20,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         optimizer: str,
         weight_decay: float,
         scheduler_gamma: float,
+        **kwargs,
     ):
         super(BaseModel, self).__init__()
         self.loss_function = get_loss(loss_function, loss_weight)
@@ -27,6 +28,8 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         self.optimizer = get_optimizer(optimizer)
         self.weight_decay = weight_decay
         self.scheduler_gamma = scheduler_gamma
+
+        # self.min_loss = MinimumSaver()
 
     def forward(self, **kwargs) -> Tensor:
         raise NotImplementedError
@@ -50,13 +53,14 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         return loss
 
     def validation_epoch_end(self, outputs: List[Any]) -> None:
-        self.min_loss.calculate("loss/val_min")
-        self.log(
-            "loss/val_min",
-            # self.min_loss.get_min()["loss/val_min"],
-            prog_bar=True,
-            logger=False,
-        )
+        pass
+        # self.min_loss.calculate("loss/val_min")
+        # self.log(
+        #     "loss/val_min",
+        #     # self.min_loss.get_min()["loss/val_min"],
+        #     prog_bar=True,
+        #     logger=False,
+        # )
 
     def test_step(self, batch, batch_idx):
         loss = self.step(batch)

@@ -1,16 +1,22 @@
+from argparse import ArgumentParser
+
 import torch
 from torch import nn, Tensor
 import pytorch_lightning as pl
 from torch.nn import functional as F
 
+from graph_nn_vae.models.base import BaseModel
 
-class GraphEncoder(pl.LightningModule):
+
+class GraphEncoder(BaseModel):
     def __init__(self, embedding_size: int, edge_size: int, **kwargs):
         self.embedding_size = embedding_size
         self.edge_size = edge_size
-        super().__init__(**kwargs)
-        self.edge_encoder = EdgeEncoder(
-            embedding_size=embedding_size, edge_size=edge_size
+        super(GraphEncoder, self).__init__(**kwargs)
+        self.edge_encoder = nn.Sequential(
+            nn.Linear(2 * embedding_size + edge_size, 32),
+            nn.ReLU(),
+            nn.Linear(32, embedding_size),
         )
 
     def forward(self, adjacency_matrices_batch: Tensor) -> Tensor:
@@ -18,9 +24,7 @@ class GraphEncoder(pl.LightningModule):
         :param adjacency matrix: a stripped adjacency matrix Tensor of dimensions [num_nodes-1, num_nodes-1, edge_size]
         :return: a graph embedding Tensor of dimensions [embedding_size]
         """
-        returned_embeddings = torch.zeros(
-            (adjacency_matrices_batch.shape[0], self.embedding_size)
-        )
+        returned_embeddings = []
         for batch_idx, adjacency_matrix in enumerate(adjacency_matrices_batch):
             num_nodes = 0
             for i in range(adjacency_matrix.shape[0]):
@@ -28,68 +32,75 @@ class GraphEncoder(pl.LightningModule):
                 if torch.sum(diagonal) != 0.0:
                     num_nodes = adjacency_matrix.shape[0] - i + 1
                     break
-            embedding_matrix = torch.zeros(
-                [num_nodes, num_nodes, self.embedding_size], dtype=torch.float32
+
+            prev_embedding = torch.zeros(
+                (num_nodes, self.embedding_size), requires_grad=True
             )
-            emb_m_y_diff = adjacency_matrix.shape[0] - embedding_matrix.shape[0]
 
-            for diagonal_offset in reversed(range(num_nodes - 1)):
-                for edge_offset in range(diagonal_offset + 1):
-                    """
-                    The adjacency matrix has now a shape like [y, x, edge_size].
-                    For example, skipping the edge_size dimension:
-                     x 0 1 2 3
-                    y
-                    0  0 0 0 0
-                    1  1 0 0 0
-                    2  1 0 0 0
-                    3  0 1 1 0
-                    """
-                    edge_x = diagonal_offset - edge_offset
-                    edge_y = adjacency_matrix.shape[0] - 1 - edge_offset
-                    edge = adjacency_matrix[edge_y, edge_x, :]
+            """
+            The adjacency matrix has now a shape like [y, x, edge_size].
+            For example, skipping the edge_size dimension:
+             x 0 1 2 3
+            y
+            0  0 0 0 0
+            1  1 0 0 0
+            2  1 0 0 0
+            3  0 1 1 0
+            """
 
-                    embedding_1_x = edge_x + 1
-                    embedding_1_y = edge_y - emb_m_y_diff
-                    embedding_1 = embedding_matrix[embedding_1_y, embedding_1_x, :]
+            for diagonal_offset in reversed(range(1, num_nodes)):
+                embeddings_left = prev_embedding[:-1, :]
+                embeddings_right = prev_embedding[1:, :]
+                current_diagonal = (
+                    torch.diagonal(
+                        adjacency_matrix,
+                        offset=diagonal_offset - adjacency_matrix.shape[0],
+                    )
+                    .transpose(1, 0)
+                    .requires_grad_()
+                )
 
-                    embedding_2_x = edge_x
-                    embedding_2_y = edge_y - emb_m_y_diff - 1
-                    embedding_2 = embedding_matrix[embedding_2_y, embedding_2_x, :]
+                encoder_input = torch.cat(
+                    (embeddings_left, embeddings_right, current_diagonal), 1
+                )
+                prev_embedding = self.edge_encoder(encoder_input)
 
-                    embedding = self.edge_encoder(edge, embedding_1, embedding_2)
-                    embedding_matrix[
-                        edge_y - emb_m_y_diff : edge_y - emb_m_y_diff + 1,
-                        edge_x : edge_x + 1,
-                        :,
-                    ] = embedding
+            returned_embeddings.append(prev_embedding)
+        embeddings_batch = torch.cat(returned_embeddings)
 
-            returned_embeddings[batch_idx, :] = embedding_matrix[
-                embedding_matrix.shape[0] - 1, 0, :
-            ]
-        return returned_embeddings
+        return embeddings_batch
 
+    def step(self, batch: Tensor) -> Tensor:
+        embeddings = self(batch)
+        num_nodes = torch.zeros((len(batch), self.embedding_size))
+        for i, adjacency_matrix in enumerate(batch):
+            num_nodes[i, 0] = torch.sum(adjacency_matrix)
+        return F.mse_loss(embeddings, num_nodes)
 
-class EdgeEncoder(pl.LightningModule):
-    def __init__(self, embedding_size: int, edge_size: int = 1, **kwargs):
-        super().__init__(**kwargs)
-        self.layers = nn.Sequential(
-            nn.Linear(2 * embedding_size + edge_size, 512),
-            nn.ReLU(),
-            nn.Linear(512, 1024),
-            nn.ReLU(),
-            nn.Linear(1024, embedding_size),
-            nn.ReLU(),
+    @staticmethod
+    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
+        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+        parser = BaseModel.add_model_specific_args(parent_parser=parser)
+        parser.add_argument(
+            "--embedding-size",
+            dest="embedding_size",
+            default=32,
+            type=int,
+            metavar="EMB_SIZE",
+            help="size of the encoder output graph embedding",
         )
+        parser.add_argument(
+            "--edge-size",
+            dest="edge_size",
+            default=1,
+            type=int,
+            metavar="EDGE_SIZE",
+            help="number of dimensions of a graph's edge",
+        )
+        return parser
 
-    def forward(
-        self, edge: Tensor, prev_embedding_1: Tensor, prev_embedding_2: Tensor
-    ) -> Tensor:
-        x = torch.cat((edge, prev_embedding_1, prev_embedding_2), 0)
-        return self.layers(x)
 
-
-class GraphDecoder(pl.LightningModule):
+class GraphDecoder(BaseModel):
     def __init__(
         self, embedding_size: int, edge_size: int, max_number_of_nodes: int, **kwargs
     ):
@@ -97,8 +108,13 @@ class GraphDecoder(pl.LightningModule):
         self.edge_size = edge_size
         self.max_number_of_nodes = max_number_of_nodes
         super().__init__(**kwargs)
-        self.edge_encoder = EdgeDecoder(
-            embedding_size=embedding_size, edge_size=edge_size
+        self.edge_decoder = nn.Sequential(
+            nn.Linear(2 * embedding_size, 512),
+            nn.ReLU(),
+            nn.Linear(512, 1024),
+            nn.ReLU(),
+            nn.Linear(1024, embedding_size + edge_size),
+            nn.ReLU(),
         )
 
     def forward(self, graph_encoding_batch: Tensor) -> Tensor:
@@ -115,42 +131,74 @@ class GraphDecoder(pl.LightningModule):
                 self.edge_size,
             )
         )
-        # for batch_idx, graph_encoding in enumerate(graph_encoding_batch):
-        #     for diagonal_offset in range(1, self.max_number_of_nodes):
-        #         for edge_offset in range(diagonal_offset + 1):
-        #             """
-        #             The adjacency matrix has now a shape like [y, x, edge_size].
-        #             For example, skipping the edge_size dimension:
-        #              x 0 1 2 3
-        #             y
-        #             0  0 0 0 0
-        #             1  1 0 0 0
-        #             2  1 0 0 0
-        #             3  0 1 1 0
-        #             """
-        #             edge_x = diagonal_offset - edge_offset
-        #             edge_y = adjacency_matrix.shape[0] - 1 - edge_offset
-        #             edge = adjacency_matrix[edge_y, edge_x, :]
+        batch_concatenated_diagonals = []
 
-        #             embedding_1_x = edge_x + 1
-        #             embedding_1_y = edge_y - emb_m_y_diff
-        #             embedding_1 = embedding_matrix[embedding_1_y, embedding_1_x, :]
+        for batch_idx, graph_encoding in enumerate(graph_encoding_batch):
+            prev_doubled_embeddings = graph_encoding
+            decoded_diagonals = []
 
-        #             embedding_2_x = edge_x
-        #             embedding_2_y = edge_y - emb_m_y_diff - 1
-        #             embedding_2 = embedding_matrix[embedding_2_y, embedding_2_x, :]
+            for diagonal_offset in range(1, self.max_number_of_nodes):
+                edge_with_embedding = self.edge_decoder(prev_doubled_embeddings)
+                decoded_edges, embeddings = torch.split(
+                    edge_with_embedding, [self.edge_size, self.embedding_size], dim=1
+                )
+                if torch.mean(decoded_edges[:, 0]) < -0.5:
+                    break
 
-        #             embedding = self.edge_encoder(edge, embedding_1, embedding_2)
-        #             embedding_matrix[
-        #                 edge_y - emb_m_y_diff : edge_y - emb_m_y_diff + 1,
-        #                 edge_x : edge_x + 1,
-        #                 :,
-        #             ] = embedding
+                prev_doubled_embeddings = torch.cat((embeddings, embeddings), dim=0)
+                # add zeroes to both sides - these are the empty embeddings of the far-out edges
+                prev_doubled_embeddings = torch.functional.pad(
+                    prev_doubled_embeddings, (1, 1, 0, 0)
+                )
 
-        #     returned_embeddings[batch_idx, :] = embedding_matrix[
-        #         embedding_matrix.shape[0] - 1, 0, :
-        #     ]
-        # return returned_embeddings
+                decoded_diagonals.append(decoded_edges)
+
+            concatenated_diagonals = torch.cat(decoded_diagonals, dim=0)
+            max_concatenated_diagonals_length = (
+                self.max_number_of_nodes * (1 + self.max_number_of_nodes) / 2
+            )
+            pad_length = (
+                max_concatenated_diagonals_length - concatenated_diagonals.shape[0]
+            )
+            concatenated_diagonals = torch.functional.pad(
+                concatenated_diagonals, (0, pad_length, 0, 0), value=0.0
+            )
+            batch_concatenated_diagonals.append(concatenated_diagonals)
+
+        return torch.stack(
+            batch_concatenated_diagonals,
+        )
+
+    @staticmethod
+    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
+        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+        parser = BaseModel.add_model_specific_args(parent_parser=parser)
+        parser.add_argument(
+            "--embedding-size",
+            dest="embedding_size",
+            default=32,
+            type=int,
+            metavar="EMB_SIZE",
+            help="size of the encoder output graph embedding",
+        )
+        parser.add_argument(
+            "--edge-size",
+            dest="edge_size",
+            default=1,
+            type=int,
+            metavar="EDGE_SIZE",
+            help="number of dimensions of a graph's edge",
+        )
+        parser.add_argument(
+            "--max-num-nodes",
+            "--max-number-of-nodes",
+            dest="max_number_of_nodes",
+            default=50,
+            type=int,
+            metavar="NUM_NODES",
+            help="max number of nodes of generated graphs",
+        )
+        return parser
 
 
 class EdgeDecoder(pl.LightningModule):

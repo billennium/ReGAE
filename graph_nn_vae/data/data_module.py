@@ -65,15 +65,15 @@ class BaseDataModule(pl.LightningDataModule):
     def add_model_specific_args(parent_parser: ArgumentParser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         parser.add_argument(
-            "--batch-size",
+            "--batch_size",
             dest="batch_size",
-            default=1,
+            default=64,
             type=int,
             metavar="SIZE",
             help="batch size of training data.",
         )
         parser.add_argument(
-            "--batch-size-val",
+            "--batch_size_val",
             dest="batch_size_val",
             default=1,
             type=int,
@@ -81,7 +81,7 @@ class BaseDataModule(pl.LightningDataModule):
             help="batch size of validation data.",
         )
         parser.add_argument(
-            "--batch-size-test",
+            "--batch_size_test",
             dest="batch_size_test",
             default=1,
             type=int,

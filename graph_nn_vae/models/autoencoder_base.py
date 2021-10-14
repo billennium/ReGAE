@@ -6,118 +6,66 @@ from torch import Tensor, nn
 import pytorch_lightning as pl
 
 from graph_nn_vae.models.base import BaseModel
+from graph_nn_vae.models.autoencoder_components import GraphEncoder, GraphDecoder
 
 
 class RecurrentGraphAutoencoder(BaseModel):
     model_name = ""
 
-    def __init__(self, encoding_size: int = 256, **kwargs):
-        self.encoding_size = encoding_size
+    def __init__(
+        self, embedding_size: int, edge_size: int, max_number_of_nodes: int, **kwargs
+    ):
+        self.embedding_size = embedding_size
+        self.edge_size = edge_size
+        self.max_number_of_nodes = max_number_of_nodes
         super(RecurrentGraphAutoencoder, self).__init__(**kwargs)
+        self.encoder = GraphEncoder(**kwargs)
+        self.decoder = GraphDecoder(**kwargs)
 
-    def forward(self, **kwargs) -> Tensor:
-        raise NotImplementedError
+    def forward(self, adjacency_matrices_batch: Tensor) -> Tensor:
+        num_nodes_in_graphs = adjacency_matrices_batch.shape[1]
+        if num_nodes_in_graphs < self.max_number_of_nodes:
+            raise ValueError(
+                "the max number of nodes of the requested reconstructed graphs cannot "
+                + "be lower than the number of nodes of the biggest input graph"
+            )
+        graph_embdeddings = self.encoder(adjacency_matrices_batch)
+        reconstructed_graph_diagonals = self.decoder(graph_embdeddings)
+        return reconstructed_graph_diagonals
 
-    def step(self, batch) -> Tensor:
-        raise NotImplementedError
+    def _get_reconstruction_loss(
+        self, adjacency_matrices_batch: Tensor, reconstructed_graph_diagonals: Tensor
+    ) -> Tensor:
+        input_concatenated_diagonals = []
+        for adjacency_matrix in adjacency_matrices_batch:
+            diagonals = [
+                torch.diagonal(adjacency_matrix, offset=-i)
+                for i in range(adjacency_matrix.shape[0])
+            ]
+            concatenated_diagonals = torch.cat(diagonals, dim=0)
+            input_concatenated_diagonals.append(concatenated_diagonals)
+        input_batch_reshaped = torch.stack(input_concatenated_diagonals)
 
-    def training_step(self, batch, batch_idx):
-        loss = self.step(batch)
-        # for metric in self.metrics:
-        #     self.log(f"{metric.label}/train_avg", metric, on_step=False, on_epoch=True)
-        self.log("loss/train_avg", loss, on_step=False, on_epoch=True)
-        return loss
-
-    def validation_step(self, batch, batch_idx):
-        loss = self.step(batch)
-        # for metric in self.metrics:
-        #     self.log(f"{metric.label}/val", metric, prog_bar=True)
-        self.log("loss/val", loss, prog_bar=True)
-        # self.min_loss.log("loss/val_min", loss.item(), batch[0].shape[0])
-        return loss
-
-    def validation_epoch_end(self, outputs: List[Any]) -> None:
-        self.min_loss.calculate("loss/val_min")
-        self.log(
-            "loss/val_min",
-            # self.min_loss.get_min()["loss/val_min"],
-            prog_bar=True,
-            logger=False,
+        reconstructed_diagonals_length = reconstructed_graph_diagonals.shape[1]
+        input_pad_length = (
+            reconstructed_diagonals_length - input_batch_reshaped.shape[1]
+        )
+        input_batch_reshaped = torch.functional.pad(
+            input_batch_reshaped, (0, input_pad_length, 0, 0)
         )
 
-    def test_step(self, batch, batch_idx):
-        loss = self.step(batch)
-        # for metric in self.metrics:
-        #     self.log(f"{metric.label}/test", metric, prog_bar=True)
-        self.log("loss/test", loss)
+        loss_f = torch.nn.BCELoss()
+        loss = loss_f(reconstructed_graph_diagonals, input_batch_reshaped)
         return loss
 
-    def on_fit_end(self) -> None:
-        if isinstance(self.logger, pl.loggers.TensorBoardLogger):
-            # TensorBoardLogger does not always flush the logs.
-            # To ensure this, we run it manually
-            self.logger.experiment.flush()
-
-    def on_test_epoch_end(self):
-        for key, value in self.min_loss.get_min().items():
-            self.logger.log_hyperparams({key: value})
-
-    def configure_optimizers(self):
-        optimizer = self.optimizer(
-            self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
-        )
-        scheduler = torch.optim.lr_scheduler.StepLR(
-            optimizer, 1, gamma=self.scheduler_gamma
-        )
-        return [optimizer], [scheduler]
-
-    def get_progress_bar_dict(self) -> Dict[str, Union[int, str]]:
-        tqdm_dict = super().get_progress_bar_dict()
-        tqdm_dict.pop("v_num", None)
-        return tqdm_dict
+    def step(self, batch: Tensor) -> Tensor:
+        reconstructed_graph_diagonals = self.forward(batch)
+        loss = self._get_reconstruction_loss(batch, reconstructed_graph_diagonals)
+        return loss
 
     @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser):
+    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser.add_argument(
-            "--loss-function",
-            dest="loss_function",
-            default="MSE",
-            type=str,
-            metavar="LOSS",
-            help="name of loss function",
-        )
-        parser.add_argument(
-            "--lr",
-            "--learning-rate",
-            dest="learning_rate",
-            default=0.01,
-            type=float,
-            metavar="LR",
-            help="initial learning rate",
-        )
-        parser.add_argument(
-            "--optimizer",
-            dest="optimizer",
-            default="Adam",
-            type=str,
-            metavar="OPT",
-            help="name of optimizer",
-        )
-        parser.add_argument(
-            "--weight-decay",
-            dest="weight_decay",
-            default=0.0,
-            type=float,
-            metavar="FLOAT",
-            help="weight decay",
-        )
-        parser.add_argument(
-            "--scheduler-gamma",
-            dest="scheduler_gamma",
-            default=1.0,
-            type=float,
-            metavar="FLOAT",
-            help="scheduler gamma",
-        )
+        parser = GraphEncoder.add_model_specific_args(parent_parser=parser)
+        parser = GraphDecoder.add_model_specific_args(parent_parser=parser)
         return parser
