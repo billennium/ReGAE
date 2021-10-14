@@ -34,7 +34,9 @@ class GraphEncoder(BaseModel):
                     break
 
             prev_embedding = torch.zeros(
-                (num_nodes, self.embedding_size), requires_grad=True
+                (num_nodes, self.embedding_size),
+                requires_grad=True,
+                device=adjacency_matrices_batch.device,
             )
 
             """
@@ -72,7 +74,7 @@ class GraphEncoder(BaseModel):
 
     def step(self, batch: Tensor) -> Tensor:
         embeddings = self(batch)
-        num_nodes = torch.zeros((len(batch), self.embedding_size))
+        num_nodes = torch.zeros((len(batch), self.embedding_size), device=batch.device)
         for i, adjacency_matrix in enumerate(batch):
             num_nodes[i, 0] = torch.sum(adjacency_matrix)
         return F.mse_loss(embeddings, num_nodes)
