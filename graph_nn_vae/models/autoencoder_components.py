@@ -1,4 +1,4 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentError
 
 import torch
 from torch import nn, Tensor
@@ -14,9 +14,10 @@ class GraphEncoder(BaseModel):
         self.edge_size = edge_size
         super(GraphEncoder, self).__init__(**kwargs)
         self.edge_encoder = nn.Sequential(
-            nn.Linear(2 * embedding_size + edge_size, 32),
+            nn.Linear(2 * embedding_size + edge_size, 128),
             nn.ReLU(),
-            nn.Linear(32, embedding_size),
+            nn.Linear(128, 1024),
+            nn.Linear(1024, embedding_size),
         )
 
     def forward(self, adjacency_matrices_batch: Tensor) -> Tensor:
@@ -82,23 +83,26 @@ class GraphEncoder(BaseModel):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser = BaseModel.add_model_specific_args(parent_parser=parser)
-        parser.add_argument(
-            "--embedding-size",
-            dest="embedding_size",
-            default=32,
-            type=int,
-            metavar="EMB_SIZE",
-            help="size of the encoder output graph embedding",
-        )
-        parser.add_argument(
-            "--edge-size",
-            dest="edge_size",
-            default=1,
-            type=int,
-            metavar="EDGE_SIZE",
-            help="number of dimensions of a graph's edge",
-        )
+        try:  # these may collide with an encoder module, but that's fine
+            parser = BaseModel.add_model_specific_args(parent_parser=parser)
+            parser.add_argument(
+                "--embedding-size",
+                dest="embedding_size",
+                default=32,
+                type=int,
+                metavar="EMB_SIZE",
+                help="size of the encoder output graph embedding",
+            )
+            parser.add_argument(
+                "--edge-size",
+                dest="edge_size",
+                default=1,
+                type=int,
+                metavar="EDGE_SIZE",
+                help="number of dimensions of a graph's edge",
+            )
+        except ArgumentError:
+            pass
         return parser
 
 
@@ -106,17 +110,20 @@ class GraphDecoder(BaseModel):
     def __init__(
         self, embedding_size: int, edge_size: int, max_number_of_nodes: int, **kwargs
     ):
-        self.embedding_size = embedding_size
+        if embedding_size % 2 != 0:
+            raise ValueError(
+                "graph decoder's input graph embedding size must be divisible by 2"
+            )
+        self.internal_embedding_size = int(embedding_size / 2)
         self.edge_size = edge_size
         self.max_number_of_nodes = max_number_of_nodes
         super().__init__(**kwargs)
         self.edge_decoder = nn.Sequential(
-            nn.Linear(2 * embedding_size, 512),
+            nn.Linear(embedding_size, 512),
             nn.ReLU(),
             nn.Linear(512, 1024),
             nn.ReLU(),
-            nn.Linear(1024, embedding_size + edge_size),
-            nn.ReLU(),
+            nn.Linear(1024, self.internal_embedding_size + edge_size),
         )
 
     def forward(self, graph_encoding_batch: Tensor) -> Tensor:
@@ -136,34 +143,36 @@ class GraphDecoder(BaseModel):
         batch_concatenated_diagonals = []
 
         for batch_idx, graph_encoding in enumerate(graph_encoding_batch):
-            prev_doubled_embeddings = graph_encoding
+            prev_doubled_embeddings = graph_encoding[None, :]
             decoded_diagonals = []
 
-            for diagonal_offset in range(1, self.max_number_of_nodes):
+            for diagonal_offset in range(1, self.max_number_of_nodes + 1):
                 edge_with_embedding = self.edge_decoder(prev_doubled_embeddings)
                 decoded_edges, embeddings = torch.split(
-                    edge_with_embedding, [self.edge_size, self.embedding_size], dim=1
+                    edge_with_embedding,
+                    [self.edge_size, self.internal_embedding_size],
+                    dim=1,
                 )
+                decoded_diagonals.append(decoded_edges)
                 if torch.mean(decoded_edges[:, 0]) < -0.5:
                     break
 
-                prev_doubled_embeddings = torch.cat((embeddings, embeddings), dim=0)
                 # add zeroes to both sides - these are the empty embeddings of the far-out edges
-                prev_doubled_embeddings = torch.functional.pad(
-                    prev_doubled_embeddings, (1, 1, 0, 0)
+                prev_embeddings_1 = torch.nn.functional.pad(embeddings, (0, 0, 1, 0))
+                prev_embeddings_2 = torch.nn.functional.pad(embeddings, (0, 0, 0, 1))
+                prev_doubled_embeddings = torch.cat(
+                    (prev_embeddings_1, prev_embeddings_2), dim=1
                 )
 
-                decoded_diagonals.append(decoded_edges)
-
             concatenated_diagonals = torch.cat(decoded_diagonals, dim=0)
-            max_concatenated_diagonals_length = (
+            max_concatenated_diagonals_length = int(
                 self.max_number_of_nodes * (1 + self.max_number_of_nodes) / 2
             )
             pad_length = (
                 max_concatenated_diagonals_length - concatenated_diagonals.shape[0]
             )
-            concatenated_diagonals = torch.functional.pad(
-                concatenated_diagonals, (0, pad_length, 0, 0), value=0.0
+            concatenated_diagonals = torch.nn.functional.pad(
+                concatenated_diagonals, (0, 0, 0, pad_length), value=0.0
             )
             batch_concatenated_diagonals.append(concatenated_diagonals)
 
@@ -174,23 +183,26 @@ class GraphDecoder(BaseModel):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser = BaseModel.add_model_specific_args(parent_parser=parser)
-        parser.add_argument(
-            "--embedding-size",
-            dest="embedding_size",
-            default=32,
-            type=int,
-            metavar="EMB_SIZE",
-            help="size of the encoder output graph embedding",
-        )
-        parser.add_argument(
-            "--edge-size",
-            dest="edge_size",
-            default=1,
-            type=int,
-            metavar="EDGE_SIZE",
-            help="number of dimensions of a graph's edge",
-        )
+        try:  # these may collide with an encoder module, but that's fine
+            parser = BaseModel.add_model_specific_args(parent_parser=parser)
+            parser.add_argument(
+                "--embedding-size",
+                dest="embedding_size",
+                default=32,
+                type=int,
+                metavar="EMB_SIZE",
+                help="size of the encoder output graph embedding",
+            )
+            parser.add_argument(
+                "--edge-size",
+                dest="edge_size",
+                default=1,
+                type=int,
+                metavar="EDGE_SIZE",
+                help="number of dimensions of a graph's edge",
+            )
+        except ArgumentError:
+            pass
         parser.add_argument(
             "--max-num-nodes",
             "--max-number-of-nodes",

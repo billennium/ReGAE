@@ -106,7 +106,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         )
         parser.add_argument(
             "--lr",
-            "--learning-rate",
+            "--learning_rate",
             dest="learning_rate",
             default=0.01,
             type=float,
