@@ -1,13 +1,20 @@
 - config: generic-flags
   flags:
-    max_epochs: 100
-    learning-rate: 0.01
     gpus: "0,"
-    checkpoint-monitor: "loss/val"
 
 - config: model-base
   operations:
-    num_edges:
+    synthetic:
+        main: 'graph_nn_vae.experiments.synthetic.{{ name }}_training'
+        flags:
+            $include: generic-flags
+        output-scalars: off
+        sourcecode:
+            select:
+                - "graph_nn_vae/*"
+            exclude:
+                - "**/__pycache__"
+    sanity_checks:
         main: 'graph_nn_vae.experiments.num_edges.{{ name }}_training'
         flags:
             $include: generic-flags
@@ -18,8 +25,12 @@
             exclude:
                 - "**/__pycache__"
 
-
-- model: encoder
+- model: recurrent_autoencoder
   extends: model-base
   params:
-    name: encoder
+    name: recurrent_autoencoder
+
+- model: encoder_num_edges
+  extends: model-base
+  params:
+    name: encoder_num_edges
