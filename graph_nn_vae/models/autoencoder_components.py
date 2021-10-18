@@ -119,11 +119,13 @@ class GraphDecoder(BaseModel):
         self.max_number_of_nodes = max_number_of_nodes
         super().__init__(**kwargs)
         self.edge_decoder = nn.Sequential(
-            nn.Linear(embedding_size, 512),
+            nn.Linear(embedding_size, 2048),
             nn.ReLU(),
-            nn.Linear(512, 1024),
+            nn.Linear(2048, 4096),
             nn.ReLU(),
-            nn.Linear(1024, self.internal_embedding_size + edge_size),
+            nn.Linear(4096, 8192),
+            nn.ReLU(),
+            nn.Linear(8192, self.internal_embedding_size + edge_size),
         )
 
     def forward(self, graph_encoding_batch: Tensor) -> Tensor:
@@ -131,15 +133,6 @@ class GraphDecoder(BaseModel):
         :param graph_encoding: the encoding of a graph (product of an encoder) of dimensions [batch_size, embedding_size]
         :return: graph adjacency matrices tensor of dimensions [batch_size, num_nodes, num_nodes, edge_size]
         """
-        batch_size = graph_encoding_batch.shape[0]
-        adjacency_matrices = torch.zeros(
-            (
-                batch_size,
-                self.max_number_of_nodes,
-                self.max_number_of_nodes,
-                self.edge_size,
-            )
-        )
         batch_concatenated_diagonals = []
 
         for batch_idx, graph_encoding in enumerate(graph_encoding_batch):
@@ -154,7 +147,7 @@ class GraphDecoder(BaseModel):
                     dim=1,
                 )
                 decoded_diagonals.append(decoded_edges)
-                if torch.mean(decoded_edges[:, 0]) < -0.5:
+                if torch.mean(decoded_edges[:, 0]) < -0.3:
                     break
 
                 # add zeroes to both sides - these are the empty embeddings of the far-out edges
@@ -213,25 +206,3 @@ class GraphDecoder(BaseModel):
             help="max number of nodes of generated graphs",
         )
         return parser
-
-
-class EdgeDecoder(pl.LightningModule):
-    def __init__(self, embedding_size: int, edge_size: int = 1, **kwargs):
-        self.edge_size = edge_size
-        self.embedding_size = embedding_size
-        super().__init__(**kwargs)
-        self.layers = nn.Sequential(
-            nn.Linear(2 * embedding_size, 512),
-            nn.ReLU(),
-            nn.Linear(512, 1024),
-            nn.ReLU(),
-            nn.Linear(1024, embedding_size + edge_size),
-            nn.ReLU(),
-        )
-
-    def forward(
-        self, prev_embedding_1: Tensor, prev_embedding_2: Tensor
-    ) -> tuple[Tensor, Tensor]:
-        x = torch.cat((prev_embedding_1, prev_embedding_2), 0)
-        y = self.layers(x)
-        return torch.split(y, [self.edge_size, self.embedding_size])

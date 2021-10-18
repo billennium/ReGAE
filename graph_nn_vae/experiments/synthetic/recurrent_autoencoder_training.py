@@ -12,9 +12,9 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
         parser.set_defaults(
             loss_function="MSE",
             optimizer="Adam",
-            embedding_size=128,
+            embedding_size=256,
             batch_size=8,
-            learning_rate=0.001,
+            learning_rate=0.0001,
             max_number_of_nodes=25,
         )
         return parser

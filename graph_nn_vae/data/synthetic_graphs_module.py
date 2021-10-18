@@ -1,15 +1,10 @@
 from argparse import ArgumentParser
-from typing import Optional
 import networkx as nx
 import numpy as np
 
-import torch
-from torch._C import dtype
-from torch.utils.data import TensorDataset
-
 from graph_nn_vae.data.data_module import BaseDataModule
 from graph_nn_vae.data.synthetic_graphs_create import create_synthetic_graphs
-from graph_nn_vae.util import adjmatrix
+from graph_nn_vae.util import adjmatrix, split_dataset_train_val_test
 
 
 class SyntheticGraphsDataModule(BaseDataModule):
@@ -38,32 +33,16 @@ class SyntheticGraphsDataModule(BaseDataModule):
             np_adj_matrix = nx.to_numpy_array(nx_graph, dtype=np.float32)
             for _ in range(self.num_dataset_graph_permutations):
                 adj_matrix = adjmatrix.random_permute(np_adj_matrix)
-                adj_matrix = np.tril(adj_matrix)
-                padding_size = max_number_of_nodes - adj_matrix.shape[0]
-                padded_matrix = np.pad(
-                    adj_matrix,
-                    [(padding_size, 0), (0, padding_size)],
-                    "constant",
-                    constant_values=0.0,
+                reshaped_matrix = adjmatrix.minimize_and_pad(
+                    adj_matrix, max_number_of_nodes
                 )
-                torch_matrix = torch.Tensor(padded_matrix)
-                extended_matrix = torch_matrix[:, :, None]
-                self.adjacency_matrices.append(extended_matrix)
-
-        train_dataset_size = int(0.8 * len(self.adjacency_matrices))
-        val_dataset_size = int(0.1 * len(self.adjacency_matrices))
-        test_dataset_size = (
-            len(self.adjacency_matrices) - train_dataset_size - val_dataset_size
-        )
+                self.adjacency_matrices.append(reshaped_matrix)
 
         (
             self.train_dataset,
             self.val_dataset,
             self.test_dataset,
-        ) = torch.utils.data.random_split(
-            self.adjacency_matrices,
-            [train_dataset_size, val_dataset_size, test_dataset_size],
-        )
+        ) = split_dataset_train_val_test(self.adjacency_matrices, [0.8, 0.1, 0.1])
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
