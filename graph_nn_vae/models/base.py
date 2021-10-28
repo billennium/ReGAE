@@ -75,9 +75,9 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             # To ensure this, we run it manually
             self.logger.experiment.flush()
 
-    def on_test_epoch_end(self):
-        for key, value in self.min_loss.get_min().items():
-            self.logger.log_hyperparams({key: value})
+    # def on_test_epoch_end(self):
+    #     for key, value in self.min_loss.get_min().items():
+    #         self.logger.log_hyperparams({key: value})
 
     def configure_optimizers(self):
         optimizer = self.optimizer(
