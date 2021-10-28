@@ -17,6 +17,7 @@ class GraphEncoder(BaseModel):
             nn.Linear(2 * embedding_size + edge_size, 128),
             nn.ReLU(),
             nn.Linear(128, 1024),
+            nn.ReLU(),
             nn.Linear(1024, embedding_size),
         )
 
