@@ -13,16 +13,21 @@ from graph_nn_vae import util
 class OverfitDecoder(GraphDecoder):
     def __init__(self, embedding_size: int, max_number_of_nodes: int, **kwargs):
         self.max_number_of_nodes = max_number_of_nodes
-        embedding_size = 2 * max_number_of_nodes
         super().__init__(
             embedding_size=embedding_size,
             max_number_of_nodes=max_number_of_nodes,
             **kwargs
         )
+        self.input_adapter_layer = torch.nn.Sequential(
+            torch.nn.Linear(2 * max_number_of_nodes, 512),
+            torch.nn.ReLU(),
+            torch.nn.Linear(512, embedding_size),
+        )
 
     def step(self, adjacency_matrices_batch: Tensor) -> Tensor:
-        graph_embdeddings = self._hash_adjacency_matrices(adjacency_matrices_batch)
-        reconstructed_graph_diagonals = self.forward(graph_embdeddings)
+        graph_hashes = self._hash_adjacency_matrices(adjacency_matrices_batch)
+        graph_embeddings = self.input_adapter_layer(graph_hashes)
+        reconstructed_graph_diagonals = self.forward(graph_embeddings)
         loss_f = torch.nn.MSELoss()
         loss = util.get_reconstruction_loss(
             adjacency_matrices_batch,
@@ -52,8 +57,9 @@ class OverfitDecoder(GraphDecoder):
             optimizer="Adam",
             batch_size=32,
             max_number_of_nodes=20,
-            learning_rate=0.002,
+            learning_rate=0.0002,
             check_val_every_n_epoch=10,
+            embedding_size=512,
         )
         return parser
 

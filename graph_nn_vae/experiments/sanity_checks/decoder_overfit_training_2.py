@@ -16,13 +16,20 @@ from graph_nn_vae.data.synthetic_graphs_create import create_synthetic_graphs
 
 class OverfitDecoder(GraphDecoder):
     def __init__(self, embedding_size: int, **kwargs):
-        embedding_size = 2
         super().__init__(embedding_size=embedding_size, **kwargs)
+        self.input_adapter_layer = torch.nn.Sequential(
+            torch.nn.Linear(1, 1024),
+            torch.nn.ReLU(),
+            torch.nn.Linear(1024, 2048),
+            torch.nn.ReLU(),
+            torch.nn.Linear(2048, embedding_size),
+        )
 
     def step(self, adj_with_codes_batch: Tensor) -> Tensor:
         adj_batch = adj_with_codes_batch[0]
-        graph_embdeddings = adj_with_codes_batch[1]
-        reconstructed_graph_diagonals = self.forward(graph_embdeddings)
+        graph_codes = adj_with_codes_batch[1]
+        graph_embeddings = self.input_adapter_layer(graph_codes)
+        reconstructed_graph_diagonals = self.forward(graph_embeddings)
         loss_f = torch.nn.MSELoss()
         loss = util.get_reconstruction_loss(
             adj_batch,
@@ -40,7 +47,9 @@ class OverfitDecoder(GraphDecoder):
             batch_size=32,
             max_number_of_nodes=20,
             learning_rate=0.0001,
+            max_epochs=5000,
             check_val_every_n_epoch=100,
+            embedding_size=256,
         )
         return parser
 
@@ -73,7 +82,7 @@ class SyntheticGraphsCodedDataModule(BaseDataModule):
                 adj_matrix, max_number_of_nodes
             )
             # graph embedding has to have at least 2 values, hence the 0.0
-            graph_code = torch.FloatTensor([code_idx, 0.0])
+            graph_code = torch.FloatTensor([code_idx])
             self.adjacency_matrices.append((reshaped_matrix, graph_code))
 
         (
