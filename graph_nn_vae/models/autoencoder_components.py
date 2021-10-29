@@ -131,7 +131,7 @@ class GraphDecoder(BaseModel):
 
     def forward(self, graph_encoding_batch: Tensor) -> Tensor:
         """
-        :param graph_encoding: the encoding of a graph (product of an encoder) of dimensions [batch_size, embedding_size]
+        :param graph_encoding_batch: batch of graph encodings (products of an encoder) of dimensions [batch_size, embedding_size]
         :return: graph adjacency matrices tensor of dimensions [batch_size, num_nodes, num_nodes, edge_size]
         """
         batch_concatenated_diagonals = []
@@ -166,7 +166,7 @@ class GraphDecoder(BaseModel):
                 max_concatenated_diagonals_length - concatenated_diagonals.shape[0]
             )
             concatenated_diagonals = torch.nn.functional.pad(
-                concatenated_diagonals, (0, 0, 0, pad_length), value=0.0
+                concatenated_diagonals, (0, 0, 0, pad_length), value=-1.0
             )
             batch_concatenated_diagonals.append(concatenated_diagonals)
 

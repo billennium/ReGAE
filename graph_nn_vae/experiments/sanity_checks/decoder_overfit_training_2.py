@@ -45,11 +45,12 @@ class OverfitDecoder(GraphDecoder):
             loss_function="MSE",
             optimizer="Adam",
             batch_size=32,
-            max_number_of_nodes=20,
             learning_rate=0.0001,
-            max_epochs=5000,
+            gradient_clip_val=0.005,
+            max_epochs=1000000,
             check_val_every_n_epoch=100,
-            embedding_size=256,
+            embedding_size=512,
+            max_number_of_nodes=20,
         )
         return parser
 
@@ -59,9 +60,10 @@ class SyntheticGraphsCodedDataModule(BaseDataModule):
     pad_sequence = False
     adjacency_matrices = []
 
-    def __init__(self, graph_type: str, **kwargs):
+    def __init__(self, graph_type: str, num_dataset_graph_permutations: int, **kwargs):
         super().__init__(**kwargs)
         self.graph_type = graph_type
+        self.num_dataset_graph_permutations = num_dataset_graph_permutations
         self.data_name += "_coded_" + graph_type
         self._prepare_data()
 
@@ -69,33 +71,56 @@ class SyntheticGraphsCodedDataModule(BaseDataModule):
         super().prepare_data(*args, **kwargs)
 
     def _prepare_data(self):
-        nx_graphs = create_synthetic_graphs(self.graph_type)
+        # nx_graphs = create_synthetic_graphs(self.graph_type)
+        nx_graphs = [
+            nx.grid_2d_graph(2, 3),
+            nx.grid_2d_graph(3, 2),
+            nx.grid_2d_graph(2, 2),
+            nx.grid_2d_graph(3, 3),
+            nx.grid_2d_graph(4, 3),
+            nx.grid_2d_graph(3, 4),
+            nx.grid_2d_graph(4, 4),
+        ]
         max_number_of_nodes = 0
         for graph in nx_graphs:
             if graph.number_of_nodes() > max_number_of_nodes:
                 max_number_of_nodes = graph.number_of_nodes()
 
         self.adjacency_matrices = []
-        for code_idx, nx_graph in enumerate(nx_graphs):
-            adj_matrix = nx.to_numpy_array(nx_graph, dtype=np.float32)
-            reshaped_matrix = adjmatrix.minimize_and_pad(
-                adj_matrix, max_number_of_nodes
-            )
-            # graph embedding has to have at least 2 values, hence the 0.0
-            graph_code = torch.FloatTensor([code_idx])
-            self.adjacency_matrices.append((reshaped_matrix, graph_code))
+        for graph_idx, nx_graph in enumerate(nx_graphs):
+            np_adj_matrix = nx.to_numpy_array(nx_graph, dtype=np.float32)
+            for permutation_idx in range(self.num_dataset_graph_permutations):
+                adj_matrix = adjmatrix.random_permute(np_adj_matrix)
+                reshaped_matrix = adjmatrix.minimize_and_pad(
+                    adj_matrix, max_number_of_nodes
+                )
+                graph_code = torch.FloatTensor(
+                    [graph_idx * self.num_dataset_graph_permutations + permutation_idx]
+                )
+                self.adjacency_matrices.append((reshaped_matrix, graph_code))
 
-        (
-            self.train_dataset,
-            self.val_dataset,
-            self.test_dataset,
-        ) = split_dataset_train_val_test(self.adjacency_matrices, [0.8, 0.1, 0.1])
+        self.train_dataset = self.adjacency_matrices
+        self.val_dataset = self.adjacency_matrices
+        self.test_dataset = self.adjacency_matrices
+        # (
+        #     self.train_dataset,
+        #     self.val_dataset,
+        #     self.test_dataset,
+        # ) = split_dataset_train_val_test(self.adjacency_matrices, [0.8, 0.1, 0.1])
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
         parser = BaseDataModule.add_model_specific_args(parent_parser)
+        parser.add_argument(
+            "--num_dataset_graph_permutations",
+            dest="num_dataset_graph_permutations",
+            default=4,
+            type=int,
+            help="number of permuted copies of the same graphs to generate in the dataset",
+        )
         parser.set_defaults(
             graph_type="grid_small",
+            num_dataset_graph_permutations=4,
         )
         return parser
 

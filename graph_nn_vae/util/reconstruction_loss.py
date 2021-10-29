@@ -16,8 +16,9 @@ def get_reconstruction_loss(
             for i in reversed(range(adjacency_matrix.shape[0]))
         ]
         for i in reversed(range(len(diagonals))):
-            if torch.count_nonzero(diagonals[i]) > 1:
-                diagonals[i + 1] = diagonals[i + 1].fill_(-1.0)
+            if torch.count_nonzero(diagonals[i]) == 0:
+                diagonals[i] = diagonals[i].fill_(-1.0)
+            else:
                 break
         concatenated_diagonals = torch.cat(diagonals, dim=0)
         input_concatenated_diagonals.append(concatenated_diagonals)
@@ -26,7 +27,7 @@ def get_reconstruction_loss(
     reconstructed_diagonals_length = reconstructed_graph_diagonals.shape[1]
     input_pad_length = reconstructed_diagonals_length - input_batch_reshaped.shape[1]
     input_batch_reshaped = torch.nn.functional.pad(
-        input_batch_reshaped, (0, 0, 0, input_pad_length)
+        input_batch_reshaped, (0, 0, 0, input_pad_length), value=-1.0
     )
 
     return loss_function(reconstructed_graph_diagonals, input_batch_reshaped)
