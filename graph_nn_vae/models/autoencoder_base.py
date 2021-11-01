@@ -7,6 +7,7 @@ import pytorch_lightning as pl
 
 from graph_nn_vae.models.base import BaseModel
 from graph_nn_vae.models.autoencoder_components import GraphEncoder, GraphDecoder
+from graph_nn_vae import util
 
 
 class RecurrentGraphAutoencoder(BaseModel):
@@ -29,38 +30,13 @@ class RecurrentGraphAutoencoder(BaseModel):
         reconstructed_graph_diagonals = self.decoder(graph_embdeddings)
         return reconstructed_graph_diagonals
 
-    def _get_reconstruction_loss(
-        self, adjacency_matrices_batch: Tensor, reconstructed_graph_diagonals: Tensor
-    ) -> Tensor:
-        input_concatenated_diagonals = []
-        for adjacency_matrix in adjacency_matrices_batch:
-            diagonals = [
-                torch.diagonal(adjacency_matrix, offset=-i).transpose(1, 0)
-                for i in reversed(range(adjacency_matrix.shape[0]))
-            ]
-            for i in reversed(range(len(diagonals))):
-                if torch.count_nonzero(diagonals[i]) > 1:
-                    diagonals[i + 1] = diagonals[i + 1].fill_(-1.0)
-                    break
-            concatenated_diagonals = torch.cat(diagonals, dim=0)
-            input_concatenated_diagonals.append(concatenated_diagonals)
-        input_batch_reshaped = torch.stack(input_concatenated_diagonals)
-
-        reconstructed_diagonals_length = reconstructed_graph_diagonals.shape[1]
-        input_pad_length = (
-            reconstructed_diagonals_length - input_batch_reshaped.shape[1]
-        )
-        input_batch_reshaped = torch.nn.functional.pad(
-            input_batch_reshaped, (0, 0, 0, input_pad_length)
-        )
-
-        loss_f = torch.nn.MSELoss()
-        loss = loss_f(reconstructed_graph_diagonals, input_batch_reshaped)
-        return loss
-
     def step(self, batch: Tensor) -> Tensor:
         reconstructed_graph_diagonals = self.forward(batch)
-        loss = self._get_reconstruction_loss(batch, reconstructed_graph_diagonals)
+        loss = util.get_reconstruction_loss(
+            batch,
+            reconstructed_graph_diagonals,
+            torch.nn.MSELoss(),
+        )
         return loss
 
     @staticmethod
