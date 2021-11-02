@@ -2,10 +2,7 @@ from typing import Callable
 
 import torch
 from torch import Tensor
-import numpy as np
-import pandas as pd
 
-g = 0
 
 def get_reconstruction_loss(
     adjacency_matrices_batch: Tensor,
@@ -32,36 +29,5 @@ def get_reconstruction_loss(
     input_batch_reshaped = torch.nn.functional.pad(
         input_batch_reshaped, (0, 0, 0, input_pad_length), value=-1.0
     )
-
-    global g
-    if g%100==0:
-
-
-        tmp = np.stack(
-                    [
-                        reconstructed_graph_diagonals.cpu().detach().numpy().round(2),
-                        input_batch_reshaped.cpu().detach().numpy(),
-                    ], axis = 1
-                )[:, :, :, 0]
-        res = []
-        if len(tmp) > 1:
-            for i, row in enumerate(tmp):
-                res.append(pd.DataFrame(row).transpose())
-                # print(pd.DataFrame(row).transpose().shape)
-        #         print('Example', i)
-        #         df_tmp = pd.DataFrame(row).transpose()
-        #         df_tmp['pred'] = df_tmp[0].round()
-        #         df_tmp['true'] = df_tmp[1]
-        #         print(df_tmp[['pred', 'true']].value_counts())
-                # print(' .' * 32)
-            # print('exaplmes', len(res))
-            res = pd.concat(res)
-            res['pred'] = res[0].apply(lambda x: round(x*2)/2)#.round()
-            res['true'] = res[1]
-            print(res[['pred', 'true']].value_counts())
-            print(' .' * 32)
-
-        # print('-'*500)
-    g = g + 1
 
     return loss_function(reconstructed_graph_diagonals, input_batch_reshaped)
