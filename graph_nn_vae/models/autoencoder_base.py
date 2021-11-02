@@ -5,6 +5,7 @@ import torch
 from torch import Tensor, nn
 import pytorch_lightning as pl
 
+from graph_nn_vae import util
 from graph_nn_vae.models.base import BaseModel
 from graph_nn_vae.models.autoencoder_components import GraphEncoder, GraphDecoder
 from graph_nn_vae import util

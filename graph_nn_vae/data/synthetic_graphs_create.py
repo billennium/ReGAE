@@ -88,8 +88,19 @@ def grid_big_graphs() -> list[nx.Graph]:
 def grid_small_graphs() -> list[nx.Graph]:
     graphs = []
     for i in range(2, 5):
-        for j in range(2, 6):
+        for j in range(2, 5):
             graphs.append(nx.grid_2d_graph(i, j))
+    # graphs = [
+    #     nx.grid_2d_graph(2, 2),
+    #     nx.grid_2d_graph(2, 3),
+    #     nx.grid_2d_graph(3, 2),
+    #     nx.grid_2d_graph(3, 3),
+    #     nx.grid_2d_graph(2, 4),
+    #     nx.grid_2d_graph(4, 2),
+    #     nx.grid_2d_graph(4, 3),
+    #     nx.grid_2d_graph(3, 4),
+    #     nx.grid_2d_graph(4, 4),
+    # ]
     return graphs
 
 
