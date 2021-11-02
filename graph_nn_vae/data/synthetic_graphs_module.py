@@ -52,15 +52,15 @@ class SyntheticGraphsDataModule(BaseDataModule):
                 )
                 adjacency_matrices.append(reshaped_matrix)
 
-        (
-            self.train_dataset,
-            self.val_dataset,
-            self.test_dataset,
-        ) = split_dataset_train_val_test(adjacency_matrices, [0.8, 0.1, 0.1])
-        if len(self.val_dataset) == 0 or len(self.train_dataset) == 0:
-            self.train_dataset = adjacency_matrices
-            self.val_dataset = adjacency_matrices
-            self.test_dataset = adjacency_matrices
+        # (
+        #     self.train_dataset,
+        #     self.val_dataset,
+        #     self.test_dataset,
+        # ) = split_dataset_train_val_test(adjacency_matrices, [0.8, 0.1, 0.1])
+        # if len(self.val_dataset) == 0 or len(self.train_dataset) == 0:
+        self.train_dataset = adjacency_matrices
+        self.val_dataset = adjacency_matrices
+        self.test_dataset = adjacency_matrices
 
 
     @staticmethod
