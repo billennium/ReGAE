@@ -42,8 +42,11 @@ class SyntheticGraphsDataModule(BaseDataModule):
         adjacency_matrices = []
         for nx_graph in nx_graphs:
             np_adj_matrix = nx.to_numpy_array(nx_graph, dtype=np.float32)
-            for _ in range(self.num_dataset_graph_permutations):
-                adj_matrix = adjmatrix.random_permute(np_adj_matrix)
+            for i in range(self.num_dataset_graph_permutations):
+                if i != 0:
+                    adj_matrix = adjmatrix.random_permute(np_adj_matrix)
+                else:
+                    adj_matrix = np_adj_matrix
                 reshaped_matrix = adjmatrix.minimize_and_pad(
                     adj_matrix, max_number_of_nodes
                 )
@@ -53,11 +56,12 @@ class SyntheticGraphsDataModule(BaseDataModule):
             self.train_dataset,
             self.val_dataset,
             self.test_dataset,
-        ) = split_dataset_train_val_test(adjacency_matrices, [0.8, 0.1, 0.1])
+        ) = split_dataset_train_val_test(adjacency_matrices, [0.7, 0.2, 0.1])
         if len(self.val_dataset) == 0 or len(self.train_dataset) == 0:
             self.train_dataset = adjacency_matrices
             self.val_dataset = adjacency_matrices
             self.test_dataset = adjacency_matrices
+
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):

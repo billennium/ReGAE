@@ -18,11 +18,9 @@ class OverfitDecoder(GraphDecoder):
     def __init__(self, embedding_size: int, **kwargs):
         super().__init__(embedding_size=embedding_size, **kwargs)
         self.input_adapter_layer = torch.nn.Sequential(
-            torch.nn.Linear(1, 1024),
+            torch.nn.Linear(1, 256),
             torch.nn.ReLU(),
-            torch.nn.Linear(1024, 2048),
-            torch.nn.ReLU(),
-            torch.nn.Linear(2048, embedding_size),
+            torch.nn.Linear(256, embedding_size),
         )
 
     def step(self, adj_with_codes_batch: Tensor) -> Tensor:
@@ -45,12 +43,12 @@ class OverfitDecoder(GraphDecoder):
             loss_function="MSE",
             optimizer="Adam",
             batch_size=32,
-            learning_rate=0.0001,
-            gradient_clip_val=0.005,
-            max_epochs=1000000,
+            learning_rate=0.0005,
+            gradient_clip_val=0.01,
+            max_epochs=1000,
             check_val_every_n_epoch=100,
-            embedding_size=512,
-            max_number_of_nodes=20,
+            embedding_size=64,
+            max_number_of_nodes=17,
         )
         return parser
 
@@ -99,14 +97,15 @@ class SyntheticGraphsCodedDataModule(BaseDataModule):
                 )
                 self.adjacency_matrices.append((reshaped_matrix, graph_code))
 
-        self.train_dataset = self.adjacency_matrices
-        self.val_dataset = self.adjacency_matrices
-        self.test_dataset = self.adjacency_matrices
-        # (
-        #     self.train_dataset,
-        #     self.val_dataset,
-        #     self.test_dataset,
-        # ) = split_dataset_train_val_test(self.adjacency_matrices, [0.8, 0.1, 0.1])
+        # self.train_dataset = self.adjacency_matrices
+        # self.val_dataset = self.adjacency_matrices
+        # self.test_dataset = self.adjacency_matrices
+        (
+            self.train_dataset,
+            self.val_dataset,
+            self.test_dataset,
+        ) = split_dataset_train_val_test(self.adjacency_matrices, [0.8, 0.1, 0.1])
+
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):

@@ -6,6 +6,12 @@ from graph_nn_vae.experiments.experiment import Experiment
 from graph_nn_vae.data import SyntheticGraphsDataModule
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
 
+from graph_nn_vae.data.data_module import BaseDataModule
+import networkx as nx
+from graph_nn_vae.util import adjmatrix, split_dataset_train_val_test
+import torch
+import numpy as np
+
 
 class GraphAutoencoder(RecurrentGraphAutoencoder):
     @staticmethod
@@ -14,13 +20,13 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
         parser.set_defaults(
             loss_function="MSE",
             optimizer="Adam",
-            embedding_size=256,
+            embedding_size=128,
             batch_size=32,
-            learning_rate=0.00006,
-            gradient_clip_val=0.005,
-            max_number_of_nodes=20,
-            max_epochs=100000,
-            check_val_every_n_epoch=100,
+            learning_rate=0.0005,
+            max_number_of_nodes=16,
+            gradient_clip_val=0.01,
+            max_epochs=10000,
+            check_val_every_n_epoch=50,
         )
         return parser
 
@@ -48,4 +54,4 @@ class PreparedGraphsDataModule(SyntheticGraphsDataModule):
 
 
 if __name__ == "__main__":
-    Experiment(GraphAutoencoder, PreparedGraphsDataModule).run()
+    Experiment(GraphAutoencoder, SyntheticGraphsDataModule).run()
