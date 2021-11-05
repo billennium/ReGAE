@@ -16,8 +16,6 @@ class GraphEncoder(BaseModel):
         self.edge_encoder = nn.Sequential(
             nn.Linear(2 * embedding_size + edge_size, 256),
             nn.ReLU(),
-            # nn.Linear(128, 256),
-            # nn.ReLU(),
             nn.Linear(256, embedding_size),
         )
 
@@ -125,10 +123,7 @@ class GraphDecoder(BaseModel):
         self.edge_decoder = nn.Sequential(
             nn.Linear(embedding_size, 256),
             nn.ReLU(),
-            # nn.Linear(256, 128),
-            # nn.ReLU(),
             nn.Linear(256, self.internal_embedding_size*2 + edge_size),
-            nn.Tanh()
         )
 
     def forward(self, graph_encoding_batch: Tensor) -> Tensor:
@@ -149,6 +144,7 @@ class GraphDecoder(BaseModel):
                     [self.edge_size, self.internal_embedding_size, self.internal_embedding_size],
                     dim=1,
                 )
+                decoded_edges = nn.functional.tanh(decoded_edges)
                 decoded_diagonals.append(decoded_edges)
                 if torch.mean(decoded_edges[:, 0]) < -0.3:
                     break
