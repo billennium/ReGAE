@@ -45,7 +45,7 @@ class OverfitDecoder(GraphDecoder):
             batch_size=32,
             learning_rate=0.0005,
             gradient_clip_val=0.01,
-            max_epochs=1000,
+            max_epochs=100000,
             check_val_every_n_epoch=100,
             embedding_size=64,
             max_number_of_nodes=17,
@@ -105,7 +105,6 @@ class SyntheticGraphsCodedDataModule(BaseDataModule):
             self.val_dataset,
             self.test_dataset,
         ) = split_dataset_train_val_test(self.adjacency_matrices, [0.8, 0.1, 0.1])
-
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
