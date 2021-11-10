@@ -6,6 +6,7 @@ import pytorch_lightning as pl
 from torch.nn import functional as F
 
 from graph_nn_vae.models.base import BaseModel
+from graph_nn_vae.models.utils import weighted_average
 
 
 class GraphEncoder(BaseModel):
@@ -16,7 +17,7 @@ class GraphEncoder(BaseModel):
         self.edge_encoder = nn.Sequential(
             nn.Linear(2 * embedding_size + edge_size, 256),
             nn.ReLU(),
-            nn.Linear(256, embedding_size),
+            nn.Linear(256, 3 * embedding_size),
         )
 
     def forward(self, adjacency_matrices_batch: Tensor) -> Tensor:
@@ -65,8 +66,25 @@ class GraphEncoder(BaseModel):
                 encoder_input = torch.cat(
                     (embeddings_left, embeddings_right, current_diagonal), 1
                 )
-                prev_embedding = self.edge_encoder(encoder_input)
+                encoder_output = self.edge_encoder(encoder_input)
 
+                (embedding, mem_overwrite_ratio, embedding_ratio,) = torch.split(
+                    encoder_output,
+                    [
+                        self.embedding_size,
+                        self.embedding_size,
+                        self.embedding_size,
+                    ],
+                    dim=1,
+                )
+                weighted_prev_embedding = weighted_average(
+                    embeddings_left, embeddings_right, embedding_ratio
+                )
+                new_embedding = weighted_average(
+                    weighted_prev_embedding, embedding, mem_overwrite_ratio
+                )
+
+                prev_embedding = new_embedding
             returned_embeddings.append(prev_embedding)
         embeddings_batch = torch.cat(returned_embeddings)
 
@@ -74,10 +92,7 @@ class GraphEncoder(BaseModel):
 
     def step(self, batch: Tensor) -> Tensor:
         embeddings = self(batch)
-        num_nodes = torch.zeros(
-            (len(batch), self.embedding_size),
-            device=batch.device
-        )
+        num_nodes = torch.zeros((len(batch), self.embedding_size), device=batch.device)
         for i, adjacency_matrix in enumerate(batch):
             num_nodes[i, 0] = torch.sum(adjacency_matrix)
         return F.mse_loss(embeddings, num_nodes)
@@ -121,9 +136,9 @@ class GraphDecoder(BaseModel):
         self.max_number_of_nodes = max_number_of_nodes
         super().__init__(**kwargs)
         self.edge_decoder = nn.Sequential(
-            nn.Linear(embedding_size, 256),
+            nn.Linear(self.internal_embedding_size * 2, 256),
             nn.ReLU(),
-            nn.Linear(256, self.internal_embedding_size*2 + edge_size),
+            nn.Linear(256, self.internal_embedding_size * 4 + edge_size),
         )
 
     def forward(self, graph_encoding_batch: Tensor) -> Tensor:
@@ -139,15 +154,29 @@ class GraphDecoder(BaseModel):
 
             for diagonal_offset in range(1, self.max_number_of_nodes + 1):
                 edge_with_embeddings = self.edge_decoder(prev_doubled_embeddings)
-                decoded_edges, embedding_1, embedding_2 = torch.split(
+                (decoded_edges, doubled_embeddings, mem_overwrite_ratio,) = torch.split(
                     edge_with_embeddings,
-                    [self.edge_size, self.internal_embedding_size, self.internal_embedding_size],
+                    [
+                        self.edge_size,
+                        self.internal_embedding_size * 2,
+                        self.internal_embedding_size * 2,
+                    ],
                     dim=1,
                 )
                 decoded_edges = nn.functional.tanh(decoded_edges)
                 decoded_diagonals.append(decoded_edges)
                 if torch.mean(decoded_edges[:, 0]) < -0.3:
                     break
+
+                doubled_embeddings = weighted_average(
+                    doubled_embeddings, prev_doubled_embeddings, mem_overwrite_ratio
+                )
+
+                embedding_1, embedding_2 = torch.split(
+                    doubled_embeddings,
+                    [self.internal_embedding_size, self.internal_embedding_size],
+                    dim=1,
+                )
 
                 # add zeroes to both sides - these are the empty embeddings of the far-out edges
                 prev_embeddings_1 = torch.nn.functional.pad(embedding_1, (0, 0, 1, 0))
