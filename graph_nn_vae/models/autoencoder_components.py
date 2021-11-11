@@ -1,4 +1,5 @@
 from argparse import ArgumentParser, ArgumentError
+from typing import List
 
 import torch
 from torch import nn, Tensor
@@ -6,18 +7,25 @@ import pytorch_lightning as pl
 from torch.nn import functional as F
 
 from graph_nn_vae.models.base import BaseModel
-from graph_nn_vae.models.utils import weighted_average
+from graph_nn_vae.models.utils import sequential_from_layer_sizes, weighted_average
 
 
 class GraphEncoder(BaseModel):
-    def __init__(self, embedding_size: int, edge_size: int, **kwargs):
+    def __init__(
+        self,
+        embedding_size: int,
+        edge_size: int,
+        encoder_hidden_layer_sizes: List[int],
+        **kwargs,
+    ):
         self.embedding_size = embedding_size
         self.edge_size = edge_size
         super(GraphEncoder, self).__init__(**kwargs)
-        self.edge_encoder = nn.Sequential(
-            nn.Linear(2 * embedding_size + edge_size, 256),
-            nn.ReLU(),
-            nn.Linear(256, 3 * embedding_size),
+
+        input_size = 2 * embedding_size + edge_size
+        output_size = 3 * embedding_size
+        self.edge_encoder = sequential_from_layer_sizes(
+            input_size, output_size, encoder_hidden_layer_sizes
         )
 
     def forward(self, adjacency_matrices_batch: Tensor) -> Tensor:
@@ -120,12 +128,25 @@ class GraphEncoder(BaseModel):
             )
         except ArgumentError:
             pass
+        parser.add_argument(
+            "--encoder_hidden_layer_sizes",
+            dest="encoder_hidden_layer_sizes",
+            default=[256],
+            type=List[int],
+            metavar="DECODER_H_SIZES",
+            help="list of the sizes of the decoder's hidden layers",
+        )
         return parser
 
 
 class GraphDecoder(BaseModel):
     def __init__(
-        self, embedding_size: int, edge_size: int, max_number_of_nodes: int, **kwargs
+        self,
+        embedding_size: int,
+        edge_size: int,
+        max_number_of_nodes: int,
+        decoder_hidden_layer_sizes: List[int],
+        **kwargs,
     ):
         if embedding_size % 2 != 0:
             raise ValueError(
@@ -135,10 +156,11 @@ class GraphDecoder(BaseModel):
         self.edge_size = edge_size
         self.max_number_of_nodes = max_number_of_nodes
         super().__init__(**kwargs)
-        self.edge_decoder = nn.Sequential(
-            nn.Linear(self.internal_embedding_size * 2, 256),
-            nn.ReLU(),
-            nn.Linear(256, self.internal_embedding_size * 4 + edge_size),
+
+        input_size = self.internal_embedding_size * 2
+        output_size = self.internal_embedding_size * 4 + edge_size
+        self.edge_decoder = sequential_from_layer_sizes(
+            input_size, output_size, decoder_hidden_layer_sizes
         )
 
     def forward(self, graph_encoding_batch: Tensor) -> Tensor:
@@ -224,6 +246,14 @@ class GraphDecoder(BaseModel):
             )
         except ArgumentError:
             pass
+        parser.add_argument(
+            "--decoder_hidden_layer_sizes",
+            dest="decoder_hidden_layer_sizes",
+            default=[256],
+            type=List[int],
+            metavar="DECODER_H_SIZES",
+            help="list of the sizes of the decoder's hidden layers",
+        )
         parser.add_argument(
             "--max-num-nodes",
             "--max-number-of-nodes",
