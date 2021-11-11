@@ -27,6 +27,8 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             gradient_clip_val=0.01,
             max_epochs=10000,
             check_val_every_n_epoch=50,
+            encoder_hidden_layer_sizes=[512],
+            decoder_hidden_layer_sizes=[512],
         )
         return parser
 
