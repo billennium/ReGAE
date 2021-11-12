@@ -17,11 +17,13 @@ class SyntheticGraphsDataModule(BaseDataModule):
         num_dataset_graph_permutations: int,
         preprepared_graphs: List[nx.Graph] = None,
         graph_type: str = "",
+        bfs: bool = False,
         **kwargs
     ):
         super().__init__(**kwargs)
         self.graph_type = graph_type
         self.num_dataset_graph_permutations = num_dataset_graph_permutations
+        self.bfs = bfs
         if preprepared_graphs is None:
             self.data_name += "_" + graph_type
         else:
@@ -47,6 +49,10 @@ class SyntheticGraphsDataModule(BaseDataModule):
                     adj_matrix = adjmatrix.random_permute(np_adj_matrix)
                 else:
                     adj_matrix = np_adj_matrix
+
+                if self.bfs:
+                    adj_matrix = adjmatrix.bfs_ordering(adj_matrix)
+
                 reshaped_matrix = adjmatrix.minimize_and_pad(
                     adj_matrix, max_number_of_nodes
                 )
@@ -80,5 +86,10 @@ class SyntheticGraphsDataModule(BaseDataModule):
             type=int,
             help="number of permuted copies of the same graphs to generate in the dataset",
         )
-
+        parser.add_argument(
+            "--bfs",
+            dest="bfs",
+            action='store_true',
+            help="reorder nodes in graphs by using BFS",
+        )
         return parser
