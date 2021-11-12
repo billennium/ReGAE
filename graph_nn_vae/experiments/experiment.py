@@ -41,7 +41,7 @@ class Experiment:
             args.batch_size_val = args.batch_size
             args.batch_size_test = args.batch_size
 
-        data_module = self.data_module(**vars(args))
+        data_module: BaseDataModule = self.data_module(**vars(args))
         model = self.model(
             **vars(args),
             loss_weight=data_module.loss_weight(),
@@ -60,7 +60,12 @@ class Experiment:
 
         # if args.thresholded_early_stopping:
         #     trainer.callbacks.append(early_stopping)
-        trainer.logger.log_hyperparams(args)
+        args.train_dataset_length = len(data_module.train_dataset)
+        args.val_dataset_length = len(data_module.val_dataset)
+        args.test_dataset_length = len(data_module.test_dataset)
+
+        arg_dict = {k: v for (k, v) in vars(args).items() if not callable(v)}
+        trainer.logger.log_hyperparams(argparse.Namespace(**arg_dict))
 
         start = time.time()
         trainer.fit(model, datamodule=data_module)
