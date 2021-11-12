@@ -56,4 +56,4 @@ class PreparedGraphsDataModule(SyntheticGraphsDataModule):
 
 
 if __name__ == "__main__":
-    Experiment(GraphAutoencoder, SyntheticGraphsDataModule).run()
+    Experiment(GraphAutoencoder, PreparedGraphsDataModule).run()
