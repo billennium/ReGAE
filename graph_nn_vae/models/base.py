@@ -1,6 +1,6 @@
 from abc import ABCMeta
 from argparse import ArgumentParser
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor, nn
@@ -34,8 +34,20 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
     def forward(self, **kwargs) -> Tensor:
         raise NotImplementedError
 
+    def adjust_y_to_prediction(self, batch, y_predicted) -> Tuple[Tensor, Tensor]:
+        """
+        Returns y_predicted and ground truth y after adjustments to their shape for loss calculation.
+        Overload this function if this kind of adjustment is needed.
+        """
+        return batch, y_predicted
+
     def step(self, batch) -> Tensor:
-        raise NotImplementedError
+        y_predicted = self(batch)
+        y, y_predicted = self.adjust_y_to_prediction(batch, y_predicted)
+        loss = self.loss_function(y_predicted, y)
+        # for metric in self.metrics:
+        #     metric(y_hat, y)
+        return loss
 
     def training_step(self, batch, batch_idx):
         loss = self.step(batch)
