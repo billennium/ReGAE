@@ -1,12 +1,11 @@
 from abc import ABCMeta
 from argparse import ArgumentParser
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 
 import torch
 from torch import Tensor, nn
 import pytorch_lightning as pl
-
-from graph_nn_vae.models.utils import get_loss, get_optimizer
+from graph_nn_vae.models.utils.getters import get_metrics, get_loss, get_optimizer
 
 
 class BaseModel(pl.LightningModule, metaclass=ABCMeta):
@@ -20,6 +19,8 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         optimizer: str,
         weight_decay: float,
         scheduler_gamma: float,
+        metrics: List[str],
+        metric_update_interval: int = 1,
         **kwargs,
     ):
         super(BaseModel, self).__init__()
@@ -28,6 +29,11 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         self.optimizer = get_optimizer(optimizer)
         self.weight_decay = weight_decay
         self.scheduler_gamma = scheduler_gamma
+        self.metrics_train = nn.ModuleList(get_metrics(metrics))
+        self.metrics_val = nn.ModuleList(get_metrics(metrics))
+        self.metrics_test = nn.ModuleList(get_metrics(metrics))
+        self.metric_update_interval = metric_update_interval
+        self.metric_update_counter = 0
 
         # self.min_loss = MinimumSaver()
 
@@ -41,25 +47,33 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         """
         return batch, y_predicted
 
-    def step(self, batch) -> Tensor:
+    def step(self, batch, metrics: List[Callable] = []) -> Tensor:
         y_predicted = self(batch)
         y, y_predicted = self.adjust_y_to_prediction(batch, y_predicted)
         loss = self.loss_function(y_predicted, y)
-        # for metric in self.metrics:
-        #     metric(y_hat, y)
+
+        for metric in metrics:
+            metric(y_predicted, y)
+
         return loss
 
     def training_step(self, batch, batch_idx):
-        loss = self.step(batch)
-        # for metric in self.metrics:
-        #     self.log(f"{metric.label}/train_avg", metric, on_step=False, on_epoch=True)
+        should_update_metric = (
+            self.metric_update_counter % self.metric_update_interval == 0
+        )
+        self.metric_update_counter += 1
+        metrics = self.metrics_train if should_update_metric else []
+
+        loss = self.step(batch, metrics)
+        for metric in metrics:
+            self.log(f"{metric.label}/train_avg", metric, on_step=False, on_epoch=True)
         self.log("loss/train_avg", loss, on_step=False, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss = self.step(batch)
-        # for metric in self.metrics:
-        #     self.log(f"{metric.label}/val", metric, prog_bar=True)
+        loss = self.step(batch, self.metrics_val)
+        for metric in self.metrics_val:
+            self.log(f"{metric.label}/val", metric, prog_bar=True)
         self.log("loss/val", loss, prog_bar=True)
         # self.min_loss.log("loss/val_min", loss.item(), batch[0].shape[0])
         return loss
@@ -75,9 +89,9 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         # )
 
     def test_step(self, batch, batch_idx):
-        loss = self.step(batch)
-        # for metric in self.metrics:
-        #     self.log(f"{metric.label}/test", metric, prog_bar=True)
+        loss = self.step(batch, self.metrics_test)
+        for metric in self.metrics_test:
+            self.log(f"{metric.label}/test", metric, prog_bar=True)
         self.log("loss/test", loss)
         return loss
 
@@ -148,5 +162,21 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             type=float,
             metavar="FLOAT",
             help="scheduler gamma",
+        )
+        parser.add_argument(
+            "--metrics",
+            default=[],
+            nargs="+",
+            type=str,
+            metavar="METRIC",
+            help="list of names of metrics to be logged",
+        )
+        parser.add_argument(
+            "--metric_update_interval",
+            dest="metric_update_interval",
+            default=1,
+            type=int,
+            help="Every how many steps to update the training metrics (other than loss). \
+                Higher values decrease computation costs related to metric updating at the expense of precision.",
         )
         return parser

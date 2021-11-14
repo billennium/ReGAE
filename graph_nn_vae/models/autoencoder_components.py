@@ -7,7 +7,8 @@ import pytorch_lightning as pl
 from torch.nn import functional as F
 
 from graph_nn_vae.models.base import BaseModel
-from graph_nn_vae.models.utils import sequential_from_layer_sizes, weighted_average
+from graph_nn_vae.models.utils.layers import sequential_from_layer_sizes
+from graph_nn_vae.models.utils.calc import weighted_average
 
 
 class GraphEncoder(BaseModel):

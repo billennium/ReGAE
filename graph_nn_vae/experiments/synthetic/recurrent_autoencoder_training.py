@@ -29,6 +29,9 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             check_val_every_n_epoch=50,
             encoder_hidden_layer_sizes=[512],
             decoder_hidden_layer_sizes=[512],
+            bfs=True,
+            metrics=["Accuracy"],
+            metric_update_interval=10,
         )
         return parser
 
