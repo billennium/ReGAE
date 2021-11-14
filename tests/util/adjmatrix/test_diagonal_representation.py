@@ -15,7 +15,13 @@ from graph_nn_vae.util.adjmatrix.pad import minimize_and_pad
         # ([[0]], 1, None, [0]), one node is not compatible as is's not really a graph
         ([[0, 0], [1, 0]], 2, None, [1]),
         ([[0, 0], [1, 0]], 2, 3, [1, -1, -1]),
-        ([[0, 0, 0], [0, 0, 0], [1, 1, 0]], 3, 3, [0, 1, 1]),
+        ([[0, 0, 0], [0, 0, 0], [1, 1, 0]], 3, 3, [1, 0, 1]),
+        (
+            [[0, 0, 0, 0], [1, 0, 0, 0], [1, 0, 0, 0], [0, 1, 1, 0]],
+            4,
+            4,
+            [0, 1, 1, 1, 0, 1],
+        ),
     ],
 )
 def test_adj_matrix_to_diagonal_representation(

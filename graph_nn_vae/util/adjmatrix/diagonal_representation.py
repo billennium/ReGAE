@@ -16,9 +16,12 @@ def adj_matrix_to_diagonal_representation(
     1  1 0 0 0
     2  1 0 0 0
     3  0 1 1 0
+
+    The diagonal representation for this graph will be:
+    011101 + -1 padding
     """
     diagonals = []
-    for diagonal_offset in reversed(range(1, num_nodes)):
+    for diagonal_offset in range(1, num_nodes):
         diagonal = torch.diagonal(
             adj_matrix,
             offset=diagonal_offset - adj_matrix.shape[0],

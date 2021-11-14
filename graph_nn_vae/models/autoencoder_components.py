@@ -58,19 +58,19 @@ class GraphEncoder(BaseModel):
             3  0 1 1 0
                 |
                 V
-            101110 + -1 padding
+            011101 + -1 padding
             """
 
             num_diagonals = num_nodes - 1
             first_diag_length = num_diagonals
-            diag_begin_pos = 0
+            diag_right_pos = int((1 + num_diagonals) * num_diagonals / 2)
             for diagonal_offset in range(num_diagonals):
                 embeddings_left = prev_embedding[:-1, :]
                 embeddings_right = prev_embedding[1:, :]
 
                 diag_length = first_diag_length - diagonal_offset
-                diag_end_pos = diag_begin_pos + diag_length
-                current_diagonal = diagonal_repr_graph[diag_begin_pos:diag_end_pos, :]
+                diag_left_pos = diag_right_pos - diag_length
+                current_diagonal = diagonal_repr_graph[diag_left_pos:diag_right_pos, :]
 
                 encoder_input = torch.cat(
                     (embeddings_left, embeddings_right, current_diagonal), dim=1
@@ -94,7 +94,7 @@ class GraphEncoder(BaseModel):
                 )
 
                 prev_embedding = new_embedding
-                diag_begin_pos = diag_end_pos
+                diag_right_pos = diag_left_pos
             returned_embeddings.append(prev_embedding)
         embeddings_batch = torch.cat(returned_embeddings)
 
@@ -184,7 +184,7 @@ class GraphDecoder(BaseModel):
             prev_doubled_embeddings = graph_encoding[None, :]
             decoded_diagonals = []
 
-            for diagonal_offset in range(1, self.max_number_of_nodes + 1):
+            for _ in range(self.max_number_of_nodes):
                 edge_with_embeddings = self.edge_decoder(prev_doubled_embeddings)
                 (decoded_edges, doubled_embeddings, mem_overwrite_ratio,) = torch.split(
                     edge_with_embeddings,
