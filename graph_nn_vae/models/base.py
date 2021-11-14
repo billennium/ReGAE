@@ -36,7 +36,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
 
     def adjust_y_to_prediction(self, batch, y_predicted) -> Tuple[Tensor, Tensor]:
         """
-        Returns y_predicted and ground truth y after adjustments to their shape for loss calculation.
+        Returns Tuple[ground_truth_y, y_predicted) after adjustments to their shape for loss calculation.
         Overload this function if this kind of adjustment is needed.
         """
         return batch, y_predicted
