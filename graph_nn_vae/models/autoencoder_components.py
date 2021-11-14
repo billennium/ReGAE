@@ -28,51 +28,52 @@ class GraphEncoder(BaseModel):
             input_size, output_size, encoder_hidden_layer_sizes
         )
 
-    def forward(self, adjacency_matrices_batch: Tensor) -> Tensor:
+    def forward(self, input_batch: Tensor) -> Tensor:
         """
-        :param adjacency matrix: a stripped adjacency matrix Tensor of dimensions [num_nodes-1, num_nodes-1, edge_size]
+        :param input_batch: a batch consisting of a tuple of diagonally represented graphs and their number of nodes
         :return: a graph embedding Tensor of dimensions [embedding_size]
         """
+        diagonal_repr_graphs_batch = input_batch[0]
+        diagonal_repr_graphs_batch.requires_grad = True
+        num_nodes_batch = input_batch[1]
+
         returned_embeddings = []
-        for batch_idx, adjacency_matrix in enumerate(adjacency_matrices_batch):
-            num_nodes = 0
-            for i in range(adjacency_matrix.shape[0]):
-                diagonal = torch.diagonal(adjacency_matrix, offset=-i)
-                if torch.sum(diagonal) != 0.0:
-                    num_nodes = adjacency_matrix.shape[0] - i + 1
-                    break
+        for batch_idx, diagonal_repr_graph in enumerate(diagonal_repr_graphs_batch):
+            num_nodes = num_nodes_batch[batch_idx]
 
             prev_embedding = torch.zeros(
                 (num_nodes, self.embedding_size),
                 requires_grad=True,
-                device=adjacency_matrices_batch.device,
+                device=diagonal_repr_graph.device,
             )
 
             """
-            The adjacency matrix has now a shape like [y, x, edge_size].
-            For example, skipping the edge_size dimension:
+            The graph is represented in the diagonal form with a shape like [summed_diagonal_length+padding, edge_size].
+            For example, skipping the edge_size dimension for a graph of adjacency matrix:
              x 0 1 2 3
             y
             0  0 0 0 0
             1  1 0 0 0
             2  1 0 0 0
             3  0 1 1 0
+                |
+                V
+            011101 + -1 padding
             """
 
-            for diagonal_offset in reversed(range(1, num_nodes)):
+            num_diagonals = num_nodes - 1
+            first_diag_length = num_diagonals
+            diag_right_pos = int((1 + num_diagonals) * num_diagonals / 2)
+            for diagonal_offset in range(num_diagonals):
                 embeddings_left = prev_embedding[:-1, :]
                 embeddings_right = prev_embedding[1:, :]
-                current_diagonal = (
-                    torch.diagonal(
-                        adjacency_matrix,
-                        offset=diagonal_offset - adjacency_matrix.shape[0],
-                    )
-                    .transpose(1, 0)
-                    .requires_grad_()
-                )
+
+                diag_length = first_diag_length - diagonal_offset
+                diag_left_pos = diag_right_pos - diag_length
+                current_diagonal = diagonal_repr_graph[diag_left_pos:diag_right_pos, :]
 
                 encoder_input = torch.cat(
-                    (embeddings_left, embeddings_right, current_diagonal), 1
+                    (embeddings_left, embeddings_right, current_diagonal), dim=1
                 )
                 encoder_output = self.edge_encoder(encoder_input)
 
@@ -93,6 +94,7 @@ class GraphEncoder(BaseModel):
                 )
 
                 prev_embedding = new_embedding
+                diag_right_pos = diag_left_pos
             returned_embeddings.append(prev_embedding)
         embeddings_batch = torch.cat(returned_embeddings)
 
@@ -100,10 +102,18 @@ class GraphEncoder(BaseModel):
 
     def step(self, batch: Tensor) -> Tensor:
         embeddings = self(batch)
-        num_nodes = torch.zeros((len(batch), self.embedding_size), device=batch.device)
-        for i, adjacency_matrix in enumerate(batch):
-            num_nodes[i, 0] = torch.sum(adjacency_matrix)
-        return F.mse_loss(embeddings, num_nodes)
+        diagonal_repr_graphs_batch = batch[0]
+        num_nodes_batch = batch[1]
+        num_edges = torch.zeros(
+            (len(diagonal_repr_graphs_batch), self.embedding_size),
+            device=diagonal_repr_graphs_batch.device,
+        )
+        for i, diagonal_repr_graph in enumerate(diagonal_repr_graphs_batch):
+            num_nodes = num_nodes_batch[i].item()
+            non_padded_diagonal_length = int(((1 + num_nodes) * num_nodes) / 2)
+            diagonal_repr_graph = diagonal_repr_graph[:non_padded_diagonal_length]
+            num_edges[i, 0] = torch.sum(diagonal_repr_graph)
+        return F.mse_loss(embeddings, num_edges)
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
@@ -174,7 +184,7 @@ class GraphDecoder(BaseModel):
             prev_doubled_embeddings = graph_encoding[None, :]
             decoded_diagonals = []
 
-            for diagonal_offset in range(1, self.max_number_of_nodes + 1):
+            for _ in range(self.max_number_of_nodes):
                 edge_with_embeddings = self.edge_decoder(prev_doubled_embeddings)
                 (decoded_edges, doubled_embeddings, mem_overwrite_ratio,) = torch.split(
                     edge_with_embeddings,
