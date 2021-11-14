@@ -196,7 +196,7 @@ class GraphDecoder(BaseModel):
                     ],
                     dim=1,
                 )
-                decoded_edges = nn.functional.tanh(decoded_edges)
+                decoded_edges = torch.tanh(decoded_edges)
                 decoded_diagonals.append(decoded_edges)
                 if torch.mean(decoded_edges[:, 0]) < -0.3:
                     break
