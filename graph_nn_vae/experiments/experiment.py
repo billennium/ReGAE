@@ -16,6 +16,14 @@ warnings.filterwarnings(
     message=r"The dataloader, (.*?) does not have many workers",
     category=UserWarning,
 )
+warnings.filterwarnings(
+    # This warning may occur when running sanity validation checks. The cause is a val metric that
+    # is getting registered for display in the status bar during the sanity checks,
+    # but is not yet initialized during a proper validation step.
+    "ignore",
+    message=r"The ``compute`` method of metric (.*?) was called before the ``update``",
+    category=UserWarning,
+)
 
 
 class Experiment:
