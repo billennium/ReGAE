@@ -33,27 +33,5 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
         return parser
 
 
-class PreparedGraphsDataModule(SyntheticGraphsDataModule):
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser):
-        parser = SyntheticGraphsDataModule.add_model_specific_args(parent_parser)
-        parser.add_argument(
-            "--preprepared_graphs",
-            dest="preprepared_graphs",
-            default=[
-                nx.grid_2d_graph(2, 2),
-                nx.grid_2d_graph(3, 2),
-                nx.grid_2d_graph(3, 3),
-                nx.grid_2d_graph(4, 3),
-                nx.grid_2d_graph(4, 4),
-            ],
-            help=argparse.SUPPRESS,
-        )
-        parser.set_defaults(
-            num_dataset_graph_permutations=4,
-        )
-        return parser
-
-
 if __name__ == "__main__":
     Experiment(GraphAutoencoder, SyntheticGraphsDataModule).run()
