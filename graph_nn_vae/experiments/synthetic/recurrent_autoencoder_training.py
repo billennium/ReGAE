@@ -30,7 +30,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             encoder_hidden_layer_sizes=[512],
             decoder_hidden_layer_sizes=[512],
             bfs=True,
-            metrics=["Accuracy"],
+            metrics=["Accuracy", "PositivePrecision", "PositiveRecall", "NegativePrecision", "NegativeRecall"],
             metric_update_interval=10,
         )
         return parser

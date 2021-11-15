@@ -4,6 +4,7 @@ import torch
 from torch import optim
 
 from graph_nn_vae.metrics.edge_accuracy import EdgeAccuracy
+from graph_nn_vae.metrics.precision_recall import *
 
 
 def get_loss(name: str, loss_weight: torch.Tensor = None):
@@ -25,5 +26,9 @@ def get_optimizer(name: str):
 def get_metrics(metrics: List[str]):
     metrics_dict = {
         "Accuracy": EdgeAccuracy,
+        "PositivePrecision": PositivePrecision,
+        "PositiveRecall": PositiveRecall,
+        "NegativePrecision": NegativePrecision,
+        "NegativeRecall": NegativeRecall,
     }
     return [metrics_dict[m]() for m in metrics]
