@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, ArgumentError
 from typing import List
 
+import numpy as np
 import torch
 from torch import nn, Tensor
 import pytorch_lightning as pl
@@ -31,75 +32,157 @@ class GraphEncoder(BaseModel):
 
     def forward(self, input_batch: Tensor) -> Tensor:
         """
-        :param input_batch: a batch consisting of a tuple of diagonally represented graphs and their number of nodes
-        :return: a graph embedding Tensor of dimensions [embedding_size]
+        :param input_batch:
+            Batch consisting of a tuple of diagonally represented graphs and their number of nodes.
+            The batch has to be sorted by the number of nodes of the graphs.
+        :return:
+            Graph embedding Tensor of dimensions [batch_size x embedding_size]
         """
-        diagonal_repr_graphs_batch = input_batch[0]
-        diagonal_repr_graphs_batch.requires_grad = True
+        diag_repr_graphs_batch = input_batch[0]
+        diag_repr_graphs_batch.requires_grad = True
         num_nodes_batch = input_batch[1]
 
-        returned_embeddings = []
-        for batch_idx, diagonal_repr_graph in enumerate(diagonal_repr_graphs_batch):
-            num_nodes = num_nodes_batch[batch_idx]
+        max_num_nodes = num_nodes_batch[0]
+        num_diagonals = max_num_nodes - 1
+        first_diag_len = num_diagonals
+        diag_right_pos = int((1 + num_diagonals) * num_diagonals / 2)
+        num_nodes_to_graph_count = cdf_of_sorted_desc_list(num_nodes_batch)
 
-            prev_embedding = torch.zeros(
-                (num_nodes, self.embedding_size),
-                requires_grad=True,
-                device=diagonal_repr_graph.device,
+        num_graphs_considered = num_nodes_to_graph_count[max_num_nodes]
+        prev_embedding = torch.zeros(
+            (
+                num_graphs_considered * max_num_nodes,
+                self.embedding_size,
+            ),
+            requires_grad=True,
+            device=diag_repr_graphs_batch.device,
+        )
+
+        for diag_offset in range(num_diagonals):
+            graphs_in_curr_diagonal = num_nodes_to_graph_count[
+                num_diagonals - diag_offset + 1
+            ]
+            if num_graphs_considered != graphs_in_curr_diagonal:
+                num_graps_not_yet_considered = (
+                    graphs_in_curr_diagonal - num_graphs_considered
+                )
+                num_graphs_considered = graphs_in_curr_diagonal
+                num_nodes_in_prev_diag = max_num_nodes - diag_offset
+                pad_zero_embedding = torch.zeros(
+                    (
+                        num_graps_not_yet_considered * num_nodes_in_prev_diag,
+                        self.embedding_size,
+                    ),
+                    requires_grad=True,
+                    device=diag_repr_graphs_batch.device,
+                )
+                prev_embedding = torch.cat((prev_embedding, pad_zero_embedding), dim=0)
+
+            diag_len = first_diag_len - diag_offset
+            prev_diag_len = diag_len.item() + 1
+
+            emb_left_indices = [
+                i for i in range(len(prev_embedding)) if (i + 1) % prev_diag_len != 0
+            ]
+            embeddings_left = prev_embedding[emb_left_indices, :].requires_grad_()
+            emb_right_indices = [i + 1 for i in emb_left_indices]
+            embeddings_right = prev_embedding[emb_right_indices, :].requires_grad_()
+
+            diag_left_pos = diag_right_pos - diag_len
+            curr_diagonal = diag_repr_graphs_batch[
+                :graphs_in_curr_diagonal, diag_left_pos:diag_right_pos, :
+            ]
+            curr_diagonal = torch.flatten(curr_diagonal, end_dim=1)
+
+            encoder_input = torch.cat(
+                (embeddings_left, embeddings_right, curr_diagonal), dim=1
+            )
+            encoder_output = self.edge_encoder(encoder_input)
+
+            (embedding, mem_overwrite_ratio, embedding_ratio,) = torch.split(
+                encoder_output,
+                [
+                    self.embedding_size,
+                    self.embedding_size,
+                    self.embedding_size,
+                ],
+                dim=1,
+            )
+            weighted_prev_embedding = weighted_average(
+                embeddings_left, embeddings_right, embedding_ratio
+            )
+            new_embedding = weighted_average(
+                weighted_prev_embedding, embedding, mem_overwrite_ratio
             )
 
-            """
-            The graph is represented in the diagonal form with a shape like [summed_diagonal_length+padding, edge_size].
-            For example, skipping the edge_size dimension for a graph of adjacency matrix:
-             x 0 1 2 3
-            y
-            0  0 0 0 0
-            1  1 0 0 0
-            2  1 0 0 0
-            3  0 1 1 0
-                |
-                V
-            011101 + -1 padding
-            """
+            prev_embedding = new_embedding
+            diag_right_pos = diag_left_pos
 
-            num_diagonals = num_nodes - 1
-            first_diag_length = num_diagonals
-            diag_right_pos = int((1 + num_diagonals) * num_diagonals / 2)
-            for diagonal_offset in range(num_diagonals):
-                embeddings_left = prev_embedding[:-1, :]
-                embeddings_right = prev_embedding[1:, :]
+        return prev_embedding
 
-                diag_length = first_diag_length - diagonal_offset
-                diag_left_pos = diag_right_pos - diag_length
-                current_diagonal = diagonal_repr_graph[diag_left_pos:diag_right_pos, :]
+        # returned_embeddings = []
+        # for batch_idx, diagonal_repr_graph in enumerate(diag_repr_graphs_batch):
+        #     num_nodes = num_nodes_batch[batch_idx]
 
-                encoder_input = torch.cat(
-                    (embeddings_left, embeddings_right, current_diagonal), dim=1
-                )
-                encoder_output = self.edge_encoder(encoder_input)
+        #     prev_embedding = torch.zeros(
+        #         (num_nodes, self.embedding_size),
+        #         requires_grad=True,
+        #         device=diagonal_repr_graph.device,
+        #     )
 
-                (embedding, mem_overwrite_ratio, embedding_ratio,) = torch.split(
-                    encoder_output,
-                    [
-                        self.embedding_size,
-                        self.embedding_size,
-                        self.embedding_size,
-                    ],
-                    dim=1,
-                )
-                weighted_prev_embedding = weighted_average(
-                    embeddings_left, embeddings_right, embedding_ratio
-                )
-                new_embedding = weighted_average(
-                    weighted_prev_embedding, embedding, mem_overwrite_ratio
-                )
+        #     """
+        #     The graph is represented in the diagonal form with a shape like [summed_diagonal_length+padding, edge_size].
+        #     For example, skipping the edge_size dimension for a graph of adjacency matrix:
+        #      x 0 1 2 3
+        #     y
+        #     0  0 0 0 0
+        #     1  1 0 0 0
+        #     2  1 0 0 0
+        #     3  0 1 1 0
+        #         |
+        #         V
+        #     011101 + -1 padding
+        #     """
 
-                prev_embedding = new_embedding
-                diag_right_pos = diag_left_pos
-            returned_embeddings.append(prev_embedding)
-        embeddings_batch = torch.cat(returned_embeddings)
+        #     num_diagonals = num_nodes - 1
+        #     first_diag_length = num_diagonals
+        #     diag_right_pos = int((1 + num_diagonals) * num_diagonals / 2)
+        #     for diagonal_offset in range(num_diagonals):
+        #         embeddings_left = prev_embedding[:-1, :]
+        #         embeddings_right = prev_embedding[1:, :]
 
-        return embeddings_batch
+        #         diag_length = first_diag_length - diagonal_offset
+        #         diag_left_pos = diag_right_pos - diag_length
+        #         curr_diagonal = diagonal_repr_graph[diag_left_pos:diag_right_pos, :]
+
+        #         encoder_input = torch.cat(
+        #             (embeddings_left, embeddings_right, curr_diagonal), dim=1
+        #         )
+        #         encoder_output = self.edge_encoder(encoder_input)
+
+        #         (embedding, mem_overwrite_ratio, embedding_ratio,) = torch.split(
+        #             encoder_output,
+        #             [
+        #                 self.embedding_size,
+        #                 self.embedding_size,
+        #                 self.embedding_size,
+        #             ],
+        #             dim=1,
+        #         )
+        #         weighted_prev_embedding = weighted_average(
+        #             embeddings_left, embeddings_right, embedding_ratio
+        #         )
+        #         new_embedding = weighted_average(
+        #             weighted_prev_embedding, embedding, mem_overwrite_ratio
+        #         )
+
+        #         prev_embedding = new_embedding
+        #         diag_right_pos = diag_left_pos
+        #     returned_embeddings.append(prev_embedding)
+
+        # embeddings_batch = torch.cat(returned_embeddings)
+
+        # return embeddings_batch
 
     def step(self, batch: Tensor) -> Tensor:
         embeddings = self(batch)
@@ -143,11 +226,22 @@ class GraphEncoder(BaseModel):
             "--encoder_hidden_layer_sizes",
             dest="encoder_hidden_layer_sizes",
             default=[256],
-            type=List[int],
+            type=parse_layer_sizes_list,
             metavar="DECODER_H_SIZES",
             help="list of the sizes of the decoder's hidden layers",
         )
         return parser
+
+
+def cdf_of_sorted_desc_list(l: list[int]) -> list[int]:
+    out = [0] * (l[0] + 1)
+    for i, v in enumerate(l):
+        out[v] += 1
+    curr_num = 0
+    for i, v in reversed(list(enumerate(out))):
+        curr_num += v
+        out[i] = curr_num
+    return out
 
 
 class GraphDecoder(BaseModel):
@@ -261,7 +355,7 @@ class GraphDecoder(BaseModel):
             "--decoder_hidden_layer_sizes",
             dest="decoder_hidden_layer_sizes",
             default=[256],
-            type=List[int],
+            type=parse_layer_sizes_list,
             metavar="DECODER_H_SIZES",
             help="list of the sizes of the decoder's hidden layers",
         )
@@ -275,3 +369,14 @@ class GraphDecoder(BaseModel):
             help="max number of nodes of generated graphs",
         )
         return parser
+
+
+def parse_layer_sizes_list(s: str) -> List[int]:
+    if isinstance(s, str):
+        if "," in s:
+            return [int(v) for v in s.split(",")]
+        if "|" in s:
+            return [int(v) for v in s.split("|")]
+        if ":" in s:
+            return [int(v) for v in s.split(":")]
+    return [int(s)]
