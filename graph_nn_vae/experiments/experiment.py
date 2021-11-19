@@ -6,6 +6,7 @@ from typing import Type
 
 import torch
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import EarlyStopping
 
 from graph_nn_vae.data import BaseDataModule
 from graph_nn_vae.models.base import BaseModel
@@ -35,7 +36,7 @@ class Experiment:
     ):
         self.model = model
         self.data_module = data_module
-        # self.early_stopping = ThresholdedEarlyStopping
+        self.early_stopping = EarlyStopping
         self.parser_default = parser_default if parser_default is not None else {}
 
     def run(self):
@@ -54,7 +55,7 @@ class Experiment:
             **vars(args),
             loss_weight=data_module.loss_weight(),
         )
-        # early_stopping = self.early_stopping(**vars(args))
+        early_stopping = self.early_stopping(monitor="loss/train_avg", patience=3)
 
         logger = self.create_logger(logger_name=args.logger_name)
         trainer = pl.Trainer.from_argparse_args(args, logger=logger)
@@ -66,8 +67,9 @@ class Experiment:
             )
             trainer.callbacks.append(checkpoint_callback)
 
-        # if args.thresholded_early_stopping:
-        #     trainer.callbacks.append(early_stopping)
+        if args.early_stopping:
+            trainer.callbacks.append(early_stopping)
+
         args.train_dataset_length = len(data_module.train_dataset)
         args.val_dataset_length = len(data_module.val_dataset)
         args.test_dataset_length = len(data_module.test_dataset)
@@ -161,5 +163,11 @@ class Experiment:
             choices=["min", "max"],
             default="min",
             help="Mode for the checkpoint monitoring",
+        )
+        parser.add_argument(
+            "--early_stopping",
+            dest="early_stopping",
+            action="store_true",
+            help="Enable early stopping",
         )
         return parser

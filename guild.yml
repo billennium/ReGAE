@@ -1,6 +1,16 @@
 - config: generic-flags
   flags:
-    gpus: "0,"
+    gpus: "1"
+    workers: "0"
+    checkpoint-monitor: "loss/train_avg"
+    lr:
+      type: float
+    batch_size: 
+      type: int
+    gradient_clip_val:
+      type: float
+    encoder_hidden_layer_sizes: [512]
+    decoder_hidden_layer_sizes: [512]
 
 - config: model-base
   operations:
@@ -8,14 +18,18 @@
         main: 'graph_nn_vae.experiments.synthetic.{{ name }}_training'
         flags:
             $include: generic-flags
-        output-scalars: off
+        # output-scalars: off
         sourcecode:
             select:
                 - "graph_nn_vae/*"
             exclude:
                 - "**/__pycache__"
+
+                
+- config: model-partial
+  operations:
     sanity_checks:
-        main: 'graph_nn_vae.experiments.num_edges.{{ name }}_training'
+        main: 'graph_nn_vae.experiments.sanity_checks.{{ name }}_training'
         flags:
             $include: generic-flags
         output-scalars: off
@@ -31,6 +45,6 @@
     name: recurrent_autoencoder
 
 - model: encoder_num_edges
-  extends: model-base
+  extends: model-partial
   params:
     name: encoder_num_edges

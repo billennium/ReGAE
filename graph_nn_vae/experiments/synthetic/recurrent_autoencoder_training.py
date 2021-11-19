@@ -32,6 +32,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             bfs=True,
             metrics=["Accuracy", "PositivePrecision", "PositiveRecall", "NegativePrecision", "NegativeRecall"],
             metric_update_interval=10,
+            early_stopping=False,
         )
         return parser
 
