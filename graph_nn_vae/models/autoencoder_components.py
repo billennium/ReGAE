@@ -273,60 +273,91 @@ class GraphDecoder(BaseModel):
         :param graph_encoding_batch: batch of graph encodings (products of an encoder) of dimensions [batch_size, embedding_size]
         :return: graph adjacency matrices tensor of dimensions [batch_size, num_nodes, num_nodes, edge_size]
         """
-        batch_concatenated_diagonals = []
+        decoded_diagonals = []
+        prev_doubled_embeddings = graph_encoding_batch
 
-        for batch_idx, graph_encoding in enumerate(graph_encoding_batch):
-            prev_doubled_embeddings = graph_encoding[None, :]
-            decoded_diagonals = []
+        original_indices = torch.IntTensor(list(range(graph_encoding_batch.shape[0])))
+        indices_of_finished_graphs = []
 
-            for _ in range(self.max_number_of_nodes):
-                edge_with_embeddings = self.edge_decoder(prev_doubled_embeddings)
-                (decoded_edges, doubled_embeddings, mem_overwrite_ratio,) = torch.split(
-                    edge_with_embeddings,
+        for _ in range(self.max_number_of_nodes):
+            edge_with_embeddings = self.edge_decoder(prev_doubled_embeddings)
+
+            (decoded_edges, doubled_embeddings, mem_overwrite_ratio,) = torch.split(
+                edge_with_embeddings,
+                [
+                    self.edge_size,
+                    self.internal_embedding_size * 2,
+                    self.internal_embedding_size * 2,
+                ],
+                dim=2,
+            )
+
+            decoded_edges = torch.tanh(decoded_edges)
+
+            decoded_edges_padded = decoded_edges
+            for i in sorted(indices_of_finished_graphs):
+                decoded_edges_padded = torch.cat(
                     [
-                        self.edge_size,
-                        self.internal_embedding_size * 2,
-                        self.internal_embedding_size * 2,
-                    ],
-                    dim=1,
-                )
-                decoded_edges = torch.tanh(decoded_edges)
-                decoded_diagonals.append(decoded_edges)
-                if torch.mean(decoded_edges[:, 0]) < -0.3:
-                    break
-
-                doubled_embeddings = weighted_average(
-                    doubled_embeddings, prev_doubled_embeddings, mem_overwrite_ratio
+                        decoded_edges_padded[:i],
+                        torch.ones((1, decoded_edges_padded.shape[1], 1)) * -1,
+                        decoded_edges_padded[i:],
+                    ]
                 )
 
-                embedding_1, embedding_2 = torch.split(
-                    doubled_embeddings,
-                    [self.internal_embedding_size, self.internal_embedding_size],
-                    dim=1,
-                )
+            decoded_diagonals.append(decoded_edges_padded)
 
-                # add zeroes to both sides - these are the empty embeddings of the far-out edges
-                prev_embeddings_1 = torch.nn.functional.pad(embedding_1, (0, 0, 1, 0))
-                prev_embeddings_2 = torch.nn.functional.pad(embedding_2, (0, 0, 0, 1))
-                prev_doubled_embeddings = torch.cat(
-                    (prev_embeddings_1, prev_embeddings_2), dim=1
-                )
+            indices_of_edges_of_graphs_still_generating = (
+                torch.mean(decoded_edges[:, :], dim=1) > -0.3
+            )[:, 0]
 
-            concatenated_diagonals = torch.cat(decoded_diagonals, dim=0)
-            max_concatenated_diagonals_length = int(
-                self.max_number_of_nodes * (1 + self.max_number_of_nodes) / 2
+            indices_of_finished_graphs.extend(
+                original_indices[~indices_of_edges_of_graphs_still_generating].tolist()
             )
-            pad_length = (
-                max_concatenated_diagonals_length - concatenated_diagonals.shape[0]
-            )
-            concatenated_diagonals = torch.nn.functional.pad(
-                concatenated_diagonals, (0, 0, 0, pad_length), value=-1.0
-            )
-            batch_concatenated_diagonals.append(concatenated_diagonals)
+            original_indices = original_indices[
+                indices_of_edges_of_graphs_still_generating
+            ]
 
-        return torch.stack(
-            batch_concatenated_diagonals,
+            doubled_embeddings = doubled_embeddings[
+                indices_of_edges_of_graphs_still_generating
+            ]
+            mem_overwrite_ratio = mem_overwrite_ratio[
+                indices_of_edges_of_graphs_still_generating
+            ]
+            prev_doubled_embeddings = prev_doubled_embeddings[
+                indices_of_edges_of_graphs_still_generating
+            ]
+
+            if doubled_embeddings.shape[0] == 0:
+                break
+
+            doubled_embeddings = weighted_average(
+                doubled_embeddings, prev_doubled_embeddings, mem_overwrite_ratio
+            )
+
+            embedding_1, embedding_2 = torch.split(
+                doubled_embeddings,
+                [self.internal_embedding_size, self.internal_embedding_size],
+                dim=2,
+            )
+
+            # add zeroes to both sides - these are the empty embeddings of the far-out edges
+            prev_embeddings_1 = torch.nn.functional.pad(embedding_1, (0, 0, 1, 0))
+            prev_embeddings_2 = torch.nn.functional.pad(embedding_2, (0, 0, 0, 1))
+            prev_doubled_embeddings = torch.cat(
+                (prev_embeddings_1, prev_embeddings_2), dim=2
+            )
+
+        concatenated_diagonals = torch.cat(decoded_diagonals, dim=1)
+        max_concatenated_diagonals_length = int(
+            self.max_number_of_nodes * (1 + self.max_number_of_nodes) / 2
         )
+
+        pad_length = max_concatenated_diagonals_length - concatenated_diagonals.shape[1]
+        concatenated_diagonals = torch.nn.functional.pad(
+            concatenated_diagonals, (0, 0, 0, pad_length), value=-1.0
+        )
+
+        return concatenated_diagonals
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
