@@ -13,7 +13,7 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.collate_fn = collate_and_sort_graph_batch
+        self.collate_fn = collate_graph_batch
 
     def _adj_batch_to_diagonal(
         self, batch: List[Tuple[torch.Tensor, int]]
@@ -52,8 +52,8 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
         return dl
 
 
-def collate_and_sort_graph_batch(batch):
-    batch.sort(key=lambda tup: tup[1], reverse=True)
+def collate_graph_batch(batch):
+    # Currently pretty much does the same thing as the default pl collate_fn
     graphs = torch.nn.utils.rnn.pad_sequence(
         [g[0] for g in batch], batch_first=True, padding_value=-1.0
     )
