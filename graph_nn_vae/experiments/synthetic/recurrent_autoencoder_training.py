@@ -26,12 +26,18 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             max_number_of_nodes=16,
             gradient_clip_val=0.01,
             max_epochs=10000,
-            check_val_every_n_epoch=50,
+            check_val_every_n_epoch=20,
             encoder_hidden_layer_sizes=[512],
             decoder_hidden_layer_sizes=[512],
-            bfs=True,
-            metrics=["Accuracy", "PositivePrecision", "PositiveRecall", "NegativePrecision", "NegativeRecall"],
-            metric_update_interval=10,
+            bfs=False,
+            # metrics=[
+            #     "Accuracy",
+            #     "PositivePrecision",
+            #     "PositiveRecall",
+            #     "NegativePrecision",
+            #     "NegativeRecall",
+            # ],
+            metric_update_interval=20,
             early_stopping=False,
         )
         return parser
