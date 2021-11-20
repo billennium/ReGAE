@@ -29,15 +29,15 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             check_val_every_n_epoch=20,
             encoder_hidden_layer_sizes=[512],
             decoder_hidden_layer_sizes=[512],
-            bfs=True,
-            metrics=[
-                "Accuracy",
-                "PositivePrecision",
-                "PositiveRecall",
-                "NegativePrecision",
-                "NegativeRecall",
-            ],
-            metric_update_interval=10,
+            bfs=False,
+            # metrics=[
+            #     "Accuracy",
+            #     "PositivePrecision",
+            #     "PositiveRecall",
+            #     "NegativePrecision",
+            #     "NegativeRecall",
+            # ],
+            metric_update_interval=20,
             early_stopping=False,
         )
         return parser
