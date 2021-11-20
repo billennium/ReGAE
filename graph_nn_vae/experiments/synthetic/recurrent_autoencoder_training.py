@@ -38,6 +38,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
                 "NegativeRecall",
             ],
             metric_update_interval=10,
+            early_stopping=False,
         )
         return parser
 
