@@ -274,7 +274,8 @@ class GraphDecoder(BaseModel):
         :return: graph adjacency matrices tensor of dimensions [batch_size, num_nodes, num_nodes, edge_size]
         """
         decoded_diagonals = []
-        prev_doubled_embeddings = graph_encoding_batch
+        # The working embeddings batch has this shape: [graph_idx x embdedding_idx x embedding]
+        prev_doubled_embeddings = graph_encoding_batch[:, None, :]
 
         original_indices = torch.IntTensor(list(range(graph_encoding_batch.shape[0])))
         indices_of_finished_graphs = []
@@ -299,32 +300,30 @@ class GraphDecoder(BaseModel):
                 decoded_edges_padded = torch.cat(
                     [
                         decoded_edges_padded[:i],
-                        torch.ones((1, decoded_edges_padded.shape[1], 1)) * -1,
+                        torch.ones(
+                            (1, decoded_edges_padded.shape[1], 1),
+                            device=decoded_edges_padded.device,
+                        )
+                        * -1,
                         decoded_edges_padded[i:],
-                    ]
+                    ],
                 )
 
             decoded_diagonals.append(decoded_edges_padded)
 
-            indices_of_edges_of_graphs_still_generating = (
-                torch.mean(decoded_edges[:, :], dim=1) > -0.3
-            )[:, 0]
+            indices_graphs_still_generating = (
+                torch.mean(decoded_edges[:, :, 0], dim=1) > -0.3
+            )
 
             indices_of_finished_graphs.extend(
-                original_indices[~indices_of_edges_of_graphs_still_generating].tolist()
+                original_indices[~indices_graphs_still_generating].tolist()
             )
-            original_indices = original_indices[
-                indices_of_edges_of_graphs_still_generating
-            ]
+            original_indices = original_indices[indices_graphs_still_generating]
 
-            doubled_embeddings = doubled_embeddings[
-                indices_of_edges_of_graphs_still_generating
-            ]
-            mem_overwrite_ratio = mem_overwrite_ratio[
-                indices_of_edges_of_graphs_still_generating
-            ]
+            doubled_embeddings = doubled_embeddings[indices_graphs_still_generating]
+            mem_overwrite_ratio = mem_overwrite_ratio[indices_graphs_still_generating]
             prev_doubled_embeddings = prev_doubled_embeddings[
-                indices_of_edges_of_graphs_still_generating
+                indices_graphs_still_generating
             ]
 
             if doubled_embeddings.shape[0] == 0:
