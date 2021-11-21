@@ -11,6 +11,7 @@ def get_loss(name: str, loss_weight: torch.Tensor = None):
     losses = {
         "MSE": torch.nn.MSELoss,
         "BCE": torch.nn.BCELoss,
+        "BCEWithLogits": torch.nn.BCEWithLogitsLoss,
     }
     if loss_weight is not None:
         return losses[name](weight=loss_weight)

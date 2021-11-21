@@ -1,5 +1,5 @@
 from argparse import ArgumentParser, ArgumentError
-from typing import List
+from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -33,7 +33,7 @@ class GraphEncoder(BaseModel):
     def forward(self, input_batch: Tensor) -> Tensor:
         """
         :param input_batch:
-            Batch consisting of a tuple of diagonally represented graphs and their number of nodes.
+            Batch consisting of a tuple of diagonally represented graphs, their masks (unused here) and their number of nodes.
 
             The graphs shall be represented in the "diagonal form" with a shape like [summed_diagonal_length+padding, edge_size].
             For example, skipping the edge_size dimension for a graph of adjacency matrix:
@@ -53,7 +53,7 @@ class GraphEncoder(BaseModel):
 
         diagonal_repr_graphs_batch = input_batch[0]
         diagonal_repr_graphs_batch.requires_grad = True
-        num_nodes_batch = input_batch[1]
+        num_nodes_batch = input_batch[2]
 
         sorted_num_nodes_batch, ordered_indices = num_nodes_batch.sort(descending=True)
         _, indices_in_original_batch_order = ordered_indices.sort()
@@ -148,6 +148,10 @@ class GraphEncoder(BaseModel):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
+        try:  # these may collide with an upper autoencoder, but that's fine
+            parser = BaseModel.add_model_specific_args(parent_parser=parser)
+        except ArgumentError:
+            pass
         try:  # these may collide with an encoder module, but that's fine
             parser = BaseModel.add_model_specific_args(parent_parser=parser)
             parser.add_argument(
@@ -198,17 +202,18 @@ class GraphDecoder(BaseModel):
         super().__init__(**kwargs)
 
         input_size = self.internal_embedding_size * 2
-        output_size = self.internal_embedding_size * 4 + edge_size
+        graph_end_mask_size = 1
+        output_size = self.internal_embedding_size * 4 + graph_end_mask_size + edge_size
         self.edge_decoder = sequential_from_layer_sizes(
             input_size, output_size, decoder_hidden_layer_sizes
         )
 
-    def forward(self, graph_encoding_batch: Tensor) -> Tensor:
+    def forward(self, graph_encoding_batch: Tensor) -> Tuple[Tensor, Tensor]:
         """
         :param graph_encoding_batch: batch of graph encodings (products of an encoder) of dimensions [batch_size, embedding_size]
         :return: graph adjacency matrices tensor of dimensions [batch_size, num_nodes, num_nodes, edge_size]
         """
-        decoded_diagonals = []
+        decoded_diagonals_with_masks = []
         # The working embeddings batch has this shape: [graph_idx x embdedding_idx x embedding]
         prev_doubled_embeddings = graph_encoding_batch[:, None, :]
 
@@ -218,37 +223,44 @@ class GraphDecoder(BaseModel):
         for _ in range(self.max_number_of_nodes):
             edge_with_embeddings = self.edge_decoder(prev_doubled_embeddings)
 
-            (decoded_edges, doubled_embeddings, mem_overwrite_ratio,) = torch.split(
+            (
+                decoded_edges_with_mask,
+                doubled_embeddings,
+                mem_overwrite_ratio,
+            ) = torch.split(
                 edge_with_embeddings,
                 [
-                    self.edge_size,
+                    1 + self.edge_size,
                     self.internal_embedding_size * 2,
                     self.internal_embedding_size * 2,
                 ],
                 dim=2,
             )
 
-            decoded_edges = torch.tanh(decoded_edges)
+            # decoded_edges_with_mask = torch.sigmoid(decoded_edges_with_mask)
+            masks = decoded_edges_with_mask[:, :, 0]
+            # just here, not part of the output - used for checking if the graphs are finished in the loop
+            masks = torch.sigmoid(masks)
 
-            decoded_edges_padded = decoded_edges
+            decoded_edges_with_mask_padded = decoded_edges_with_mask
             for i in sorted(indices_of_finished_graphs):
-                decoded_edges_padded = torch.cat(
+                decoded_edges_with_mask_padded = torch.cat(
                     [
-                        decoded_edges_padded[:i],
-                        torch.ones(
-                            (1, decoded_edges_padded.shape[1], 1),
-                            device=decoded_edges_padded.device,
-                        )
-                        * -1,
-                        decoded_edges_padded[i:],
+                        decoded_edges_with_mask_padded[:i],
+                        torch.zeros(
+                            (
+                                1,
+                                decoded_edges_with_mask_padded.shape[1],
+                                decoded_edges_with_mask_padded.shape[2],
+                            ),
+                            device=decoded_edges_with_mask_padded.device,
+                        ),
+                        decoded_edges_with_mask_padded[i:],
                     ],
                 )
+            decoded_diagonals_with_masks.append(decoded_edges_with_mask_padded)
 
-            decoded_diagonals.append(decoded_edges_padded)
-
-            indices_graphs_still_generating = (
-                torch.mean(decoded_edges[:, :, 0], dim=1) > -0.3
-            )
+            indices_graphs_still_generating = torch.mean(masks, dim=1) > 0.5
 
             indices_of_finished_graphs.extend(
                 original_indices[~indices_graphs_still_generating].tolist()
@@ -281,23 +293,23 @@ class GraphDecoder(BaseModel):
                 (prev_embeddings_1, prev_embeddings_2), dim=2
             )
 
-        concatenated_diagonals = torch.cat(decoded_diagonals, dim=1)
-        max_concatenated_diagonals_length = int(
-            self.max_number_of_nodes * (1 + self.max_number_of_nodes) / 2
+        concatenated_diagonals_with_masks = torch.cat(
+            decoded_diagonals_with_masks, dim=1
+        )
+        masks, concatenated_diagonals = torch.split(
+            concatenated_diagonals_with_masks, (1, self.edge_size), dim=2
         )
 
-        pad_length = max_concatenated_diagonals_length - concatenated_diagonals.shape[1]
-        concatenated_diagonals = torch.nn.functional.pad(
-            concatenated_diagonals, (0, 0, 0, pad_length), value=-1.0
-        )
-
-        return concatenated_diagonals
+        return concatenated_diagonals, masks
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        try:  # these may collide with an encoder module, but that's fine
+        try:  # these may collide with an upper autoencoder, but that's fine
             parser = BaseModel.add_model_specific_args(parent_parser=parser)
+        except ArgumentError:
+            pass
+        try:  # these may collide with an encoder module, but that's fine
             parser.add_argument(
                 "--embedding-size",
                 dest="embedding_size",

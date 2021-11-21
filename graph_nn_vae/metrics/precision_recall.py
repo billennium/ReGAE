@@ -1,20 +1,21 @@
 import torch
 import torchmetrics
 
+
 class PositivePrecision(torchmetrics.Precision):
     label = "edge_precision_1"
 
     def __init__(self, **kwargs):
         super().__init__(num_classes=2, average=None, **kwargs)
 
-    def update(self, prediction_batch: torch.Tensor, target_batch: torch.Tensor):
-        target_batch = target_batch.int().clamp(min=0).flatten()
-        prediction_batch = torch.round(prediction_batch).int().clamp(min=0).flatten()
+    def update(self, edges_predicted: torch.Tensor, edges_target: torch.Tensor):
+        edges_target = edges_target.int().clamp(min=0).flatten()
+        edges_predicted = torch.round(edges_predicted).int().clamp(min=0).flatten()
 
-        super().update(prediction_batch, target_batch)
+        super().update(edges_predicted, edges_target)
 
     def compute(self) -> torch.Tensor:
-        return super().compute()[1] 
+        return super().compute()[1]
 
 
 class PositiveRecall(torchmetrics.Recall):
@@ -30,7 +31,8 @@ class PositiveRecall(torchmetrics.Recall):
         super().update(prediction_batch, target_batch)
 
     def compute(self) -> torch.Tensor:
-        return super().compute()[1] 
+        return super().compute()[1]
+
 
 class NegativePrecision(torchmetrics.Precision):
     label = "edge_precision_-1"
@@ -39,13 +41,15 @@ class NegativePrecision(torchmetrics.Precision):
         super().__init__(num_classes=2, average=None, **kwargs)
 
     def update(self, prediction_batch: torch.Tensor, target_batch: torch.Tensor):
-        target_batch = target_batch.int().clamp(max=0).flatten()*-1
-        prediction_batch = torch.round(prediction_batch).int().clamp(max=0).flatten()*-1
+        target_batch = target_batch.int().clamp(max=0).flatten() * -1
+        prediction_batch = (
+            torch.round(prediction_batch).int().clamp(max=0).flatten() * -1
+        )
 
         super().update(prediction_batch, target_batch)
 
     def compute(self) -> torch.Tensor:
-        return super().compute()[1] 
+        return super().compute()[1]
 
 
 class NegativeRecall(torchmetrics.Recall):
@@ -55,10 +59,12 @@ class NegativeRecall(torchmetrics.Recall):
         super().__init__(num_classes=2, average=None, **kwargs)
 
     def update(self, prediction_batch: torch.Tensor, target_batch: torch.Tensor):
-        target_batch = target_batch.int().clamp(max=0).flatten()*-1
-        prediction_batch = torch.round(prediction_batch).int().clamp(max=0).flatten()*-1
+        target_batch = target_batch.int().clamp(max=0).flatten() * -1
+        prediction_batch = (
+            torch.round(prediction_batch).int().clamp(max=0).flatten() * -1
+        )
 
         super().update(prediction_batch, target_batch)
 
     def compute(self) -> torch.Tensor:
-        return super().compute()[1] 
+        return super().compute()[1]
