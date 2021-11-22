@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 import torch
 from torch import Tensor, nn
 import pytorch_lightning as pl
+from torch import optim
 from graph_nn_vae.models.utils.getters import get_metrics, get_loss, get_optimizer
 
 
@@ -109,10 +110,13 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         optimizer = self.optimizer(
             self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
         )
-        scheduler = torch.optim.lr_scheduler.StepLR(
-            optimizer, 1, gamma=self.scheduler_gamma
-        )
-        return [optimizer], [scheduler]
+
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', verbose=True, factor=0.9)
+        return {
+            'optimizer': optimizer,
+            'lr_scheduler': scheduler,
+            'monitor': 'loss/train_avg'
+        }
 
     def get_progress_bar_dict(self) -> Dict[str, Union[int, str]]:
         tqdm_dict = super().get_progress_bar_dict()
