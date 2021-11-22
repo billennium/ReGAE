@@ -27,9 +27,9 @@ def get_optimizer(name: str):
 def get_metrics(metrics: List[str]):
     metrics_dict = {
         "Accuracy": EdgeAccuracy,
-        "PositivePrecision": PositivePrecision,
-        "PositiveRecall": PositiveRecall,
-        "NegativePrecision": NegativePrecision,
-        "NegativeRecall": NegativeRecall,
+        "EdgePrecision": EdgePrecision,
+        "EdgeRecall": EdgeRecall,
+        "MaskPrecision": MaskPrecision,
+        "MaskRecall": MaskRecall,
     }
     return [metrics_dict[m]() for m in metrics]

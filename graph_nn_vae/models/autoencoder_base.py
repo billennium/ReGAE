@@ -33,7 +33,12 @@ class GraphAutoencoder(BaseModel):
         loss = loss_edges + loss_mask
 
         for metric in metrics:
-            metric(y_pred_edge, y_edge)
+            metric(
+                edges_predicted = y_pred_edge, 
+                edges_target = y_edge, 
+                mask_predicted = y_pred_mask, 
+                mask_target = y_mask
+            )
 
         return loss
 
