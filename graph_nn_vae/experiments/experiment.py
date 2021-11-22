@@ -12,8 +12,6 @@ from graph_nn_vae.data import BaseDataModule
 from graph_nn_vae.models.base import BaseModel
 from graph_nn_vae.models.autoencoder_components import GraphEncoder
 
-from pytorch_lightning.callbacks import LearningRateMonitor
-
 warnings.filterwarnings(
     "ignore",
     message=r"The dataloader, (.*?) does not have many workers",
@@ -60,8 +58,7 @@ class Experiment:
         early_stopping = self.early_stopping(monitor="loss/train_avg", patience=3)
 
         logger = self.create_logger(logger_name=args.logger_name)
-        lr_monitor = LearningRateMonitor(logging_interval='step')
-        trainer = pl.Trainer.from_argparse_args(args, logger=logger, callbacks=[lr_monitor])
+        trainer = pl.Trainer.from_argparse_args(args, logger=logger)
         if args.checkpoint_monitor:
             checkpoint_callback = pl.callbacks.ModelCheckpoint(
                 monitor=args.checkpoint_monitor,
