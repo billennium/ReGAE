@@ -13,7 +13,7 @@ class EdgePrecision(torchmetrics.Precision):
         edges_predicted: torch.Tensor, edges_target: torch.Tensor,
         mask_predicted: torch.Tensor = None, mask_target: torch.Tensor = None
     ):
-        edges_predicted = torch.sigmoid(edges_predicted).int().flatten()
+        edges_predicted = torch.sigmoid(edges_predicted).round().int().flatten()
         edges_target = edges_target.int().flatten()
 
         super().update(edges_predicted, edges_target)
@@ -33,7 +33,7 @@ class EdgeRecall(torchmetrics.Recall):
         edges_predicted: torch.Tensor, edges_target: torch.Tensor,
         mask_predicted: torch.Tensor = None, mask_target: torch.Tensor = None
     ):
-        edges_predicted = torch.sigmoid(edges_predicted).int().flatten()
+        edges_predicted = torch.sigmoid(edges_predicted).round().int().flatten()
         edges_target = edges_target.int().flatten()
 
         super().update(edges_predicted, edges_target)
@@ -53,7 +53,7 @@ class MaskPrecision(torchmetrics.Precision):
         mask_predicted: torch.Tensor, mask_target: torch.Tensor,
         edges_predicted: torch.Tensor = None, edges_target: torch.Tensor = None
     ):
-        mask_predicted = torch.sigmoid(mask_predicted).int().flatten()
+        mask_predicted = torch.sigmoid(mask_predicted).round().int().flatten()
         mask_target = mask_target.int().flatten()
 
         super().update(mask_predicted, mask_target)
@@ -73,7 +73,7 @@ class MaskRecall(torchmetrics.Recall):
         mask_predicted: torch.Tensor, mask_target: torch.Tensor,
         edges_predicted: torch.Tensor = None, edges_target: torch.Tensor = None
     ):
-        mask_predicted = torch.sigmoid(mask_predicted).int().flatten()
+        mask_predicted = torch.sigmoid(mask_predicted).round().int().flatten()
         mask_target = mask_target.int().flatten()
 
         super().update(mask_predicted, mask_target)

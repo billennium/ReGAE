@@ -21,5 +21,8 @@ class EdgeAccuracy(torchmetrics.Accuracy):
 
         mask = (mask_target == 1) + (mask_predicted == 1)
 
-        super().update(edges_predicted[mask] + mask_predicted[mask] * 2, edges_target[mask] + mask_target[mask] * 2)
+        super().update(
+            edges_predicted[mask] + mask_predicted[mask] * 2,
+            edges_target[mask] + mask_target[mask] * 2
+        )
 
