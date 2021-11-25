@@ -5,8 +5,7 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 import torch
 from torch import Tensor, nn
 import pytorch_lightning as pl
-from torch import optim
-from graph_nn_vae.models.utils.getters import get_metrics, get_loss, get_optimizer
+from graph_nn_vae.models.utils.getters import get_metrics, get_loss, get_optimizer, get_lr_scheduler
 
 
 class BaseModel(pl.LightningModule, metaclass=ABCMeta):
@@ -19,7 +18,9 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         learning_rate: float,
         optimizer: str,
         weight_decay: float,
-        scheduler_gamma: float,
+        lr_scheduler_name: str,
+        lr_scheduler_params: dict,
+        lr_scheduler_metric: str,
         metrics: List[str],
         metric_update_interval: int = 1,
         **kwargs,
@@ -29,7 +30,9 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         self.learning_rate = learning_rate
         self.optimizer = get_optimizer(optimizer)
         self.weight_decay = weight_decay
-        self.scheduler_gamma = scheduler_gamma
+        self.lr_scheduler_name = lr_scheduler_name
+        self.lr_scheduler_params = lr_scheduler_params
+        self.lr_scheduler_metric = lr_scheduler_metric
         self.metrics_train = nn.ModuleList(get_metrics(metrics))
         self.metrics_val = nn.ModuleList(get_metrics(metrics))
         self.metrics_test = nn.ModuleList(get_metrics(metrics))
@@ -111,11 +114,14 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
         )
 
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', verbose=True, factor=0.9)
+        scheduler = get_lr_scheduler(self.lr_scheduler_name)(
+            optimizer=optimizer, **self.lr_scheduler_params
+        )
+
         return {
             'optimizer': optimizer,
             'lr_scheduler': scheduler,
-            'monitor': 'loss/train_avg'
+            'monitor': self.lr_scheduler_metric
         }
 
     def get_progress_bar_dict(self) -> Dict[str, Union[int, str]]:
@@ -160,14 +166,6 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             help="weight decay",
         )
         parser.add_argument(
-            "--scheduler-gamma",
-            dest="scheduler_gamma",
-            default=1.0,
-            type=float,
-            metavar="FLOAT",
-            help="scheduler gamma",
-        )
-        parser.add_argument(
             "--metrics",
             default=[],
             nargs="+",
@@ -182,5 +180,26 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             type=int,
             help="Every how many steps to update the training metrics (other than loss). \
                 Higher values decrease computation costs related to metric updating at the expense of precision.",
+        )
+        parser.add_argument(
+            "--lr_scheduler_name",
+            dest="lr_scheduler_name",
+            default="ReduceLROnPlateau",
+            type=str,
+            help="name of learning rate scheduler",
+        )
+        parser.add_argument(
+            "--lr_scheduler_params",
+            dest="lr_scheduler_params",
+            default={},
+            type=str,
+            help="params for learning rate scheduler, only when lr_schduler is set",
+        )
+        parser.add_argument(
+            "--lr_scheduler_metric",
+            dest="lr_scheduler_metric",
+            default="loss/train_avg",
+            type=str,
+            help="metric to monitor for learning rate scheduler, only when lr_schduler is set",
         )
         return parser
