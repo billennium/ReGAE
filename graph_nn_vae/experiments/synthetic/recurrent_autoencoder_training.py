@@ -20,6 +20,10 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
         parser.set_defaults(
             loss_function="MSE",
             optimizer="Adam",
+            lr_monitor=True,
+            lr_scheduler_name='ReduceLROnPlateau',
+            lr_scheduler_params={'mode':'min', 'verbose':True, 'factor':0.9},
+            lr_scheduler_metric='loss/train_avg',
             embedding_size=128,
             batch_size=32,
             learning_rate=0.0005,

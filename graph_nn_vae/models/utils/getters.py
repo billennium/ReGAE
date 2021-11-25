@@ -23,6 +23,14 @@ def get_optimizer(name: str):
     return optimizers[name]
 
 
+def get_lr_scheduler(name: str):
+    optimizers = {
+        "StepLR": torch.optim.lr_scheduler.StepLR,
+        "ReduceLROnPlateau": torch.optim.lr_scheduler.ReduceLROnPlateau
+    }
+    return optimizers[name]
+
+
 def get_metrics(metrics: List[str]):
     metrics_dict = {
         "Accuracy": EdgeAccuracy,
