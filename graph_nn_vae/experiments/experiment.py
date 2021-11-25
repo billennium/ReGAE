@@ -57,11 +57,9 @@ class Experiment:
             **vars(args),
             loss_weight=data_module.loss_weight(),
         )
-        early_stopping = self.early_stopping(monitor="loss/train_avg", patience=3)
 
         logger = self.create_logger(logger_name=args.logger_name)
-        lr_monitor = LearningRateMonitor(logging_interval='step')
-        trainer = pl.Trainer.from_argparse_args(args, logger=logger, callbacks=[lr_monitor])
+        trainer = pl.Trainer.from_argparse_args(args, logger=logger)
         if args.checkpoint_monitor:
             checkpoint_callback = pl.callbacks.ModelCheckpoint(
                 monitor=args.checkpoint_monitor,
@@ -70,7 +68,12 @@ class Experiment:
             )
             trainer.callbacks.append(checkpoint_callback)
 
+        if args.lr_monitor:
+            lr_monitor = LearningRateMonitor(logging_interval='step')
+            trainer.callbacks.append(lr_monitor)
+
         if args.early_stopping:
+            early_stopping = self.early_stopping(monitor="loss/train_avg", patience=3)
             trainer.callbacks.append(early_stopping)
 
         args.train_dataset_length = len(data_module.train_dataset)
@@ -172,5 +175,11 @@ class Experiment:
             dest="early_stopping",
             action="store_true",
             help="Enable early stopping",
+        )
+        parser.add_argument(
+            "--lr_monitor",
+            dest="lr_monitor",
+            action="store_true",
+            help="Enable learning rate monitor",
         )
         return parser
