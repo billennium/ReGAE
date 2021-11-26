@@ -3,7 +3,7 @@ from typing import List
 import torch
 from torch import optim
 
-from graph_nn_vae.metrics.edge_accuracy import EdgeAccuracy
+from graph_nn_vae.metrics.edge_accuracy import EdgeAccuracy, MaskAccuracy
 from graph_nn_vae.metrics.precision_recall import *
 
 
@@ -26,7 +26,8 @@ def get_optimizer(name: str):
 
 def get_metrics(metrics: List[str]):
     metrics_dict = {
-        "Accuracy": EdgeAccuracy,
+        "EdgeAccuracy": EdgeAccuracy,
+        "MaskAccuracy": MaskAccuracy,
         "EdgePrecision": EdgePrecision,
         "EdgeRecall": EdgeRecall,
         "MaskPrecision": MaskPrecision,
