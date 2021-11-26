@@ -74,7 +74,9 @@ class Experiment:
         args.val_dataset_length = len(data_module.val_dataset)
         args.test_dataset_length = len(data_module.test_dataset)
 
-        arg_dict = {k: v for (k, v) in vars(args).items() if not callable(v)}
+        arg_dict = {
+            k: v for (k, v) in vars(args).items() if not callable(v) and v is not None
+        }
         trainer.logger.log_hyperparams(argparse.Namespace(**arg_dict))
 
         start = time.time()
