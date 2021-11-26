@@ -6,7 +6,6 @@ from torch import Tensor
 
 from graph_nn_vae.models.base import BaseModel
 from graph_nn_vae.models.autoencoder_components import GraphEncoder, GraphDecoder
-from graph_nn_vae import util
 from graph_nn_vae.models.utils.getters import get_loss
 
 
@@ -28,16 +27,25 @@ class GraphAutoencoder(BaseModel):
         y_edge, y_mask, y_pred_edge, y_pred_mask = self.adjust_y_to_prediction(
             batch, y_pred
         )
-        loss_edges = self.edge_loss_function(y_pred_edge, y_edge.data)
-        loss_mask = self.mask_loss_function(y_pred_mask, y_mask)
+
+        mask = y_pred_mask > float("-inf")
+        y_pred_edge_l, y_pred_mask_l, y_edge_l, y_mask_l = (
+            y_pred_edge[mask],
+            y_pred_mask[mask],
+            y_edge[mask],
+            y_mask[mask],
+        )
+
+        loss_edges = self.edge_loss_function(y_pred_edge_l, y_edge_l.data)
+        loss_mask = self.mask_loss_function(y_pred_mask_l, y_mask_l)
         loss = loss_edges + loss_mask
 
         for metric in metrics:
             metric(
-                edges_predicted = y_pred_edge, 
-                edges_target = y_edge, 
-                mask_predicted = y_pred_mask, 
-                mask_target = y_mask
+                edges_predicted=y_pred_edge,
+                edges_target=y_edge,
+                mask_predicted=y_pred_mask,
+                mask_target=y_mask,
             )
 
         return loss
@@ -54,14 +62,6 @@ class GraphAutoencoder(BaseModel):
             metavar="MASK_LOSS_F_NAME",
             help="name of loss function for the graph mask, if used",
         )
-        # parser.add_argument(
-        #     "--mask_loss_weight",
-        #     dest="mask_loss_weight",
-        #     default=None,
-        #     type=float,
-        #     metavar="WEIGHT_VALUE",
-        #     help="weight of the loss compared to other losses",
-        # )
         return parser
 
 
@@ -93,13 +93,11 @@ class RecurrentGraphAutoencoder(GraphAutoencoder):
         predicted_graphs = y_predicted[0]
         predicted_graph_masks = y_predicted[1]
         diagonal_repr_graphs, predicted_graphs = equalize_dim_by_padding(
-            diagonal_repr_graphs, predicted_graphs, 1, 0.0
+            diagonal_repr_graphs, predicted_graphs, 1, 0.0, float("-inf")
         )
         graph_masks, predicted_graph_masks = equalize_dim_by_padding(
-            graph_masks, predicted_graph_masks, 1, 0.0
+            graph_masks, predicted_graph_masks, 1, 0.0, float("-inf")
         )
-        # diagonal_repr_graphs = torch.cat((diagonal_repr_graphs, graph_masks), dim=2)
-        # predicted_graphs = torch.cat((predicted_graphs, predicted_graph_masks), dim=2)
         return (
             diagonal_repr_graphs,
             graph_masks,
@@ -117,13 +115,20 @@ class RecurrentGraphAutoencoder(GraphAutoencoder):
 
 
 def equalize_dim_by_padding(
-    t1: Tensor, t2: Tensor, dim: int, padding_value
+    t1: Tensor, t2: Tensor, dim: int, padding_value_1, padding_value_2
 ) -> Tuple[Tensor, Tensor]:
     diff = t1.shape[dim] - t2.shape[dim]
-    padded_t = t1 if diff < 0 else t2
+    if diff < 0:
+        padded_t = t1
+        padding_value = padding_value_1
+    else:
+        padded_t = t2
+        padding_value = padding_value_2
 
     if padded_t.type() == torch.bool:
-        padding_value = True if padding_value == 1.0 else False
+        padding_value = (
+            True if padding_value == 1.0 or padding_value == float("inf") else False
+        )
 
     padded_t = torch.nn.functional.pad(
         padded_t,

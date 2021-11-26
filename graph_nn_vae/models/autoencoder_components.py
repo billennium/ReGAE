@@ -247,12 +247,13 @@ class GraphDecoder(BaseModel):
                 decoded_edges_with_mask_padded = torch.cat(
                     [
                         decoded_edges_with_mask_padded[:i],
-                        torch.zeros(
+                        torch.full(
                             (
                                 1,
                                 decoded_edges_with_mask_padded.shape[1],
                                 decoded_edges_with_mask_padded.shape[2],
                             ),
+                            fill_value=float("-inf"),
                             device=decoded_edges_with_mask_padded.device,
                         ),
                         decoded_edges_with_mask_padded[i:],
