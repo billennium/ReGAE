@@ -13,6 +13,10 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             loss_function="BCEWithLogits",
             mask_loss_function="BCEWithLogits",
             optimizer="Adam",
+            lr_monitor=True,
+            lr_scheduler_name="ReduceLROnPlateau",
+            lr_scheduler_params={"mode": "min", "verbose": True, "factor": 0.9},
+            lr_scheduler_metric="loss/train_avg",
             embedding_size=128,
             batch_size=32,
             learning_rate=0.0001,
@@ -22,7 +26,6 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             check_val_every_n_epoch=20,
             encoder_hidden_layer_sizes=[1024],
             decoder_hidden_layer_sizes=[1024],
-            bfs=True,
             metrics=[
                 "EdgeAccuracy",
                 "EdgePrecision",
@@ -32,6 +35,8 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             ],
             metric_update_interval=20,
             early_stopping=False,
+            bfs=True,
+            num_dataset_graph_permutations=10,
         )
         return parser
 
