@@ -6,9 +6,11 @@ import torch
 from torch import nn, Tensor
 import pytorch_lightning as pl
 from torch.nn import functional as F
+from torch.nn.modules import activation
 
 from graph_nn_vae.models.base import BaseModel
 from graph_nn_vae.models.utils.layers import sequential_from_layer_sizes
+from graph_nn_vae.models.utils.getters import get_activation_function
 from graph_nn_vae.models.utils.calc import weighted_average
 
 
@@ -18,6 +20,7 @@ class GraphEncoder(BaseModel):
         embedding_size: int,
         edge_size: int,
         encoder_hidden_layer_sizes: List[int],
+        encoder_activation_function: str,
         **kwargs,
     ):
         self.embedding_size = embedding_size
@@ -26,8 +29,9 @@ class GraphEncoder(BaseModel):
 
         input_size = 2 * embedding_size + edge_size
         output_size = 3 * embedding_size
+        activation_f = get_activation_function(encoder_activation_function)
         self.edge_encoder = sequential_from_layer_sizes(
-            input_size, output_size, encoder_hidden_layer_sizes
+            input_size, output_size, encoder_hidden_layer_sizes, activation_f
         )
 
     def forward(self, input_batch: Tensor) -> Tensor:
@@ -176,6 +180,14 @@ class GraphEncoder(BaseModel):
             metavar="DECODER_H_SIZES",
             help="list of the sizes of the decoder's hidden layers",
         )
+        parser.add_argument(
+            "--encoder_activation_function",
+            dest="encoder_activation_function",
+            default="ReLU",
+            type=str,
+            metavar="ACTIVATION_F_NAME",
+            help="name of the activation function of hidden layers",
+        )
         return parser
 
 
@@ -186,6 +198,7 @@ class GraphDecoder(BaseModel):
         edge_size: int,
         max_number_of_nodes: int,
         decoder_hidden_layer_sizes: List[int],
+        decoder_activation_function: str,
         **kwargs,
     ):
         if embedding_size % 2 != 0:
@@ -199,8 +212,9 @@ class GraphDecoder(BaseModel):
 
         input_size = self.internal_embedding_size * 2
         output_size = self.internal_embedding_size * 4 + edge_size
+        activation_f = get_activation_function(decoder_activation_function)
         self.edge_decoder = sequential_from_layer_sizes(
-            input_size, output_size, decoder_hidden_layer_sizes
+            input_size, output_size, decoder_hidden_layer_sizes, activation_f
         )
 
     def forward(self, graph_encoding_batch: Tensor) -> Tensor:
@@ -332,6 +346,14 @@ class GraphDecoder(BaseModel):
             type=int,
             metavar="NUM_NODES",
             help="max number of nodes of generated graphs",
+        )
+        parser.add_argument(
+            "--decoder_activation_function",
+            dest="decoder_activation_function",
+            default="ReLU",
+            type=str,
+            metavar="ACTIVATION_F_NAME",
+            help="name of the activation function of hidden layers",
         )
         return parser
 
