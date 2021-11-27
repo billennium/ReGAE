@@ -2,6 +2,7 @@ from typing import List
 
 import torch
 from torch import optim
+from torch import nn
 
 from graph_nn_vae.metrics.edge_accuracy import EdgeAccuracy, MaskAccuracy
 from graph_nn_vae.metrics.precision_recall import *
@@ -68,3 +69,12 @@ def get_metrics(metrics: List[str]):
         "MaskRecall": MaskRecall,
     }
     return [metrics_dict[m]() for m in metrics]
+
+
+def get_activation_function(name: str = "ReLU"):
+    d = {
+        "ReLU": nn.ReLU,
+        "ELU": nn.ELU,
+        "CELU": nn.CELU,
+    }
+    return d[name]
