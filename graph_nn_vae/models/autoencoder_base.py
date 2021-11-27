@@ -17,6 +17,8 @@ class GraphAutoencoder(BaseModel):
         if mask_loss_function is not None:
             self.is_with_graph_mask = True
             self.edge_loss_function = self.loss_function
+            if isinstance(mask_loss_weight, float):
+                mask_loss_weight = torch.Tensor([mask_loss_weight])
             self.mask_loss_function = get_loss(mask_loss_function, mask_loss_weight)
 
     def step(self, batch, metrics: List[Callable] = []) -> Tensor:
@@ -60,7 +62,15 @@ class GraphAutoencoder(BaseModel):
             default=None,
             type=str,
             metavar="MASK_LOSS_F_NAME",
-            help="name of loss function for the graph mask, if used",
+            help="name of loss function for the graph mask",
+        )
+        parser.add_argument(
+            "--mask_loss_weight",
+            dest="mask_loss_weight",
+            default=1.0,
+            type=float,
+            metavar="MASK_LOSS_WEIGHT",
+            help="weight of loss function for the graph mask",
         )
         return parser
 
