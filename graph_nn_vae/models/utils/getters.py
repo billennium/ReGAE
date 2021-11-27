@@ -20,16 +20,42 @@ def get_loss(name: str, loss_weight: torch.Tensor = None):
 
 
 def get_optimizer(name: str):
-    optimizers = {"Adam": optim.Adam, "SGD": optim.SGD}
+    optimizers = {
+        "Adam": optim.Adam,
+        "AdamW": optim.AdamW,
+        "AdamWAmsgrad": AdamWAmsgrad,
+        "SGD": optim.SGD,
+    }
     return optimizers[name]
+
+
+def AdamWAmsgrad(*args, **kwargs):
+    return optim.AdamW(amsgrad=True, *args, **kwargs)
 
 
 def get_lr_scheduler(name: str):
     optimizers = {
+        "NoSched": NoSched,
         "StepLR": torch.optim.lr_scheduler.StepLR,
-        "ReduceLROnPlateau": torch.optim.lr_scheduler.ReduceLROnPlateau
+        "MultiStepLR": torch.optim.lr_scheduler.MultiStepLR,
+        "ReduceLROnPlateau": torch.optim.lr_scheduler.ReduceLROnPlateau,
     }
-    return optimizers[name]
+    return optimizers.get(name, NoSched)
+
+
+class NoSched(torch.optim.lr_scheduler._LRScheduler):
+    """
+    Does not decay the lr whatsoever.
+    """
+
+    def __init__(self, optimizer, last_epoch=-1, verbose=False):
+        super(NoSched, self).__init__(optimizer, last_epoch, verbose)
+
+    def get_lr(self):
+        return [group["lr"] for group in self.optimizer.param_groups]
+
+    def _get_closed_form_lr(self):
+        return self.base_lrs
 
 
 def get_metrics(metrics: List[str]):
