@@ -23,13 +23,13 @@ def get_optimizer(name: str):
     optimizers = {
         "Adam": optim.Adam,
         "AdamW": optim.AdamW,
-        "AdamWAmsgrad": AdamWAmsgrad,
+        "AdamWAMSGrad": AdamWAMSGrad,
         "SGD": optim.SGD,
     }
     return optimizers[name]
 
 
-def AdamWAmsgrad(*args, **kwargs):
+def AdamWAMSGrad(*args, **kwargs):
     return optim.AdamW(amsgrad=True, *args, **kwargs)
 
 
