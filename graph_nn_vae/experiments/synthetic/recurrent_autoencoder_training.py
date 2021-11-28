@@ -19,31 +19,30 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
         parser = RecurrentGraphAutoencoder.add_model_specific_args(parent_parser)
         parser.set_defaults(
             loss_function="MSE",
-            optimizer="Adam",
+            optimizer="AdamWAMSGrad",
             lr_monitor=True,
-            lr_scheduler_name='ReduceLROnPlateau',
-            lr_scheduler_params={'mode':'min', 'verbose':True, 'factor':0.9},
-            lr_scheduler_metric='loss/train_avg',
-            embedding_size=128,
+            lr_scheduler_name="NoSched",
+            lr_scheduler_metric="loss/train_avg",
+            learning_rate=0.001,
+            gradient_clip_val=1.0,
             batch_size=32,
-            learning_rate=0.0005,
+            encoder_hidden_layer_sizes=[1024],
+            encoder_activation_function="ELU",
+            decoder_hidden_layer_sizes=[1024],
+            decoder_activation_function="ELU",
+            metrics=[
+                "Accuracy",
+                "PositivePrecision",
+                "PositiveRecall",
+                "NegativePrecision",
+                "NegativeRecall",
+            ],
             max_number_of_nodes=16,
-            gradient_clip_val=0.01,
             max_epochs=10000,
             check_val_every_n_epoch=20,
-            encoder_hidden_layer_sizes=[512],
-            decoder_hidden_layer_sizes=[512],
-            # metrics=[
-            #     "Accuracy",
-            #     "PositivePrecision",
-            #     "PositiveRecall",
-            #     "NegativePrecision",
-            #     "NegativeRecall",
-            # ],
-            metric_update_interval=20,
             early_stopping=False,
             bfs=True,
-            num_dataset_graph_permutations=10
+            num_dataset_graph_permutations=10,
         )
         return parser
 
