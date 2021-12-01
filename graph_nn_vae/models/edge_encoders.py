@@ -35,7 +35,7 @@ class MemoryEdgeEncoder(nn.Module):
         )
 
     def forward(
-        self, embedding_l: Tensor, embedding_r: Tensor, diagonal_x: Tensor
+        self, diagonal_x: Tensor, embedding_l: Tensor, embedding_r: Tensor
     ) -> Tensor:
         x = torch.cat((embedding_l, embedding_r, diagonal_x), dim=-1)
         nn_output = self.nn(x)
@@ -103,7 +103,7 @@ class GRULikeEdgeEncoder(nn.Module):
         )
 
     def forward(
-        self, embedding_l: Tensor, embedding_r: Tensor, diagonal_x: Tensor
+        self, diagonal_x: Tensor, embedding_l: Tensor, embedding_r: Tensor
     ) -> Tensor:
         x = torch.cat((embedding_l, embedding_r, diagonal_x), dim=-1)
         embeddings = torch.cat((embedding_l, embedding_r), dim=-1)

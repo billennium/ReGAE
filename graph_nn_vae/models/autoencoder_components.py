@@ -100,7 +100,7 @@ class GraphEncoder(BaseModel):
             embeddings_right = prev_embedding[:, 1:, :]
 
             new_embedding = self.edge_encoder(
-                embeddings_left, embeddings_right, current_diagonal
+                current_diagonal, embeddings_left, embeddings_right
             )
             prev_embedding = new_embedding
 
