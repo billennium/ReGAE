@@ -194,6 +194,8 @@ class GraphDecoder(BaseModel):
         original_indices = torch.IntTensor(list(range(graph_encoding_batch.shape[0])))
         indices_of_finished_graphs = []
 
+        diagonal_embeddings = []
+
         for _ in range(self.max_number_of_nodes):
             edge_with_embeddings = self.edge_decoder(prev_doubled_embeddings)
 
@@ -242,6 +244,9 @@ class GraphDecoder(BaseModel):
             )
             original_indices = original_indices[indices_graphs_still_generating]
 
+            if any(~indices_graphs_still_generating):
+                diagonal_embeddings.append(doubled_embeddings[~indices_graphs_still_generating].flatten())
+
             doubled_embeddings = doubled_embeddings[indices_graphs_still_generating]
             mem_overwrite_ratio = mem_overwrite_ratio[indices_graphs_still_generating]
             prev_doubled_embeddings = prev_doubled_embeddings[
@@ -271,11 +276,17 @@ class GraphDecoder(BaseModel):
         concatenated_diagonals_with_masks = torch.cat(
             decoded_diagonals_with_masks, dim=1
         )
+
+        if(doubled_embeddings.shape[0] > 0):
+            diagonal_embeddings.append(doubled_embeddings.flatten())
+
         masks, concatenated_diagonals = torch.split(
             concatenated_diagonals_with_masks, (1, self.edge_size), dim=2
         )
 
-        return concatenated_diagonals, masks
+        diagonal_embeddings_norm = torch.norm(torch.cat(diagonal_embeddings))
+
+        return (concatenated_diagonals, masks), diagonal_embeddings_norm
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:

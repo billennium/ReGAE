@@ -12,7 +12,13 @@ from graph_nn_vae.models.utils.getters import get_loss
 class GraphAutoencoder(BaseModel):
     is_with_graph_mask = False
 
-    def __init__(self, mask_loss_function: str = None, mask_loss_weight=None, **kwargs):
+    def __init__(
+        self,
+        mask_loss_function: str = None,
+        mask_loss_weight=None,
+        diagonal_embeddings_loss_weight : int = 0,
+        **kwargs
+    ):
         super(GraphAutoencoder, self).__init__(**kwargs)
         if mask_loss_function is not None:
             self.is_with_graph_mask = True
@@ -20,12 +26,13 @@ class GraphAutoencoder(BaseModel):
             if isinstance(mask_loss_weight, float):
                 mask_loss_weight = torch.Tensor([mask_loss_weight])
             self.mask_loss_function = get_loss(mask_loss_function, mask_loss_weight)
+        self.diagonal_embeddings_loss_weight = diagonal_embeddings_loss_weight
 
     def step(self, batch, metrics: List[Callable] = []) -> Tensor:
         if not self.is_with_graph_mask:
             return super().step(batch, metrics)
 
-        y_pred = self(batch)
+        y_pred, diagonal_embeddings_norm = self(batch)
         y_edge, y_mask, y_pred_edge, y_pred_mask = self.adjust_y_to_prediction(
             batch, y_pred
         )
@@ -40,7 +47,8 @@ class GraphAutoencoder(BaseModel):
 
         loss_edges = self.edge_loss_function(y_pred_edge_l, y_edge_l.data)
         loss_mask = self.mask_loss_function(y_pred_mask_l, y_mask_l)
-        loss = loss_edges + loss_mask
+        loss_embeddings = diagonal_embeddings_norm * self.diagonal_embeddings_loss_weight
+        loss = loss_edges + loss_mask + loss_embeddings
 
         for metric in metrics:
             metric(
@@ -72,6 +80,14 @@ class GraphAutoencoder(BaseModel):
             metavar="MASK_LOSS_WEIGHT",
             help="weight of loss function for the graph mask",
         )
+        parser.add_argument(
+            "--diagonal_embeddings_loss_weight",
+            dest="diagonal_embeddings_weight",
+            default=0.2,
+            type=float,
+            metavar="DIAGONAL_EMBEDDINGS_LOSS_WEIGHT",
+            help="weight of loss function for the graph diagonal embeddings norm",
+        )
         return parser
 
 
@@ -93,8 +109,8 @@ class RecurrentGraphAutoencoder(GraphAutoencoder):
                 + "be lower than the number of nodes of the biggest input graph"
             )
         graph_embdeddings = self.encoder(batch)
-        reconstructed_graph_diagonals = self.decoder(graph_embdeddings)
-        return reconstructed_graph_diagonals
+        reconstructed_graph_diagonals, diagonal_embeddings_norm = self.decoder(graph_embdeddings)
+        return reconstructed_graph_diagonals, diagonal_embeddings_norm
 
     # override
     def adjust_y_to_prediction(self, batch, y_predicted) -> Tuple[Tensor, Tensor]:

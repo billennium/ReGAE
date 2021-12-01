@@ -22,6 +22,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             loss_function="BCEWithLogits",
             mask_loss_function="BCEWithLogits",
             mask_loss_weight=0.5,
+            diagonal_embeddings_loss_weight=0.2,
             optimizer="AdamWAMSGrad",
             lr_monitor=True,
             lr_scheduler_name="NoSched",
@@ -48,6 +49,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             early_stopping=False,
             bfs=True,
             num_dataset_graph_permutations=10,
+            graph_type='grid_small'
         )
         return parser
 
