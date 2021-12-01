@@ -6,6 +6,7 @@ from torch import nn, Tensor
 from torch.nn import functional as F
 
 from graph_nn_vae.models.base import BaseModel
+from graph_nn_vae.models.edge_decoders import MemoryEdgeDecoder
 from graph_nn_vae.models.edge_encoders import MemoryEdgeEncoder
 from graph_nn_vae.models.utils.getters import get_activation_function
 from graph_nn_vae.models.utils.calc import weighted_average
@@ -161,8 +162,6 @@ class GraphDecoder(BaseModel):
         embedding_size: int,
         edge_size: int,
         max_number_of_nodes: int,
-        decoder_hidden_layer_sizes: List[int],
-        decoder_activation_function: str,
         **kwargs,
     ):
         if embedding_size % 2 != 0:
@@ -174,12 +173,8 @@ class GraphDecoder(BaseModel):
         self.max_number_of_nodes = max_number_of_nodes
         super().__init__(**kwargs)
 
-        input_size = self.internal_embedding_size * 2
-        graph_end_mask_size = 1
-        output_size = self.internal_embedding_size * 4 + graph_end_mask_size + edge_size
-        activation_f = get_activation_function(decoder_activation_function)
-        self.edge_decoder = sequential_from_layer_sizes(
-            input_size, output_size, decoder_hidden_layer_sizes, activation_f
+        self.edge_decoder = MemoryEdgeDecoder(
+            embedding_size=self.internal_embedding_size, edge_size=edge_size, **kwargs
         )
 
     def forward(self, graph_encoding_batch: Tensor) -> Tuple[Tensor, Tensor]:
@@ -190,26 +185,21 @@ class GraphDecoder(BaseModel):
         decoded_diagonals_with_masks = []
         # The working embeddings batch has this shape: [graph_idx x embdedding_idx x embedding]
         prev_doubled_embeddings = graph_encoding_batch[:, None, :]
+        prev_embeddings_l, prev_embeddings_r = torch.split(
+            prev_doubled_embeddings,
+            (self.internal_embedding_size, self.internal_embedding_size),
+            dim=-1,
+        )
 
         original_indices = torch.IntTensor(list(range(graph_encoding_batch.shape[0])))
         indices_of_finished_graphs = []
 
         for _ in range(self.max_number_of_nodes):
-            edge_with_embeddings = self.edge_decoder(prev_doubled_embeddings)
-
             (
                 decoded_edges_with_mask,
-                doubled_embeddings,
-                mem_overwrite_ratio,
-            ) = torch.split(
-                edge_with_embeddings,
-                [
-                    1 + self.edge_size,
-                    self.internal_embedding_size * 2,
-                    self.internal_embedding_size * 2,
-                ],
-                dim=2,
-            )
+                new_embedding_l,
+                new_embedding_r,
+            ) = self.edge_decoder(prev_embeddings_l, prev_embeddings_r)
 
             # decoded_edges_with_mask = torch.sigmoid(decoded_edges_with_mask)
             masks = decoded_edges_with_mask[:, :, 0]
@@ -242,31 +232,15 @@ class GraphDecoder(BaseModel):
             )
             original_indices = original_indices[indices_graphs_still_generating]
 
-            doubled_embeddings = doubled_embeddings[indices_graphs_still_generating]
-            mem_overwrite_ratio = mem_overwrite_ratio[indices_graphs_still_generating]
-            prev_doubled_embeddings = prev_doubled_embeddings[
-                indices_graphs_still_generating
-            ]
+            new_embedding_l = new_embedding_l[indices_graphs_still_generating]
+            new_embedding_r = new_embedding_r[indices_graphs_still_generating]
 
-            if doubled_embeddings.shape[0] == 0:
+            if new_embedding_l.shape[0] == 0:
                 break
 
-            doubled_embeddings = weighted_average(
-                doubled_embeddings, prev_doubled_embeddings, mem_overwrite_ratio
-            )
-
-            embedding_1, embedding_2 = torch.split(
-                doubled_embeddings,
-                [self.internal_embedding_size, self.internal_embedding_size],
-                dim=2,
-            )
-
             # add zeroes to both sides - these are the empty embeddings of the far-out edges
-            prev_embeddings_1 = torch.nn.functional.pad(embedding_1, (0, 0, 1, 0))
-            prev_embeddings_2 = torch.nn.functional.pad(embedding_2, (0, 0, 0, 1))
-            prev_doubled_embeddings = torch.cat(
-                (prev_embeddings_1, prev_embeddings_2), dim=2
-            )
+            prev_embeddings_l = torch.nn.functional.pad(new_embedding_l, (0, 0, 1, 0))
+            prev_embeddings_r = torch.nn.functional.pad(new_embedding_r, (0, 0, 0, 1))
 
         concatenated_diagonals_with_masks = torch.cat(
             decoded_diagonals_with_masks, dim=1
@@ -280,6 +254,7 @@ class GraphDecoder(BaseModel):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
+        parser = MemoryEdgeDecoder.add_model_specific_args(parent_parser=parser)
         try:  # these may collide with an upper autoencoder, but that's fine
             parser = BaseModel.add_model_specific_args(parent_parser=parser)
         except ArgumentError:
@@ -304,14 +279,6 @@ class GraphDecoder(BaseModel):
         except ArgumentError:
             pass
         parser.add_argument(
-            "--decoder_hidden_layer_sizes",
-            dest="decoder_hidden_layer_sizes",
-            default=[256],
-            type=parse_layer_sizes_list,
-            metavar="DECODER_H_SIZES",
-            help="list of the sizes of the decoder's hidden layers",
-        )
-        parser.add_argument(
             "--max-num-nodes",
             "--max-number-of-nodes",
             dest="max_number_of_nodes",
@@ -319,13 +286,5 @@ class GraphDecoder(BaseModel):
             type=int,
             metavar="NUM_NODES",
             help="max number of nodes of generated graphs",
-        )
-        parser.add_argument(
-            "--decoder_activation_function",
-            dest="decoder_activation_function",
-            default="ReLU",
-            type=str,
-            metavar="ACTIVATION_F_NAME",
-            help="name of the activation function of hidden layers",
         )
         return parser
