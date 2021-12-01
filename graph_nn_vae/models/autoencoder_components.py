@@ -1,17 +1,18 @@
 from argparse import ArgumentParser, ArgumentError
 from typing import List, Tuple
 
-import numpy as np
 import torch
 from torch import nn, Tensor
-import pytorch_lightning as pl
 from torch.nn import functional as F
-from torch.nn.modules import activation
 
 from graph_nn_vae.models.base import BaseModel
-from graph_nn_vae.models.utils.layers import sequential_from_layer_sizes
+from graph_nn_vae.models.edge_encoders import MemoryEdgeEncoder
 from graph_nn_vae.models.utils.getters import get_activation_function
 from graph_nn_vae.models.utils.calc import weighted_average
+from graph_nn_vae.models.utils.layers import (
+    sequential_from_layer_sizes,
+    parse_layer_sizes_list,
+)
 
 
 class GraphEncoder(BaseModel):
@@ -19,20 +20,12 @@ class GraphEncoder(BaseModel):
         self,
         embedding_size: int,
         edge_size: int,
-        encoder_hidden_layer_sizes: List[int],
-        encoder_activation_function: str,
         **kwargs,
     ):
         self.embedding_size = embedding_size
         self.edge_size = edge_size
         super(GraphEncoder, self).__init__(**kwargs)
-
-        input_size = 2 * embedding_size + edge_size
-        output_size = 3 * embedding_size
-        activation_f = get_activation_function(encoder_activation_function)
-        self.edge_encoder = sequential_from_layer_sizes(
-            input_size, output_size, encoder_hidden_layer_sizes, activation_f
-        )
+        self.edge_encoder = MemoryEdgeEncoder(embedding_size, edge_size, **kwargs)
 
     def forward(self, input_batch: Tensor) -> Tensor:
         """
@@ -106,28 +99,10 @@ class GraphEncoder(BaseModel):
             embeddings_left = prev_embedding[:, :-1, :]
             embeddings_right = prev_embedding[:, 1:, :]
 
-            encoder_input = torch.cat(
-                (embeddings_left, embeddings_right, current_diagonal), dim=2
+            new_embedding = self.edge_encoder(
+                embeddings_left, embeddings_right, current_diagonal
             )
-
-            encoder_output = self.edge_encoder(encoder_input)
-
-            (embedding, mem_overwrite_ratio, embedding_ratio,) = torch.split(
-                encoder_output,
-                [
-                    self.embedding_size,
-                    self.embedding_size,
-                    self.embedding_size,
-                ],
-                dim=2,
-            )
-
-            weighted_prev_embedding = weighted_average(
-                embeddings_left, embeddings_right, embedding_ratio
-            )
-            prev_embedding = weighted_average(
-                weighted_prev_embedding, embedding, mem_overwrite_ratio
-            )
+            prev_embedding = new_embedding
 
             diag_right_pos = diag_left_pos
 
@@ -152,6 +127,7 @@ class GraphEncoder(BaseModel):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
+        parser = MemoryEdgeEncoder.add_model_specific_args(parent_parser=parser)
         try:  # these may collide with an upper autoencoder, but that's fine
             parser = BaseModel.add_model_specific_args(parent_parser=parser)
         except ArgumentError:
@@ -176,22 +152,6 @@ class GraphEncoder(BaseModel):
             )
         except ArgumentError:
             pass
-        parser.add_argument(
-            "--encoder_hidden_layer_sizes",
-            dest="encoder_hidden_layer_sizes",
-            default=[256],
-            type=parse_layer_sizes_list,
-            metavar="DECODER_H_SIZES",
-            help="list of the sizes of the decoder's hidden layers",
-        )
-        parser.add_argument(
-            "--encoder_activation_function",
-            dest="encoder_activation_function",
-            default="ReLU",
-            type=str,
-            metavar="ACTIVATION_F_NAME",
-            help="name of the activation function of hidden layers",
-        )
         return parser
 
 
@@ -369,14 +329,3 @@ class GraphDecoder(BaseModel):
             help="name of the activation function of hidden layers",
         )
         return parser
-
-
-def parse_layer_sizes_list(s: str) -> List[int]:
-    if isinstance(s, str):
-        if "," in s:
-            return [int(v) for v in s.split(",")]
-        if "|" in s:
-            return [int(v) for v in s.split("|")]
-        if ":" in s:
-            return [int(v) for v in s.split(":")]
-    return [int(s)]

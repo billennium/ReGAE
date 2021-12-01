@@ -17,3 +17,14 @@ def sequential_from_layer_sizes(
         layers.append(activation_function())
         layers.append(nn.Linear(layer_sizes[i], layer_sizes[i + 1]))
     return nn.Sequential(*layers)
+
+
+def parse_layer_sizes_list(s: str) -> List[int]:
+    if isinstance(s, str):
+        if "," in s:
+            return [int(v) for v in s.split(",")]
+        if "|" in s:
+            return [int(v) for v in s.split("|")]
+        if ":" in s:
+            return [int(v) for v in s.split(":")]
+    return [int(s)]
