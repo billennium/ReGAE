@@ -17,16 +17,19 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
 
     def _adj_batch_to_diagonal(
         self, batch: List[Tuple[torch.Tensor, int]]
-    ) -> List[Tuple[torch.Tensor, int]]:
+    ) -> List[Tuple[torch.Tensor, torch.Tensor, int]]:
 
         diag_represented_batch = []
         for m in batch:
             matrix = m[0]
             num_nodes = m[1]
             diag_represented_matrix = adj_matrix_to_diagonal_representation(
-                matrix, num_nodes, None, -1.0
+                matrix, num_nodes
             )
-            diag_represented_batch.append((diag_represented_matrix, num_nodes))
+            graph_mask = torch.ones(diag_represented_matrix.shape)
+            diag_represented_batch.append(
+                (diag_represented_matrix, graph_mask, num_nodes)
+            )
 
         return diag_represented_batch
 
@@ -53,9 +56,13 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
 
 
 def collate_graph_batch(batch):
-    # Currently pretty much does the same thing as the default pl collate_fn
+    # As part of the collation graph diag_repr are padded with 0.0 and the graph masks
+    # are padded with 1.0 to represent the end of the graphs.
     graphs = torch.nn.utils.rnn.pad_sequence(
-        [g[0] for g in batch], batch_first=True, padding_value=-1.0
+        [g[0] for g in batch], batch_first=True, padding_value=0.0
     )
-    num_nodes = torch.tensor([g[1] for g in batch])
-    return graphs, num_nodes
+    graph_masks = torch.nn.utils.rnn.pad_sequence(
+        [g[1] for g in batch], batch_first=True, padding_value=0.0
+    )
+    num_nodes = torch.tensor([g[2] for g in batch])
+    return graphs, graph_masks, num_nodes

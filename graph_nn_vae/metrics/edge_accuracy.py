@@ -8,8 +8,42 @@ class EdgeAccuracy(torchmetrics.Accuracy):
     def __init__(self, **kwargs):
         super().__init__(kwargs)
 
-    def update(self, prediction_batch: torch.Tensor, target_batch: torch.Tensor):
-        target_batch = target_batch.int()
-        mask = target_batch != -1
-        prediction_batch = torch.round(prediction_batch).int()
-        super().update(prediction_batch[mask] + 1, target_batch[mask] + 1)
+    def update(
+        self,
+        edges_predicted: torch.Tensor,
+        edges_target: torch.Tensor,
+        mask_predicted: torch.Tensor,
+        mask_target: torch.Tensor,
+    ):
+        edges_predicted = edges_predicted.sigmoid().round().int()
+        edges_target = edges_target.int()
+
+        mask_predicted = mask_predicted.sigmoid().round().int()
+        mask_target = mask_target.int()
+
+        mask = (mask_target == 1) + (mask_predicted == 1)
+
+        super().update(
+            edges_predicted[mask] + mask_predicted[mask] * 2,
+            edges_target[mask] + mask_target[mask] * 2,
+        )
+
+
+class MaskAccuracy(torchmetrics.Accuracy):
+    label = "mask_accuracy"
+
+    def __init__(self, **kwargs):
+        super().__init__(kwargs)
+
+    def update(
+        self,
+        edges_predicted: torch.Tensor,
+        edges_target: torch.Tensor,
+        mask_predicted: torch.Tensor,
+        mask_target: torch.Tensor,
+    ):
+        mask_predicted = torch.sigmoid(mask_predicted)
+        mask_target = mask_target.int()
+        mask = mask_target == 1
+        mask_predicted = torch.round(mask_predicted[mask]).int()
+        super().update(mask_predicted, mask_target[mask])

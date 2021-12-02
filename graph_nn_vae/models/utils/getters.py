@@ -4,7 +4,7 @@ import torch
 from torch import optim
 from torch import nn
 
-from graph_nn_vae.metrics.edge_accuracy import EdgeAccuracy
+from graph_nn_vae.metrics.edge_accuracy import EdgeAccuracy, MaskAccuracy
 from graph_nn_vae.metrics.precision_recall import *
 
 
@@ -12,6 +12,7 @@ def get_loss(name: str, loss_weight: torch.Tensor = None):
     losses = {
         "MSE": torch.nn.MSELoss,
         "BCE": torch.nn.BCELoss,
+        "BCEWithLogits": torch.nn.BCEWithLogitsLoss,
     }
     if loss_weight is not None:
         return losses[name](weight=loss_weight)
@@ -60,11 +61,12 @@ class NoSched(torch.optim.lr_scheduler._LRScheduler):
 
 def get_metrics(metrics: List[str]):
     metrics_dict = {
-        "Accuracy": EdgeAccuracy,
-        "PositivePrecision": PositivePrecision,
-        "PositiveRecall": PositiveRecall,
-        "NegativePrecision": NegativePrecision,
-        "NegativeRecall": NegativeRecall,
+        "EdgeAccuracy": EdgeAccuracy,
+        "MaskAccuracy": MaskAccuracy,
+        "EdgePrecision": EdgePrecision,
+        "EdgeRecall": EdgeRecall,
+        "MaskPrecision": MaskPrecision,
+        "MaskRecall": MaskRecall,
     }
     return [metrics_dict[m]() for m in metrics]
 
