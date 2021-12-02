@@ -35,7 +35,7 @@ def adj_matrix_to_diagonal_block_representation(
     The size of the dimensions:             [ num_blocks : block_size : block_size : edge_size ]
     """
 
-    adj_matrix = adj_matrix[:num_nodes, :num_nodes, :]
+    adj_matrix = adj_matrix[1:num_nodes, : num_nodes - 1, :]
 
     pad_diff = adj_matrix.shape[0] % block_size
     if pad_diff != 0:
