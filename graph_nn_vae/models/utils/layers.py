@@ -20,6 +20,8 @@ def sequential_from_layer_sizes(
 
 
 def parse_layer_sizes_list(s: str) -> List[int]:
+    if s is None or s == "":
+        return []
     if isinstance(s, str):
         if "," in s:
             return [int(v) for v in s.split(",")]
