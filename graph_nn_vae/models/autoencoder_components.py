@@ -6,13 +6,12 @@ from torch import nn, Tensor
 from torch.nn import functional as F
 
 from graph_nn_vae.models.base import BaseModel
-from graph_nn_vae.models.edge_decoders import MemoryEdgeDecoder
-from graph_nn_vae.models.edge_encoders import MemoryEdgeEncoder
 
 
 class GraphEncoder(BaseModel):
     def __init__(
         self,
+        edge_encoder_class: nn.Module,
         embedding_size: int,
         edge_size: int,
         **kwargs,
@@ -20,7 +19,7 @@ class GraphEncoder(BaseModel):
         self.embedding_size = embedding_size
         self.edge_size = edge_size
         super(GraphEncoder, self).__init__(**kwargs)
-        self.edge_encoder = MemoryEdgeEncoder(embedding_size, edge_size, **kwargs)
+        self.edge_encoder = edge_encoder_class(embedding_size, edge_size, **kwargs)
 
     def forward(self, input_batch: Tensor) -> Tensor:
         """
@@ -122,7 +121,6 @@ class GraphEncoder(BaseModel):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser = MemoryEdgeEncoder.add_model_specific_args(parent_parser=parser)
         try:  # these may collide with an upper autoencoder, but that's fine
             parser = BaseModel.add_model_specific_args(parent_parser=parser)
         except ArgumentError:
@@ -153,6 +151,7 @@ class GraphEncoder(BaseModel):
 class GraphDecoder(BaseModel):
     def __init__(
         self,
+        edge_decoder_class: nn.Module,
         embedding_size: int,
         edge_size: int,
         max_number_of_nodes: int,
@@ -167,7 +166,7 @@ class GraphDecoder(BaseModel):
         self.max_number_of_nodes = max_number_of_nodes
         super().__init__(**kwargs)
 
-        self.edge_decoder = MemoryEdgeDecoder(
+        self.edge_decoder = edge_decoder_class(
             embedding_size=self.internal_embedding_size, edge_size=edge_size, **kwargs
         )
 
@@ -267,7 +266,6 @@ class GraphDecoder(BaseModel):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser = MemoryEdgeDecoder.add_model_specific_args(parent_parser=parser)
         try:  # these may collide with an upper autoencoder, but that's fine
             parser = BaseModel.add_model_specific_args(parent_parser=parser)
         except ArgumentError:
@@ -291,6 +289,14 @@ class GraphDecoder(BaseModel):
             )
         except ArgumentError:
             pass
+        # parser.add_argument(
+        #     "--edge_decoder_name",
+        #     dest="edge_decoder_name",
+        #     default="MemoryEdgeDecoder",
+        #     type=str,
+        #     metavar="EDGE_DECODER_NAME",
+        #     help="name of the edge decoder module to use",
+        # )
         parser.add_argument(
             "--max-num-nodes",
             "--max-number-of-nodes",

@@ -6,6 +6,8 @@ from torch import Tensor
 
 from graph_nn_vae.models.base import BaseModel
 from graph_nn_vae.models.autoencoder_components import GraphEncoder, GraphDecoder
+from graph_nn_vae.models.edge_encoders.memory_standard import MemoryEdgeEncoder
+from graph_nn_vae.models.edge_decoders.memory_standard import MemoryEdgeDecoder
 from graph_nn_vae.models.utils.getters import get_loss
 
 
@@ -16,7 +18,7 @@ class GraphAutoencoder(BaseModel):
         self,
         mask_loss_function: str = None,
         mask_loss_weight=None,
-        diagonal_embeddings_loss_weight : int = 0,
+        diagonal_embeddings_loss_weight: int = 0,
         **kwargs
     ):
         super(GraphAutoencoder, self).__init__(**kwargs)
@@ -47,7 +49,9 @@ class GraphAutoencoder(BaseModel):
 
         loss_edges = self.edge_loss_function(y_pred_edge_l, y_edge_l.data)
         loss_mask = self.mask_loss_function(y_pred_mask_l, y_mask_l)
-        loss_embeddings = diagonal_embeddings_norm * self.diagonal_embeddings_loss_weight
+        loss_embeddings = (
+            diagonal_embeddings_norm * self.diagonal_embeddings_loss_weight
+        )
         loss = loss_edges + loss_mask + loss_embeddings
 
         for metric in metrics:
@@ -94,11 +98,18 @@ class GraphAutoencoder(BaseModel):
 class RecurrentGraphAutoencoder(GraphAutoencoder):
     model_name = ""
 
+    graph_encoder_class = GraphEncoder
+    edge_encoder_class = MemoryEdgeEncoder
+    graph_decoder_class = GraphDecoder
+    edge_decoder_class = MemoryEdgeDecoder
+
     def __init__(self, max_number_of_nodes: int, **kwargs):
         self.max_number_of_nodes = max_number_of_nodes
         super(RecurrentGraphAutoencoder, self).__init__(**kwargs)
-        self.encoder = GraphEncoder(**kwargs)
-        self.decoder = GraphDecoder(max_number_of_nodes=max_number_of_nodes, **kwargs)
+        self.encoder = self.graph_encoder_class(self.edge_encoder_class, **kwargs)
+        self.decoder = self.graph_decoder_class(
+            self.edge_decoder_class, max_number_of_nodes=max_number_of_nodes, **kwargs
+        )
 
     def forward(self, batch: Tensor) -> Tensor:
         num_nodes_batch = batch[2]
@@ -109,7 +120,9 @@ class RecurrentGraphAutoencoder(GraphAutoencoder):
                 + "be lower than the number of nodes of the biggest input graph"
             )
         graph_embdeddings = self.encoder(batch)
-        reconstructed_graph_diagonals, diagonal_embeddings_norm = self.decoder(graph_embdeddings)
+        reconstructed_graph_diagonals, diagonal_embeddings_norm = self.decoder(
+            graph_embdeddings
+        )
         return reconstructed_graph_diagonals, diagonal_embeddings_norm
 
     # override
@@ -131,12 +144,14 @@ class RecurrentGraphAutoencoder(GraphAutoencoder):
             predicted_graph_masks,
         )
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         parser = GraphAutoencoder.add_model_specific_args(parent_parser=parser)
-        parser = GraphEncoder.add_model_specific_args(parent_parser=parser)
-        parser = GraphDecoder.add_model_specific_args(parent_parser=parser)
+        parser = cls.graph_encoder_class.add_model_specific_args(parent_parser=parser)
+        parser = cls.graph_decoder_class.add_model_specific_args(parent_parser=parser)
+        parser = cls.edge_encoder_class.add_model_specific_args(parent_parser=parser)
+        parser = cls.edge_decoder_class.add_model_specific_args(parent_parser=parser)
         return parser
 
 
