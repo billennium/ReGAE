@@ -7,7 +7,6 @@ from torch.nn import functional as F
 
 from graph_nn_vae.models.base import BaseModel
 
-
 class GraphEncoder(BaseModel):
     def __init__(
         self,
@@ -41,7 +40,6 @@ class GraphEncoder(BaseModel):
         :return:
             Graph embedding Tensor of dimensions [batch_size x embedding_size]
         """
-
         diagonal_repr_graphs_batch = input_batch[0]
         diagonal_repr_graphs_batch.requires_grad = True
         num_nodes_batch = input_batch[2]

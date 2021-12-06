@@ -1,0 +1,1 @@
+TRAINING_EPOCH = 0

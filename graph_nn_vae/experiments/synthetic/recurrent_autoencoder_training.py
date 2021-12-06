@@ -1,7 +1,10 @@
 from argparse import ArgumentParser
 
 from graph_nn_vae.experiments.experiment import Experiment
-from graph_nn_vae.data import SyntheticGraphsDataModule
+from graph_nn_vae.data import (
+    SyntheticGraphsDataModule,
+    SmoothLearningStepGraphDataModule,
+)
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
 from graph_nn_vae.models.edge_decoders.memory_standard import MemoryEdgeDecoder
 from graph_nn_vae.models.edge_decoders.single_input_embedding import (
@@ -23,9 +26,9 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
         # lr_milestones = [400, 800, 1200]
         # lr_milestones = [v / val_and_lr_update_interval for v in lr_milestones]
 
-        RecurrentGraphAutoencoder.edge_decoder_class = (
-            WeighingSingleInputMemoryEdgeDecoder
-        )
+        # RecurrentGraphAutoencoder.edge_decoder_class = (
+        #     WeighingSingleInputMemoryEdgeDecoder
+        # )
 
         parser = RecurrentGraphAutoencoder.add_model_specific_args(parent_parser)
         parser.set_defaults(
@@ -65,4 +68,4 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
 
 
 if __name__ == "__main__":
-    Experiment(GraphAutoencoder, SyntheticGraphsDataModule).run()
+    Experiment(GraphAutoencoder, SmoothLearningStepGraphDataModule).run()

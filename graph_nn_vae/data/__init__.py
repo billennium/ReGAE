@@ -1,3 +1,4 @@
 from .data_module import BaseDataModule
 from .synthetic_graphs_module import SyntheticGraphsDataModule
 from .diag_repr_graph_data_module import DiagonalRepresentationGraphDataModule
+from .smooth_learning_step_graph_data_module import SmoothLearningStepGraphDataModule

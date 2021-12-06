@@ -5,7 +5,14 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 import torch
 from torch import Tensor, nn
 import pytorch_lightning as pl
-from graph_nn_vae.models.utils.getters import get_metrics, get_loss, get_optimizer, get_lr_scheduler
+from graph_nn_vae.models.utils.getters import (
+    get_metrics,
+    get_loss,
+    get_optimizer,
+    get_lr_scheduler,
+)
+
+import graph_nn_vae.util.training_monitor as training_monitor
 
 
 class BaseModel(pl.LightningModule, metaclass=ABCMeta):
@@ -62,6 +69,8 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         return loss
 
     def training_step(self, batch, batch_idx):
+        training_monitor.TRAINING_EPOCH = self.current_epoch
+
         should_update_metric = (
             self.metric_update_counter % self.metric_update_interval == 0
         )
@@ -72,6 +81,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         for metric in metrics:
             self.log(f"{metric.label}/train_avg", metric, on_step=False, on_epoch=True)
         self.log("loss/train_avg", loss, on_step=False, on_epoch=True)
+
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -119,9 +129,9 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         )
 
         return {
-            'optimizer': optimizer,
-            'lr_scheduler': scheduler,
-            'monitor': self.lr_scheduler_metric
+            "optimizer": optimizer,
+            "lr_scheduler": scheduler,
+            "monitor": self.lr_scheduler_metric,
         }
 
     def get_progress_bar_dict(self) -> Dict[str, Union[int, str]]:

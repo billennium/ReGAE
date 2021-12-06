@@ -16,6 +16,7 @@ class BaseDataModule(pl.LightningDataModule):
         batch_size_val: int,
         batch_size_test: int,
         workers: int,
+        logger_engine,
         **kwargs
     ):
         super().__init__()
@@ -26,6 +27,7 @@ class BaseDataModule(pl.LightningDataModule):
         self.train_dataset = None
         self.val_dataset = None
         self.test_dataset = None
+        self.logger_engine = logger_engine
 
     def train_dataloader(self, **kwargs):
         return data.DataLoader(
