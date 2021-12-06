@@ -89,3 +89,60 @@ class MemoryEdgeDecoder(nn.Module):
             help="name of the activation function of hidden layers",
         )
         return parser
+
+
+class ZeroFillingMemoryEdgeDecoder(MemoryEdgeDecoder):
+    def __init__(
+        self,
+        embedding_size: int,
+        edge_decoder_filling_nn_layer_sizes: List[int],
+        edge_decoder_filling_nn_activation_function: str,
+        **kwargs,
+    ):
+        super().__init__(embedding_size, **kwargs)
+
+        self.input_embedding_filling_nn = sequential_from_layer_sizes(
+            embedding_size,
+            embedding_size * 2,
+            edge_decoder_filling_nn_layer_sizes,
+            edge_decoder_filling_nn_activation_function,
+        )
+
+    def forward(
+        self, embedding_l: Tensor, embedding_r: Tensor
+    ) -> Tuple[Tensor, Tensor, Tensor]:
+        if torch.count_nonzero(embedding_r) == 0:
+            embedding_r = self.create_missing_embedding(embedding_l)
+        elif torch.count_nonzero(embedding_l) == 0:
+            embedding_l = self.create_missing_embedding(embedding_r)
+
+        super().forward(embedding_l, embedding_r)
+
+    def create_missing_embedding(self, other_embedding: Tensor) -> Tensor:
+        filling_nn_output = self.input_embedding_filling_nn(other_embedding)
+        new_embedding, weight = torch.split(
+            filling_nn_output, (self.embedding_size, self.embedding_size), dim=-1
+        )
+        return weighted_average(new_embedding, other_embedding, weight)
+
+    @staticmethod
+    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
+        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+        parser = MemoryEdgeDecoder.add_model_specific_args(parser)
+        parser.add_argument(
+            "--edge_decoder_filling_nn_layer_sizes",
+            dest="edge_decoder_filling_nn_layer_sizes",
+            default=[],
+            type=parse_layer_sizes_list,
+            metavar="EDGE_DECODER_FILL_H_SIZES",
+            help="list of the hidden layer sizes of the edge decoder's input embedding filling nn",
+        )
+        parser.add_argument(
+            "--edge_decoder_filling_nn_activation_function",
+            dest="edge_decoder_filling_nn_activation_function",
+            default="ELU",
+            type=str,
+            metavar="ACTIVATION_F_NAME",
+            help="name of the activation function of the edge decoderr's input embedding filling nn",
+        )
+        return parser
