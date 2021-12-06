@@ -5,11 +5,11 @@ from functools import partial
 
 from graph_nn_vae.data.synthetic_graphs_module import SyntheticGraphsDataModule
 
-import graph_nn_vae.util.step as step
+import graph_nn_vae.util.training_monitor as training_monitor
 
 
 class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
-    data_name = "SmoothLearningStepGraphDataModule"
+    data_name = "subgraphs"
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -21,10 +21,10 @@ class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
         return dl
 
     def log_size(self, size):
-        if step.TRAINING_EPOCH > self.saved_metric:
-            self.logger_engine.log_metrics(
+        if training_monitor.TRAINING_EPOCH > self.saved_metric:
+            self.logger_engine.log_metrics(  # TODO doesen't work :<
                 {"max_subgraph_size/train": size},
-                step=step.TRAINING_EPOCH
+                step=training_monitor.TRAINING_EPOCH
                 # * np.ceil(len(self.train_dataset) / self.batch_size),
             )
             # self.logger_engine.experiment.add_scalar(
@@ -36,8 +36,8 @@ class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
             # print("Epoch: ", step.TRAINING_EPOCH, "max graph:", size)
             self.saved_metric = self.saved_metric + 1
 
-    def epoch_size_scheduler(self, max_size):
-        size = min(int(step.TRAINING_EPOCH / 3) + 2, max_size)
+    def epoch_size_scheduler(self, max_size):  # TODO make more generic
+        size = min(int(training_monitor.TRAINING_EPOCH / 3) + 2, max_size)
         return size
 
     def split_graphs(self, graphs, num_nodes):
@@ -48,7 +48,7 @@ class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
 
         self.log_size(n)
 
-        for graph, graph_size in zip(graphs, num_nodes):
+        for graph, graph_size in zip(graphs, num_nodes):  # TODO beta version
             if n < graph_size:
                 tmp = range(min(n - 1, 10))
             else:
