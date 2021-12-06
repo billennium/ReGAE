@@ -12,8 +12,6 @@ from graph_nn_vae.models.utils.getters import (
     get_lr_scheduler,
 )
 
-import graph_nn_vae.util.training_monitor as training_monitor
-
 
 class BaseModel(pl.LightningModule, metaclass=ABCMeta):
     model_name = ""
@@ -69,8 +67,6 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         return loss
 
     def training_step(self, batch, batch_idx):
-        training_monitor.TRAINING_EPOCH = self.current_epoch
-
         should_update_metric = (
             self.metric_update_counter % self.metric_update_interval == 0
         )

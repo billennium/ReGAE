@@ -104,7 +104,7 @@ def barabasi_graphs() -> list[nx.Graph]:
 
 def barabasi_small_graphs() -> list[nx.Graph]:
     graphs = []
-    for i in range(4, 21):
+    for i in range(4, 40):
         for j in range(3, 4):
             for k in range(10):
                 graphs.append(nx.barabasi_albert_graph(i, j))

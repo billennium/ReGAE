@@ -52,16 +52,14 @@ class Experiment:
             args.batch_size_val = args.batch_size
             args.batch_size_test = args.batch_size
 
-        logger = self.create_logger(logger_name=args.logger_name)
+        data_module: BaseDataModule = self.data_module(**vars(args))
 
-        data_module: BaseDataModule = self.data_module(
-            **vars(args), logger_engine=logger
-        )
         model = self.model(
             **vars(args),
             loss_weight=data_module.loss_weight(),
         )
 
+        logger = self.create_logger(logger_name=args.logger_name)
         trainer = pl.Trainer.from_argparse_args(args, logger=logger)
         if args.checkpoint_monitor:
             checkpoint_callback = pl.callbacks.ModelCheckpoint(
