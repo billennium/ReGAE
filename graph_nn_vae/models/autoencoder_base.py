@@ -119,7 +119,8 @@ class RecurrentGraphAutoencoder(GraphAutoencoder):
         if max_num_nodes_in_graph_batch > self.max_number_of_nodes:
             raise ValueError(
                 "the max number of nodes of the requested reconstructed graphs cannot "
-                + "be lower than the number of nodes of the biggest input graph"
+                + "be lower than the number of nodes of the biggest input graph; "
+                + f"num nodes in biggest graph: {max_num_nodes_in_graph_batch}, specified max num nodes: {self.max_number_of_nodes}"
             )
         graph_embdeddings = self.encoder(batch)
         reconstructed_graph_diagonals, diagonal_embeddings_norm = self.decoder(
