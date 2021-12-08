@@ -8,7 +8,10 @@ from torch.utils import data
 
 class BaseDataModule(pl.LightningDataModule):
     data_name = ""
-    pad_sequence = False
+
+    collate_fn_train = None
+    collate_fn_val = None
+    collate_fn_test = None
 
     def __init__(
         self,
@@ -33,6 +36,7 @@ class BaseDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.workers,
             pin_memory=True,
+            collate_fn=self.collate_fn_train,
             **kwargs
         )
 
@@ -41,6 +45,7 @@ class BaseDataModule(pl.LightningDataModule):
             self.val_dataset,
             batch_size=self.batch_size_val,
             num_workers=self.workers,
+            collate_fn=self.collate_fn_val,
             **kwargs
         )
 
@@ -49,6 +54,7 @@ class BaseDataModule(pl.LightningDataModule):
             self.test_dataset,
             batch_size=self.batch_size_test,
             num_workers=self.workers,
+            collate_fn=self.collate_fn_test,
             **kwargs
         )
 

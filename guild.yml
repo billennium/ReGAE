@@ -9,16 +9,28 @@
       type: int
     gradient_clip_val:
       type: float
-    encoder_hidden_layer_sizes: [512]
-    decoder_hidden_layer_sizes: [512]
+    seed:
+      type: int
+    # encoder_hidden_layer_sizes: [512]
+    # decoder_hidden_layer_sizes: [512]
 
 - config: model-base
   operations:
-    synthetic:
-        main: 'graph_nn_vae.experiments.synthetic.{{ name }}_training'
+    synthetic_grid_small:
+        main: 'graph_nn_vae.experiments.synthetic_grid_small.{{ name }}_training'
         flags:
             $include: generic-flags
-        # output-scalars: off
+        output-scalars: off
+        sourcecode:
+            select:
+                - "graph_nn_vae/*"
+            exclude:
+                - "**/__pycache__"
+    synthetic_barabasi_small:
+        main: 'graph_nn_vae.experiments.synthetic_barabasi_small.{{ name }}_training'
+        flags:
+            $include: generic-flags
+        output-scalars: off
         sourcecode:
             select:
                 - "graph_nn_vae/*"
@@ -38,6 +50,7 @@
                 - "graph_nn_vae/*"
             exclude:
                 - "**/__pycache__"
+
 
 - model: recurrent_autoencoder
   extends: model-base

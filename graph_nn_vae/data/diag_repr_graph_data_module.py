@@ -13,7 +13,9 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.collate_fn = collate_graph_batch
+        self.collate_fn_train = collate_graph_batch
+        self.collate_fn_val = collate_graph_batch
+        self.collate_fn_test = collate_graph_batch
 
     def _adj_batch_to_diagonal(
         self, batch: List[Tuple[torch.Tensor, int]]
@@ -38,21 +40,6 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
         self.train_dataset = self._adj_batch_to_diagonal(self.train_dataset)
         self.val_dataset = self._adj_batch_to_diagonal(self.val_dataset)
         self.test_dataset = self._adj_batch_to_diagonal(self.test_dataset)
-
-    def train_dataloader(self, **kwargs):
-        dl = super().train_dataloader(**kwargs)
-        dl.collate_fn = self.collate_fn
-        return dl
-
-    def val_dataloader(self, **kwargs):
-        dl = super().val_dataloader(**kwargs)
-        dl.collate_fn = self.collate_fn
-        return dl
-
-    def test_dataloader(self, **kwargs):
-        dl = super().test_dataloader(**kwargs)
-        dl.collate_fn = self.collate_fn
-        return dl
 
 
 def collate_graph_batch(batch):

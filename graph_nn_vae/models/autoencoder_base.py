@@ -19,7 +19,7 @@ class GraphAutoencoder(BaseModel):
         mask_loss_function: str = None,
         mask_loss_weight=None,
         diagonal_embeddings_loss_weight: int = 0,
-        **kwargs
+        **kwargs,
     ):
         super(GraphAutoencoder, self).__init__(**kwargs)
         if mask_loss_function is not None:
@@ -108,7 +108,9 @@ class RecurrentGraphAutoencoder(GraphAutoencoder):
         super(RecurrentGraphAutoencoder, self).__init__(**kwargs)
         self.encoder = self.graph_encoder_class(self.edge_encoder_class, **kwargs)
         self.decoder = self.graph_decoder_class(
-            self.edge_decoder_class, max_number_of_nodes=max_number_of_nodes, **kwargs
+            edge_decoder_class=self.edge_decoder_class,
+            max_number_of_nodes=max_number_of_nodes,
+            **kwargs,
         )
 
     def forward(self, batch: Tensor) -> Tensor:
@@ -117,7 +119,8 @@ class RecurrentGraphAutoencoder(GraphAutoencoder):
         if max_num_nodes_in_graph_batch > self.max_number_of_nodes:
             raise ValueError(
                 "the max number of nodes of the requested reconstructed graphs cannot "
-                + "be lower than the number of nodes of the biggest input graph"
+                + "be lower than the number of nodes of the biggest input graph; "
+                + f"num nodes in biggest graph: {max_num_nodes_in_graph_batch}, specified max num nodes: {self.max_number_of_nodes}"
             )
         graph_embdeddings = self.encoder(batch)
         reconstructed_graph_diagonals, diagonal_embeddings_norm = self.decoder(

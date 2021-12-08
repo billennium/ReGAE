@@ -121,27 +121,27 @@ class MeanSingleInputMemoryEdgeDecoder(SingleInputMemoryEdgeDecoder):
         return (embedding_l + embedding_r) / 2
 
 
-class WeighingSingleInputMemoryEdgeDecoder(SingleInputMemoryEdgeDecoder):
+class WeightingSingleInputMemoryEdgeDecoder(SingleInputMemoryEdgeDecoder):
     def __init__(
         self,
         embedding_size: int,
-        edge_decoder_weighing_nn_layer_sizes: List[int],
-        edge_decoder_weighing_nn_activation_function: str,
+        edge_decoder_weighting_nn_layer_sizes: List[int],
+        edge_decoder_weighting_nn_activation_function: str,
         **kwargs,
     ):
         super().__init__(embedding_size, **kwargs)
-        self.input_embedding_weighing_nn = sequential_from_layer_sizes(
+        self.input_embedding_weighting_nn = sequential_from_layer_sizes(
             embedding_size * 2,
             embedding_size,
-            edge_decoder_weighing_nn_layer_sizes,
-            edge_decoder_weighing_nn_activation_function,
+            edge_decoder_weighting_nn_layer_sizes,
+            edge_decoder_weighting_nn_activation_function,
         )
 
     def combine_input_embeddings(
         self, embedding_l: Tensor, embedding_r: Tensor
     ) -> Tensor:
         cat_emb = torch.cat((embedding_l, embedding_r), dim=-1)
-        weight = self.input_embedding_weighing_nn(cat_emb)
+        weight = self.input_embedding_weighting_nn(cat_emb)
         return weighted_average(embedding_l, embedding_r, weight)
 
     @staticmethod
@@ -149,16 +149,16 @@ class WeighingSingleInputMemoryEdgeDecoder(SingleInputMemoryEdgeDecoder):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         parser = SingleInputMemoryEdgeDecoder.add_model_specific_args(parser)
         parser.add_argument(
-            "--edge_decoder_weighing_nn_layer_sizes",
-            dest="edge_decoder_weighing_nn_layer_sizes",
+            "--edge_decoder_weighting_nn_layer_sizes",
+            dest="edge_decoder_weighting_nn_layer_sizes",
             default=[],
             type=parse_layer_sizes_list,
-            metavar="EDGE_DECODER_WEIGH_H_SIZES",
-            help="list of the hidden layer sizes of the edge decoder's input embedding weighing nn",
+            metavar="EDGE_DECODER_WEIGHT_H_SIZES",
+            help="list of the hidden layer sizes of the edge decoder's input embedding weighting nn",
         )
         parser.add_argument(
-            "--edge_decoder_weighing_nn_activation_function",
-            dest="edge_decoder_weighing_nn_activation_function",
+            "--edge_decoder_weighting_nn_activation_function",
+            dest="edge_decoder_weighting_nn_activation_function",
             default="ELU",
             type=str,
             metavar="ACTIVATION_F_NAME",
