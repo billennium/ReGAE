@@ -46,16 +46,15 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             lr_monitor=True,
             lr_scheduler_name="NoSched",
             lr_scheduler_metric="loss/train_avg",
-            learning_rate=0.0005,
+            learning_rate=0.001,
             gradient_clip_val=1.0,
             batch_size=32,
-            embedding_size=256,
-            encoder_hidden_layer_sizes=[768, 512],
+            embedding_size=128,
+            encoder_hidden_layer_sizes=[1024],
             encoder_activation_function="ELU",
-            decoder_hidden_layer_sizes=[768, 512],
+            decoder_hidden_layer_sizes=[1024],
             decoder_activation_function="ELU",
             metrics=[
-                "EdgeAccuracy",
                 "EdgePrecision",
                 "EdgeRecall",
                 "MaskPrecision",
@@ -67,11 +66,11 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             metric_update_interval=20,
             early_stopping=False,
             bfs=True,
-            num_dataset_graph_permutations=5,
-            graph_type="grid_small",  # barabasi_small
+            num_dataset_graph_permutations=10,
+            graph_type="grid_small",
         )
         return parser
 
 
 if __name__ == "__main__":
-    Experiment(GraphAutoencoder, SmoothLearningStepGraphDataModule).run()
+    Experiment(GraphAutoencoder, SyntheticGraphsDataModule).run()
