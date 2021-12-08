@@ -12,11 +12,7 @@ class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.saved_metric = -1
-
-    def train_dataloader(self, **kwargs):
-        dl = super().train_dataloader(**kwargs)
-        dl.collate_fn = self.collate_graph_batch_training
-        return dl
+        self.collate_fn_train = self.collate_graph_batch_training
 
     def log_size(self, size):
         if self.trainer.current_epoch > self.saved_metric:
