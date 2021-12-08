@@ -157,7 +157,7 @@ class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
         parser.add_argument(
             "--subgraph_scheduler_name",
             dest="subgraph_scheduler_name",
-            default="simple",
+            default="uninform",
             type=str,
             help="name of maximum subgraph size scheduler",
         )
