@@ -1,10 +1,11 @@
-from typing import Callable, Type
+from typing import Callable, Tuple, Type
 from operator import itemgetter
 from argparse import ArgumentParser
 
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.base import Callback
+from torch.functional import Tensor
 
 from graph_nn_vae.data.synthetic_graphs_module import SyntheticGraphsDataModule
 
@@ -66,9 +67,15 @@ class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
         graph_masks = [g[1] for g in batch]
         num_nodes = [g[2] for g in batch]
 
-        graphs, graph_masks, num_nodes = self.generate_subgraphs_for_batch(
-            graphs, num_nodes
+        scheduled_subgraph_size = (
+            self.subgraph_size_scheduler.get_current_subgraph_size()
         )
+        max_num_nodes_in_batch = max(num_nodes)
+        if scheduled_subgraph_size < max_num_nodes_in_batch:
+            target_subgraph_size = min(scheduled_subgraph_size, max_num_nodes_in_batch)
+            graphs, graph_masks, num_nodes = self.generate_subgraphs_for_batch(
+                graphs, num_nodes, target_subgraph_size
+            )
 
         graphs = torch.nn.utils.rnn.pad_sequence(
             graphs, batch_first=True, padding_value=0.0
@@ -80,24 +87,23 @@ class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
 
         return graphs, graph_masks, num_nodes
 
-    def generate_subgraphs_for_batch(self, graphs, num_nodes):
+    def generate_subgraphs_for_batch(
+        self, graphs: Tensor, num_nodes: Tensor, target_subgraph_size: int
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         splitted_graphs = []
         splitted_graph_masks = []
         splitted_graphs_sizes = []
 
-        scheduled_max_size = self.subgraph_size_scheduler.get_current_subgraph_size()
-        current_max_size = min(scheduled_max_size, max(num_nodes))
-
         for graph, graph_size in zip(graphs, num_nodes):
             for i in (
-                range(0, min(current_max_size - 1, self.depth), self.depth_step)
-                if current_max_size < graph_size
+                range(0, min(target_subgraph_size - 1, self.depth), self.depth_step)
+                if target_subgraph_size < graph_size
                 else [0]
             ):
                 subgrpahs, subgraph_masks, subgraph_sizes = self.generate_subgraphs(
                     graph,
                     graph_size,
-                    new_size=current_max_size - i,
+                    new_size=target_subgraph_size - i,
                     stride=self.stride,
                     probability=1.0 / (i + 1),
                 )
