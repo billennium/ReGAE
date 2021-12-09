@@ -23,6 +23,8 @@ class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
         **kwargs,
     ):
         super().__init__(**kwargs)
+        kwargs["data_module"] = self
+
         self.subgraph_size_scheduler = self.get_subgraph_size_scheduler(
             subgraph_scheduler_name
         )(**kwargs)
@@ -30,9 +32,14 @@ class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
         self.depth = subgraph_depth
         self.stride = subgraph_stride
         self.depth_step = subgraph_depth_step
+        self.current_metrics = {}
 
     def get_subgraph_size_scheduler(self, name: str):
-        return {"linear": LinearSubgrapghSizeScheduler}[name]
+        return {
+            "linear": LinearSubgrapghSizeScheduler,
+            "step": StepSubgrapghSizeScheduler,
+            "precision_based": PrecisionBasedSubgrapghSizeScheduler,
+        }[name]
 
     def train_dataloader(self, **kwargs):
         if not self.is_scheduling_initialized:
@@ -43,6 +50,10 @@ class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
                 max_num_nodes_in_train,
             )
             self.trainer.callbacks.append(self.subgraph_size_monitor)
+
+            self.current_metric_monitor = MetricMonitor(self)
+            self.trainer.callbacks.append(self.current_metric_monitor)
+
             self.is_logging_initialized = True
         return super().train_dataloader(**kwargs)
 
@@ -230,6 +241,68 @@ class LinearSubgrapghSizeScheduler(SubgrapghSizeScheduler):
         return int(self.trainer.current_epoch * self.params["speed"]) + 2
 
 
+class StepSubgrapghSizeScheduler(SubgrapghSizeScheduler):
+    """
+    Scales the graph subgraphs linearly.
+    Requires a float `speed` subgraph_scheduler_params param.
+    """
+
+    def __init__(self, subgraph_scheduler_params, **kwargs):
+        if "step_length" not in subgraph_scheduler_params:
+            subgraph_scheduler_params["step_length"] = 1000
+        if "step_size" not in subgraph_scheduler_params:
+            subgraph_scheduler_params["step_size"] = 5.0
+        super().__init__(subgraph_scheduler_params=subgraph_scheduler_params, **kwargs)
+
+    def get_current_subgraph_size(self):
+        return (
+            int(self.trainer.current_epoch / self.params["step_length"])
+            * self.params["step_size"]
+            + 5
+        )
+
+
+class PrecisionBasedSubgrapghSizeScheduler(SubgrapghSizeScheduler):
+    """
+    Scales the graph subgraphs linearly.
+    Requires a float `speed` subgraph_scheduler_params param.
+    """
+
+    def __init__(
+        self, subgraph_scheduler_params, data_module, metric_update_interval, **kwargs
+    ):
+        if "step" not in subgraph_scheduler_params:
+            subgraph_scheduler_params["step"] = 5
+        if "metrics_treshold" not in subgraph_scheduler_params:
+            subgraph_scheduler_params["metrics_treshold"] = 0.5
+        super().__init__(subgraph_scheduler_params=subgraph_scheduler_params, **kwargs)
+        self.data_module = data_module
+        self.size = 2
+        self.metric_update_interval = metric_update_interval
+        self.last_epoch_changed = -metric_update_interval - 1
+
+    def get_current_subgraph_size(self):
+        if (
+            self.last_epoch_changed + self.metric_update_interval
+            < self.data_module.trainer.current_epoch
+            and (
+                self.data_module.current_metrics.get("edge_recall/train_avg", 0)
+                > self.params["metrics_treshold"]
+            )
+            and (
+                self.data_module.current_metrics.get("edge_precision/train_avg", 0)
+                > self.params["metrics_treshold"]
+            )
+        ):
+            self.size = self.size + self.params["step"]
+            self.last_epoch_changed = self.data_module.trainer.current_epoch
+
+        return self.size
+
+
+# callback_metrics
+
+
 class SteppingGraphSizeMonitor(Callback):
     def __init__(
         self, get_current_subgraph_size_fn: Callable, max_num_nodes_in_dataset: int = 0
@@ -254,3 +327,16 @@ class SteppingGraphSizeMonitor(Callback):
     def _should_log(trainer) -> bool:
         # should_log = ((trainer.global_step + 1) % trainer.log_every_n_steps == 0 or trainer.should_stop)
         return True
+
+
+class MetricMonitor(Callback):
+    def __init__(
+        self,
+        data_module: SmoothLearningStepGraphDataModule,
+    ):
+        self.data_module = data_module
+
+    def on_train_epoch_end(self, trainer, *args, **kwargs):
+        self.data_module.current_metrics = {
+            k: v.cpu().numpy() for (k, v) in trainer.callback_metrics.items()
+        }
