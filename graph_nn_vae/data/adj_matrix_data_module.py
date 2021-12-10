@@ -58,7 +58,10 @@ class AdjMatrixDataModule(BaseDataModule):
                     adj_matrix, max_number_of_nodes
                 )
                 adjacency_matrices.append((reshaped_matrix, nx_graph.number_of_nodes()))
-        return adjacency_matrices
+
+        unique_adjacency_matrices = adjmatrix.remove_duplicates(adjacency_matrices)
+
+        return unique_adjacency_matrices
 
     def prepare_data(self, *args, **kwargs):
         super().prepare_data(*args, **kwargs)
