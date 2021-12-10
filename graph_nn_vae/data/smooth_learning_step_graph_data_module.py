@@ -88,24 +88,24 @@ class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
         return graphs, graph_masks, num_nodes
 
     def generate_subgraphs_for_batch(
-        self, graphs: Tensor, num_nodes: Tensor, target_subgraph_size: int
+        self, graphs: Tensor, num_nodes: Tensor, target_max_subgraph_size: int
     ) -> Tuple[Tensor, Tensor, Tensor]:
         splitted_graphs = []
         splitted_graph_masks = []
         splitted_graphs_sizes = []
 
         for graph, graph_size in zip(graphs, num_nodes):
-            for i in (
-                range(0, min(target_subgraph_size - 1, self.depth), self.depth_step)
-                if target_subgraph_size < graph_size
+            for subgraph_size_offset in (
+                range(0, min(target_max_subgraph_size - 1, self.depth), self.depth_step)
+                if target_max_subgraph_size < graph_size
                 else [0]
             ):
                 subgrpahs, subgraph_masks, subgraph_sizes = self.generate_subgraphs(
                     graph,
                     graph_size,
-                    new_size=target_subgraph_size - i,
+                    new_size=target_max_subgraph_size - subgraph_size_offset,
                     stride=self.stride,
-                    probability=1.0 / (i + 1),
+                    probability=1.0 / (subgraph_size_offset + 1),
                 )
                 splitted_graphs.extend(subgrpahs)
                 splitted_graph_masks.extend(subgraph_masks)
