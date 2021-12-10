@@ -39,7 +39,7 @@ class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
         return {
             "linear": LinearSubgrapghSizeScheduler,
             "step": StepSubgrapghSizeScheduler,
-            "precision_based": PrecisionBasedSubgrapghSizeScheduler,
+            "edge_metrics_based": EdgeMetricsBasedSubgrapghSizeScheduler,
         }[name]
 
     def train_dataloader(self, **kwargs):
@@ -249,7 +249,7 @@ class LinearSubgrapghSizeScheduler(SubgrapghSizeScheduler):
 
 class StepSubgrapghSizeScheduler(SubgrapghSizeScheduler):
     """
-    Scales the graph subgraphs linearly.
+    Scales the graph subgraphs by steps.
     Requires a int `step_length` and int `step_size` subgraph_scheduler_params params.
     """
 
@@ -268,9 +268,9 @@ class StepSubgrapghSizeScheduler(SubgrapghSizeScheduler):
         )
 
 
-class PrecisionBasedSubgrapghSizeScheduler(SubgrapghSizeScheduler):
+class EdgeMetricsBasedSubgrapghSizeScheduler(SubgrapghSizeScheduler):
     """
-    Scales the graph subgraphs linearly.
+    Scales the graph subgraphs based on edge metrics
     Requires a int `step` and float `metrics_treshold` subgraph_scheduler_params params.
     """
 
