@@ -250,14 +250,14 @@ class LinearSubgrapghSizeScheduler(SubgrapghSizeScheduler):
 class StepSubgrapghSizeScheduler(SubgrapghSizeScheduler):
     """
     Scales the graph subgraphs linearly.
-    Requires a float `speed` subgraph_scheduler_params param.
+    Requires a int `step_length` and int `step_size` subgraph_scheduler_params params.
     """
 
     def __init__(self, subgraph_scheduler_params, **kwargs):
         if "step_length" not in subgraph_scheduler_params:
             subgraph_scheduler_params["step_length"] = 1000
         if "step_size" not in subgraph_scheduler_params:
-            subgraph_scheduler_params["step_size"] = 5.0
+            subgraph_scheduler_params["step_size"] = 5
         super().__init__(subgraph_scheduler_params=subgraph_scheduler_params, **kwargs)
 
     def get_current_subgraph_size(self):
@@ -271,7 +271,7 @@ class StepSubgrapghSizeScheduler(SubgrapghSizeScheduler):
 class PrecisionBasedSubgrapghSizeScheduler(SubgrapghSizeScheduler):
     """
     Scales the graph subgraphs linearly.
-    Requires a float `speed` subgraph_scheduler_params param.
+    Requires a int `step` and float `metrics_treshold` subgraph_scheduler_params params.
     """
 
     def __init__(
