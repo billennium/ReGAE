@@ -61,7 +61,7 @@ class GraphEncoder(BaseModel):
         first_diag_length = num_diagonals
         diag_right_pos = int((1 + num_diagonals) * num_diagonals / 2)
 
-        graph_counts_per_size = torch.bincount(num_nodes_batch)
+        graph_counts_per_size = self.torch_bincount(num_nodes_batch)
 
         # Embedding batch is represented in the shape: [graph_idx, embedding_idx, embedding]
         # Starting with `0` for no graphs yet. Will get filled approprately in the recurrent loop.
@@ -107,6 +107,16 @@ class GraphEncoder(BaseModel):
 
         # Reorder back to the original batch order and skip the no longer needed second dimension.
         return prev_embedding[indices_in_original_batch_order, 0, :]
+
+    def torch_bincount(self, t: Tensor) -> Tensor:
+        """
+        torch.bincount() when used on CUDA may lead to nondeterministic gradients. From testing, this isn't an issue in our use case.
+        """
+        was_deterministic = torch.are_deterministic_algorithms_enabled()
+        torch.use_deterministic_algorithms(False)
+        t = torch.bincount(t)
+        torch.use_deterministic_algorithms(was_deterministic)
+        return t
 
     def step(self, batch: Tensor) -> Tensor:
         embeddings = self(batch)
