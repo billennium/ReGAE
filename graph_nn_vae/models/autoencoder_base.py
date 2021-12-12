@@ -60,6 +60,7 @@ class GraphAutoencoder(BaseModel):
                 edges_target=y_edge,
                 mask_predicted=y_pred_mask,
                 mask_target=y_mask,
+                num_nodes=batch[2],
             )
 
         return loss
