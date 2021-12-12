@@ -115,7 +115,6 @@ class Experiment:
         parser = self.model.add_model_specific_args(parser)
         # parser = self.early_stopping.add_callback_specific_args(parser)
         parser.set_defaults(
-            progress_bar_refresh_rate=2,
             **self.parser_default,
         )
         parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
