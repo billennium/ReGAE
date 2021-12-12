@@ -130,11 +130,6 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             "monitor": self.lr_scheduler_metric,
         }
 
-    def get_progress_bar_dict(self) -> Dict[str, Union[int, str]]:
-        tqdm_dict = super().get_progress_bar_dict()
-        tqdm_dict.pop("v_num", None)
-        return tqdm_dict
-
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
