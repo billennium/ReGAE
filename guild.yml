@@ -36,6 +36,16 @@
                 - "graph_nn_vae/*"
             exclude:
                 - "**/__pycache__"
+    synthetic_barabasi_one_100:
+        main: 'graph_nn_vae.experiments.synthetic_barabasi_one_100.{{ name }}_training'
+        flags:
+            $include: generic-flags
+        output-scalars: off
+        sourcecode:
+            select:
+                - "graph_nn_vae/*"
+            exclude:
+                - "**/__pycache__"
 
                 
 - config: model-partial
