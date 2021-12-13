@@ -54,10 +54,10 @@ class Experiment:
             args.batch_size_val = args.batch_size
             args.batch_size_test = args.batch_size
 
-        data_loader: GraphLoaderBase = self.data_loader(**vars(args))
+        self.data_loader: GraphLoaderBase = self.data_loader(**vars(args))
 
         data_module: BaseDataModule = self.data_module(
-            **vars(args), data_loader=data_loader
+            **vars(args), data_loader=self.data_loader
         )
 
         model = self.model(
@@ -108,7 +108,7 @@ class Experiment:
         if logger_name == "tb":
             return pl.loggers.TensorBoardLogger(
                 save_dir="tb_logs",
-                name=self.data_module.data_name,
+                name=self.data_loader.data_name,
             )
         else:
             raise RuntimeError(f"unknown logger name: {logger_name}")
