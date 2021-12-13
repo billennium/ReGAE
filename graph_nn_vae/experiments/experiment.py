@@ -117,9 +117,9 @@ class Experiment:
         parser = argparse.ArgumentParser(add_help=True)
         parser = self.add_trainer_parser(parser)
         parser = self.add_experiment_parser(parser)
+        parser = self.data_loader.add_model_specific_args(parser)
         parser = self.data_module.add_model_specific_args(parser)
         parser = self.model.add_model_specific_args(parser)
-        parser = self.data_loader.add_model_specific_args(parser)
         # parser = self.early_stopping.add_callback_specific_args(parser)
         parser.set_defaults(
             **self.parser_default,
