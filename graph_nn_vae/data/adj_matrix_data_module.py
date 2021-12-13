@@ -6,6 +6,7 @@ import numpy as np
 import torch
 
 from graph_nn_vae.data.data_module import BaseDataModule
+from graph_nn_vae.data.graph_loaders import GraphLoaderBase
 from graph_nn_vae.util import adjmatrix, split_dataset_train_val_test
 from graph_nn_vae.util.graphs import max_number_of_nodes_in_graphs
 
@@ -14,18 +15,21 @@ class AdjMatrixDataModule(BaseDataModule):
     data_name = "AdjMatrix"
 
     def __init__(
-        self, num_dataset_graph_permutations: int, bfs: bool = False, **kwargs
+        self,
+        data_loader: GraphLoaderBase,
+        num_dataset_graph_permutations: int,
+        bfs: bool = False,
+        **kwargs
     ):
         super().__init__(**kwargs)
         self.num_dataset_graph_permutations = num_dataset_graph_permutations
         self.bfs = bfs
+        self.data_loader = data_loader
+
         self.prepare_data()
 
     def create_graphs(self) -> List[nx.Graph]:
-        """
-        Overload this function to specify graphs for the dataset.
-        """
-        return NotImplementedError
+        return self.data_loader.load_graphs()
 
     def max_number_of_nodes_in_graphs(self, graphs: List[nx.Graph]) -> int:
         max_number_of_nodes = 0

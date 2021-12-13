@@ -7,10 +7,12 @@ import pytorch_lightning as pl
 from pytorch_lightning.callbacks.base import Callback
 from torch.functional import Tensor
 
-from graph_nn_vae.data.synthetic_graphs_module import SyntheticGraphsDataModule
+from graph_nn_vae.data import (
+    DiagonalRepresentationGraphDataModule,
+)
 
 
-class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
+class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
     data_name = "subgraphs"
     max_num_nodes_in_train_dataset: int
     is_scheduling_initialized = False
@@ -155,7 +157,9 @@ class SmoothLearningStepGraphDataModule(SyntheticGraphsDataModule):
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
-        parser = SyntheticGraphsDataModule.add_model_specific_args(parent_parser)
+        parser = DiagonalRepresentationGraphDataModule.add_model_specific_args(
+            parent_parser
+        )
         parser = SubgrapghSizeScheduler.add_model_specific_args(parser)
         parser.add_argument(
             "--subgraph_scheduler_name",

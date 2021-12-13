@@ -1,7 +1,10 @@
 from argparse import ArgumentParser
 
 from graph_nn_vae.experiments.experiment import Experiment
-from graph_nn_vae.data import SyntheticGraphsDataModule
+from graph_nn_vae.data import (
+    DiagonalRepresentationGraphDataModule,
+    SyntheticGraphLoader,
+)
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
 from graph_nn_vae.models.autoencoder_components import BorderFillingGraphDecoder
 from graph_nn_vae.models.edge_decoders.memory_standard import (
@@ -68,4 +71,6 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
 
 
 if __name__ == "__main__":
-    Experiment(GraphAutoencoder, SyntheticGraphsDataModule).run()
+    Experiment(
+        GraphAutoencoder, DiagonalRepresentationGraphDataModule, SyntheticGraphLoader
+    ).run()

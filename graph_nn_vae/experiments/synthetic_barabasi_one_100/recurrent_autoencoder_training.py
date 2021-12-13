@@ -4,7 +4,7 @@ import networkx as nx
 
 from graph_nn_vae.experiments.experiment import Experiment
 from graph_nn_vae.data import (
-    SyntheticGraphsDataModule,
+    GraphLoaderBase,
     SmoothLearningStepGraphDataModule,
 )
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
@@ -68,10 +68,12 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
         return parser
 
 
-class OneBigBarabasiDataModule(SmoothLearningStepGraphDataModule):
-    def create_graphs(self) -> List[nx.Graph]:
+class OneBigBarabasiDataModule(GraphLoaderBase):
+    def load_graphs(self) -> List[nx.Graph]:
         return [nx.barabasi_albert_graph(100, 4)]
 
 
 if __name__ == "__main__":
-    Experiment(GraphAutoencoder, OneBigBarabasiDataModule).run()
+    Experiment(
+        GraphAutoencoder, SmoothLearningStepGraphDataModule, OneBigBarabasiDataModule
+    ).run()
