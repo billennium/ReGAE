@@ -61,14 +61,21 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             early_stopping=False,
             bfs=True,
             num_dataset_graph_permutations=1,
-            subgraph_stride=6,
+            minimal_subgraph_size=10,
+            subgraph_stride=0.5,
             subgraph_scheduler_name="edge_metrics_based",
-            subgraph_scheduler_params={"metrics_treshold": 0.6, "step": 10},
+            subgraph_scheduler_params={
+                "subgraph_size_initial": 0.005,
+                "metrics_treshold": 0.6,
+                "step": 0.05,
+            },
         )
         return parser
 
 
 class OneBigBarabasiGraphLoader(GraphLoaderBase):
+    data_name = "one_big_barabasi"
+
     def load_graphs(self) -> List[nx.Graph]:
         return [nx.barabasi_albert_graph(100, 4)]
 
