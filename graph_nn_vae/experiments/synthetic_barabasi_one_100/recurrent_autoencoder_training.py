@@ -68,12 +68,12 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
         return parser
 
 
-class OneBigBarabasiDataModule(GraphLoaderBase):
+class OneBigBarabasiGraphLoader(GraphLoaderBase):
     def load_graphs(self) -> List[nx.Graph]:
         return [nx.barabasi_albert_graph(100, 4)]
 
 
 if __name__ == "__main__":
     Experiment(
-        GraphAutoencoder, SmoothLearningStepGraphDataModule, OneBigBarabasiDataModule
+        GraphAutoencoder, SmoothLearningStepGraphDataModule, OneBigBarabasiGraphLoader
     ).run()
