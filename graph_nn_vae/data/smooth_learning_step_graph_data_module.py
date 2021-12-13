@@ -20,9 +20,8 @@ class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
     def __init__(
         self,
         subgraph_scheduler_name: str,
-        subgraph_depth: int = 10,
-        subgraph_depth_step: int = 1,
-        subgraph_stride: int = 1,
+        subgraph_stride: float = 0.5,
+        minimal_subgraph_size: int = 10,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -32,9 +31,8 @@ class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
             subgraph_scheduler_name
         )(**kwargs)
         self.collate_fn_train = self.collate_graph_batch_training
-        self.depth = subgraph_depth
-        self.stride = subgraph_stride
-        self.depth_step = subgraph_depth_step
+        self.subgraph_stride = max(min(1, subgraph_stride), 0)
+        self.minimal_subgraph_size = minimal_subgraph_size
         self.current_metrics = {}
 
     def get_subgraph_size_scheduler(self, name: str):
@@ -72,11 +70,10 @@ class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
         scheduled_subgraph_size = (
             self.subgraph_size_scheduler.get_current_subgraph_size()
         )
-        max_num_nodes_in_batch = max(num_nodes)
-        if scheduled_subgraph_size < max_num_nodes_in_batch:
-            target_subgraph_size = min(scheduled_subgraph_size, max_num_nodes_in_batch)
+
+        if scheduled_subgraph_size < 1.0:
             graphs, graph_masks, num_nodes = self.generate_subgraphs_for_batch(
-                graphs, num_nodes, target_subgraph_size
+                graphs, num_nodes, scheduled_subgraph_size
             )
 
         graphs = torch.nn.utils.rnn.pad_sequence(
@@ -90,28 +87,34 @@ class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
         return graphs, graph_masks, num_nodes
 
     def generate_subgraphs_for_batch(
-        self, graphs: Tensor, num_nodes: Tensor, target_max_subgraph_size: int
+        self, graphs: Tensor, num_nodes: Tensor, target_subgraph_size: float
     ) -> Tuple[Tensor, Tensor, Tensor]:
         splitted_graphs = []
         splitted_graph_masks = []
         splitted_graphs_sizes = []
 
         for graph, graph_size in zip(graphs, num_nodes):
-            for subgraph_size_offset in (
-                range(0, min(target_max_subgraph_size - 1, self.depth), self.depth_step)
-                if target_max_subgraph_size < graph_size
-                else [0]
-            ):
+            if graph_size > self.minimal_subgraph_size:
+                current_subgraph_size = max(
+                    int(target_subgraph_size * graph_size), self.minimal_subgraph_size
+                )
+                stride = int(current_subgraph_size * self.subgraph_stride)
+
                 subgrpahs, subgraph_masks, subgraph_sizes = self.generate_subgraphs(
                     graph,
                     graph_size,
-                    new_size=target_max_subgraph_size - subgraph_size_offset,
-                    stride=self.stride,
-                    probability=1.0 / (subgraph_size_offset + 1),
+                    new_size=current_subgraph_size,
+                    stride=stride,
+                    probability=1.0,
                 )
+
                 splitted_graphs.extend(subgrpahs)
                 splitted_graph_masks.extend(subgraph_masks)
                 splitted_graphs_sizes.extend(subgraph_sizes)
+            else:
+                splitted_graphs.append(graph)
+                splitted_graph_masks.append(torch.ones(graph.shape))
+                splitted_graphs_sizes.append(graph_size)
 
         return splitted_graphs, splitted_graph_masks, splitted_graphs_sizes
 
@@ -127,7 +130,10 @@ class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
             return [graph], [torch.ones(graph.shape)], [graph_size]
 
         candidates = torch.arange(0, graph_size - new_size + 1, stride).int()
-
+        if (graph_size - new_size) not in candidates:
+            candidates = torch.cat(
+                [candidates, torch.IntTensor([graph_size - new_size])]
+            )
         if probability < 1:
             candidates = candidates[torch.rand(len(candidates)) < probability]
 
@@ -189,6 +195,13 @@ class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
             type=int,
             help="stride between subgraphs",
         )
+        parser.add_argument(
+            "--minimal_subgraph_size",
+            dest="minimal_subgraph_size",
+            default=10,
+            type=int,
+            help="minimal subgraph size",
+        )
         return parser
 
 
@@ -244,11 +257,11 @@ class LinearSubgrapghSizeScheduler(SubgrapghSizeScheduler):
 
     def __init__(self, subgraph_scheduler_params, **kwargs):
         if "speed" not in subgraph_scheduler_params:
-            subgraph_scheduler_params["speed"] = 1.0
+            subgraph_scheduler_params["speed"] = 0.01
         super().__init__(subgraph_scheduler_params=subgraph_scheduler_params, **kwargs)
 
-    def get_current_subgraph_size(self):
-        return int(self.trainer.current_epoch * self.params["speed"]) + 2
+    def get_current_subgraph_size(self) -> float:
+        return max(min(float(self.trainer.current_epoch * self.params["speed"]), 1), 0)
 
 
 class StepSubgrapghSizeScheduler(SubgrapghSizeScheduler):
@@ -261,14 +274,17 @@ class StepSubgrapghSizeScheduler(SubgrapghSizeScheduler):
         if "step_length" not in subgraph_scheduler_params:
             subgraph_scheduler_params["step_length"] = 1000
         if "step_size" not in subgraph_scheduler_params:
-            subgraph_scheduler_params["step_size"] = 5
+            subgraph_scheduler_params["step_size"] = 0.05
         super().__init__(subgraph_scheduler_params=subgraph_scheduler_params, **kwargs)
 
     def get_current_subgraph_size(self):
-        return (
-            int(self.trainer.current_epoch / self.params["step_length"])
-            * self.params["step_size"]
-            + 5
+        return max(
+            min(
+                float(self.trainer.current_epoch / self.params["step_length"])
+                * self.params["step_size"],
+                1.0,
+            ),
+            0,
         )
 
 
@@ -282,16 +298,21 @@ class EdgeMetricsBasedSubgrapghSizeScheduler(SubgrapghSizeScheduler):
         self, subgraph_scheduler_params, data_module, metric_update_interval, **kwargs
     ):
         if "step" not in subgraph_scheduler_params:
-            subgraph_scheduler_params["step"] = 5
+            subgraph_scheduler_params["step"] = 0.05
         if "metrics_treshold" not in subgraph_scheduler_params:
             subgraph_scheduler_params["metrics_treshold"] = 0.5
+        if "subgraph_size_initial" not in subgraph_scheduler_params:
+            subgraph_scheduler_params["subgraph_size_initial"] = 0.2
         super().__init__(subgraph_scheduler_params=subgraph_scheduler_params, **kwargs)
         self.data_module = data_module
-        self.size = 2
+        self.size = subgraph_scheduler_params["subgraph_size_initial"]
         self.metric_update_interval = metric_update_interval
         self.last_epoch_changed = -metric_update_interval - 1
 
-    def get_current_subgraph_size(self):
+    def get_current_subgraph_size(self) -> float:
+        if self.size >= 1:
+            return self.size
+
         if (
             self.last_epoch_changed + self.metric_update_interval
             < self.data_module.trainer.current_epoch
@@ -307,7 +328,7 @@ class EdgeMetricsBasedSubgrapghSizeScheduler(SubgrapghSizeScheduler):
             self.size = self.size + self.params["step"]
             self.last_epoch_changed = self.data_module.trainer.current_epoch
 
-        return self.size
+        return max(min(self.size, 1), 0)
 
 
 # callback_metrics
@@ -324,12 +345,8 @@ class SteppingGraphSizeMonitor(Callback):
         self._max_num_nodes_in_dataset = num_nodes
 
     def on_train_epoch_start(self, trainer, *args, **kwargs):
-        scheduled_max_size = self._get_current_subgraph_size_fn()
-        curr_max_num_nodes_in_subgraph = min(
-            scheduled_max_size, self._max_num_nodes_in_dataset
-        )
         trainer.logger.log_metrics(
-            {"max_subgraph_size": curr_max_num_nodes_in_subgraph},
+            {"subgraph_size": self._get_current_subgraph_size_fn()},
             step=trainer.global_step,
         )
 

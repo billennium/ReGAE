@@ -58,7 +58,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
                 "MaskPrecision",
                 "MaskRecall",
             ],
-            max_number_of_nodes=144,
+            max_number_of_nodes=21,
             max_epochs=370,
             check_val_every_n_epoch=2,
             metric_update_interval=2,
