@@ -45,8 +45,9 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             diagonal_embeddings_loss_weight=0.2,
             optimizer="AdamWAMSGrad",
             lr_monitor=True,
-            lr_scheduler_name="NoSched",
-            lr_scheduler_metric="loss/train_avg",
+            lr_scheduler_name="FactorDecreasingOnMetricChange",
+            lr_scheduler_metric="max_graph_size/train_avg",
+            lr_scheduler_params={"factor": 0.9},
             learning_rate=0.0001,
             gradient_clip_val=1.0,
             batch_size=32,
@@ -70,14 +71,22 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             early_stopping=False,
             bfs=True,
             num_dataset_graph_permutations=1,
-            datasets_dir="",
+            datasets_dir="/home/adam/phd/recurrent-graph-autoencoder/data",
             dataset_name="IMDB-BINARY",
             use_catche=True,
+            minimal_subgraph_size=10,
+            subgraph_stride=0.5,
+            subgraph_scheduler_name="edge_metrics_based",
+            subgraph_scheduler_params={
+                "subgraph_size_initial": 0.005,
+                "metrics_treshold": 0.6,
+                "step": 0.05,
+            },
         )
         return parser
 
 
 if __name__ == "__main__":
     Experiment(
-        GraphAutoencoder, DiagonalRepresentationGraphDataModule, RealGraphLoader
+        GraphAutoencoder, SmoothLearningStepGraphDataModule, RealGraphLoader
     ).run()
