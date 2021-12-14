@@ -59,7 +59,7 @@ class RealGraphLoader(GraphLoaderBase):
         self.dataset_dir = Path(datasets_dir)
         self.dataset_name = dataset_name
         self.dataset_folder = self.dataset_dir / Path(dataset_name)
-        self.data_name += dataset_name
+        self.data_name = dataset_name
         super().__init__(**kwargs)
 
     def load_graphs(self) -> List[nx.Graph]:
