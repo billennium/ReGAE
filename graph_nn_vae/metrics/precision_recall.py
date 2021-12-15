@@ -10,8 +10,9 @@ class EdgePrecision(torchmetrics.Precision):
 
     def update(
         self,
-        edges_predicted: torch.Tensor, edges_target: torch.Tensor,
-        mask_predicted: torch.Tensor = None, mask_target: torch.Tensor = None
+        edges_predicted: torch.Tensor,
+        edges_target: torch.Tensor,
+        **kwargs,
     ):
         edges_predicted = torch.sigmoid(edges_predicted).round().int().flatten()
         edges_target = edges_target.int().flatten()
@@ -30,8 +31,9 @@ class EdgeRecall(torchmetrics.Recall):
 
     def update(
         self,
-        edges_predicted: torch.Tensor, edges_target: torch.Tensor,
-        mask_predicted: torch.Tensor = None, mask_target: torch.Tensor = None
+        edges_predicted: torch.Tensor,
+        edges_target: torch.Tensor,
+        **kwargs,
     ):
         edges_predicted = torch.sigmoid(edges_predicted).round().int().flatten()
         edges_target = edges_target.int().flatten()
@@ -50,8 +52,9 @@ class MaskPrecision(torchmetrics.Precision):
 
     def update(
         self,
-        mask_predicted: torch.Tensor, mask_target: torch.Tensor,
-        edges_predicted: torch.Tensor = None, edges_target: torch.Tensor = None
+        mask_predicted: torch.Tensor,
+        mask_target: torch.Tensor,
+        **kwargs,
     ):
         mask_predicted = torch.sigmoid(mask_predicted).round().int().flatten()
         mask_target = mask_target.int().flatten()
@@ -70,8 +73,9 @@ class MaskRecall(torchmetrics.Recall):
 
     def update(
         self,
-        mask_predicted: torch.Tensor, mask_target: torch.Tensor,
-        edges_predicted: torch.Tensor = None, edges_target: torch.Tensor = None
+        mask_predicted: torch.Tensor,
+        mask_target: torch.Tensor,
+        **kwargs,
     ):
         mask_predicted = torch.sigmoid(mask_predicted).round().int().flatten()
         mask_target = mask_target.int().flatten()

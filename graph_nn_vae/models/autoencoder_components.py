@@ -47,7 +47,6 @@ class GraphEncoder(BaseModel):
         :return:
             Graph embedding Tensor of dimensions [batch_size x embedding_size]
         """
-
         diagonal_repr_graphs_batch = input_batch[0]
         diagonal_repr_graphs_batch.requires_grad = True
         num_nodes_batch = input_batch[2]
@@ -62,7 +61,7 @@ class GraphEncoder(BaseModel):
         first_diag_length = num_diagonals
         diag_right_pos = int((1 + num_diagonals) * num_diagonals / 2)
 
-        graph_counts_per_size = torch.bincount(num_nodes_batch)
+        graph_counts_per_size = self.torch_bincount(num_nodes_batch)
 
         # Embedding batch is represented in the shape: [graph_idx, embedding_idx, embedding]
         # Starting with `0` for no graphs yet. Will get filled approprately in the recurrent loop.
@@ -108,6 +107,16 @@ class GraphEncoder(BaseModel):
 
         # Reorder back to the original batch order and skip the no longer needed second dimension.
         return prev_embedding[indices_in_original_batch_order, 0, :]
+
+    def torch_bincount(self, t: Tensor) -> Tensor:
+        """
+        torch.bincount() when used on CUDA may lead to nondeterministic gradients. From testing, this isn't an issue in our use case.
+        """
+        was_deterministic = torch.are_deterministic_algorithms_enabled()
+        torch.use_deterministic_algorithms(False)
+        t = torch.bincount(t)
+        torch.use_deterministic_algorithms(was_deterministic)
+        return t
 
     def step(self, batch: Tensor) -> Tensor:
         embeddings = self(batch)
@@ -160,7 +169,6 @@ class GraphDecoder(BaseModel):
         edge_decoder_class: nn.Module,
         embedding_size: int,
         edge_size: int,
-        max_number_of_nodes: int,
         **kwargs,
     ):
         if embedding_size % 2 != 0:
@@ -169,14 +177,15 @@ class GraphDecoder(BaseModel):
             )
         self.internal_embedding_size = int(embedding_size / 2)
         self.edge_size = edge_size
-        self.max_number_of_nodes = max_number_of_nodes
         super().__init__(**kwargs)
 
         self.edge_decoder = edge_decoder_class(
             embedding_size=self.internal_embedding_size, edge_size=edge_size, **kwargs
         )
 
-    def forward(self, graph_encoding_batch: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(
+        self, graph_encoding_batch: Tensor, max_number_of_nodes: int
+    ) -> Tuple[Tensor, Tensor]:
         """
         :param graph_encoding_batch: batch of graph encodings (products of an encoder) of dimensions [batch_size, embedding_size]
         :return: graph adjacency matrices tensor of dimensions [batch_size, num_nodes, num_nodes, edge_size]
@@ -195,7 +204,7 @@ class GraphDecoder(BaseModel):
 
         diagonal_embeddings = []
 
-        for _ in range(self.max_number_of_nodes):
+        for _ in range(max_number_of_nodes):
             (
                 decoded_edges_with_mask,
                 new_embedding_l,
@@ -311,15 +320,6 @@ class GraphDecoder(BaseModel):
             )
         except ArgumentError:
             pass
-        parser.add_argument(
-            "--max-num-nodes",
-            "--max-number-of-nodes",
-            dest="max_number_of_nodes",
-            default=50,
-            type=int,
-            metavar="NUM_NODES",
-            help="max number of nodes of generated graphs",
-        )
         return parser
 
 

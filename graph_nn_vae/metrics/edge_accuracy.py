@@ -14,6 +14,7 @@ class EdgeAccuracy(torchmetrics.Accuracy):
         edges_target: torch.Tensor,
         mask_predicted: torch.Tensor,
         mask_target: torch.Tensor,
+        **kwargs,
     ):
         edges_predicted = edges_predicted.sigmoid().round().int()
         edges_target = edges_target.int()
@@ -37,10 +38,9 @@ class MaskAccuracy(torchmetrics.Accuracy):
 
     def update(
         self,
-        edges_predicted: torch.Tensor,
-        edges_target: torch.Tensor,
         mask_predicted: torch.Tensor,
         mask_target: torch.Tensor,
+        **kwargs,
     ):
         mask_predicted = torch.sigmoid(mask_predicted)
         mask_target = mask_target.int()

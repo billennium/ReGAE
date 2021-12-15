@@ -3,8 +3,10 @@ from typing import List
 import torch
 from torch import optim
 from torch import nn
+from graph_nn_vae import lr_schedulers
 
 from graph_nn_vae.metrics.edge_accuracy import EdgeAccuracy, MaskAccuracy
+from graph_nn_vae.metrics.graph_size import MaxGraphSize
 from graph_nn_vae.metrics.precision_recall import *
 
 
@@ -36,27 +38,13 @@ def AdamWAMSGrad(*args, **kwargs):
 
 def get_lr_scheduler(name: str):
     optimizers = {
-        "NoSched": NoSched,
+        "NoSched": lr_schedulers.NoSched,
+        "FactorDecreasingOnMetricChange": lr_schedulers.FactorDecreasingOnMetricChange,
         "StepLR": torch.optim.lr_scheduler.StepLR,
         "MultiStepLR": torch.optim.lr_scheduler.MultiStepLR,
         "ReduceLROnPlateau": torch.optim.lr_scheduler.ReduceLROnPlateau,
     }
-    return optimizers.get(name, NoSched)
-
-
-class NoSched(torch.optim.lr_scheduler._LRScheduler):
-    """
-    Does not decay the lr whatsoever.
-    """
-
-    def __init__(self, optimizer, last_epoch=-1, verbose=False):
-        super(NoSched, self).__init__(optimizer, last_epoch, verbose)
-
-    def get_lr(self):
-        return [group["lr"] for group in self.optimizer.param_groups]
-
-    def _get_closed_form_lr(self):
-        return self.base_lrs
+    return optimizers.get(name, lr_schedulers.NoSched)
 
 
 def get_metrics(metrics: List[str]):
@@ -67,6 +55,7 @@ def get_metrics(metrics: List[str]):
         "EdgeRecall": EdgeRecall,
         "MaskPrecision": MaskPrecision,
         "MaskRecall": MaskRecall,
+        "MaxGraphSize": MaxGraphSize,
     }
     return [metrics_dict[m]() for m in metrics]
 

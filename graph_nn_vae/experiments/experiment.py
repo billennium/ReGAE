@@ -8,7 +8,7 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping
 
-from graph_nn_vae.data import BaseDataModule
+from graph_nn_vae.data import BaseDataModule, GraphLoaderBase
 from graph_nn_vae.models.base import BaseModel
 from graph_nn_vae.models.autoencoder_components import GraphEncoder
 
@@ -34,10 +34,12 @@ class Experiment:
         self,
         model: Type[BaseModel],
         data_module: BaseDataModule,
+        data_loader: GraphLoaderBase,
         parser_default: dict = None,
     ):
         self.model = model
         self.data_module = data_module
+        self.data_loader = data_loader
         self.early_stopping = EarlyStopping
         self.parser_default = parser_default if parser_default is not None else {}
 
@@ -52,7 +54,12 @@ class Experiment:
             args.batch_size_val = args.batch_size
             args.batch_size_test = args.batch_size
 
-        data_module: BaseDataModule = self.data_module(**vars(args))
+        self.data_loader: GraphLoaderBase = self.data_loader(**vars(args))
+
+        data_module: BaseDataModule = self.data_module(
+            **vars(args), data_loader=self.data_loader
+        )
+
         model = self.model(
             **vars(args),
             loss_weight=data_module.loss_weight(),
@@ -69,7 +76,7 @@ class Experiment:
             trainer.callbacks.append(checkpoint_callback)
 
         if args.lr_monitor:
-            lr_monitor = LearningRateMonitor(logging_interval='step')
+            lr_monitor = LearningRateMonitor(logging_interval="step")
             trainer.callbacks.append(lr_monitor)
 
         if args.early_stopping:
@@ -101,7 +108,7 @@ class Experiment:
         if logger_name == "tb":
             return pl.loggers.TensorBoardLogger(
                 save_dir="tb_logs",
-                name=self.data_module.data_name,
+                name=self.data_loader.data_name,
             )
         else:
             raise RuntimeError(f"unknown logger name: {logger_name}")
@@ -110,11 +117,11 @@ class Experiment:
         parser = argparse.ArgumentParser(add_help=True)
         parser = self.add_trainer_parser(parser)
         parser = self.add_experiment_parser(parser)
+        parser = self.data_loader.add_model_specific_args(parser)
         parser = self.data_module.add_model_specific_args(parser)
         parser = self.model.add_model_specific_args(parser)
         # parser = self.early_stopping.add_callback_specific_args(parser)
         parser.set_defaults(
-            progress_bar_refresh_rate=2,
             **self.parser_default,
         )
         parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
