@@ -50,10 +50,10 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             learning_rate=0.0001,
             gradient_clip_val=1.0,
             batch_size=32,
-            embedding_size=256,
-            encoder_hidden_layer_sizes=[1024, 768],
+            embedding_size=64,
+            encoder_hidden_layer_sizes=[256, 128],
             encoder_activation_function="ELU",
-            decoder_hidden_layer_sizes=[1024, 768],
+            decoder_hidden_layer_sizes=[256, 128],
             decoder_activation_function="ELU",
             metrics=[
                 "EdgeAccuracy",

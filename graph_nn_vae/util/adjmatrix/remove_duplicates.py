@@ -1,7 +1,7 @@
 import torch
 
 
-def remove_duplicates(graphs: list):
+def remove_duplicates(graphs: list, labels: list = None):
     adjency_matrixes = [el[0] for el in graphs]
 
     _, indices = unique(
@@ -10,7 +10,10 @@ def remove_duplicates(graphs: list):
         ),
         dim=0,
     )
-    return [graphs[i] for i in indices]
+    if labels is None:
+        return [graphs[i] for i in indices], None
+    else:
+        return [graphs[i] for i in indices], [labels[i] for i in indices]
 
 
 def unique(x, dim: int = None):

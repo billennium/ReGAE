@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 from argparse import ArgumentParser
 from pathlib import Path
 
@@ -16,7 +16,7 @@ class GraphLoaderBase:
     def __init__(self, **kwargs):
         pass
 
-    def load_graphs(self) -> List[nx.Graph]:
+    def load_graphs(self) -> Tuple[List[nx.Graph], List[int]]:
         """
         Overload this function to specify graphs for the dataset.
         """
@@ -36,8 +36,8 @@ class SyntheticGraphLoader(GraphLoaderBase):
         self.data_name += "_" + graph_type
         super().__init__(**kwargs)
 
-    def load_graphs(self) -> List[nx.Graph]:
-        return create_synthetic_graphs(self.graph_type)
+    def load_graphs(self) -> Tuple[List[nx.Graph], List[int]]:
+        return create_synthetic_graphs(self.graph_type), None
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
@@ -55,16 +55,23 @@ class SyntheticGraphLoader(GraphLoaderBase):
 class RealGraphLoader(GraphLoaderBase):
     data_name = "real"
 
-    def __init__(self, datasets_dir: str = "", dataset_name: str = "", **kwargs):
+    def __init__(
+        self,
+        datasets_dir: str = "",
+        dataset_name: str = "",
+        use_labels: bool = False,
+        **kwargs
+    ):
         self.dataset_dir = Path(datasets_dir)
         self.dataset_name = dataset_name
         self.dataset_folder = self.dataset_dir / Path(dataset_name)
         self.data_name = dataset_name
+        self.use_labels = use_labels
         super().__init__(**kwargs)
 
-    def load_graphs(self) -> List[nx.Graph]:
+    def load_graphs(self) -> Tuple[List[nx.Graph], List[int]]:
         # TODO PICKLE FROM BACKUP
-
+        # TODO use less RAM
         graph_with_all_edges = nx.read_edgelist(
             self.dataset_folder / Path(self.dataset_name + "_A.txt"),
             delimiter=", ",
@@ -76,9 +83,17 @@ class RealGraphLoader(GraphLoaderBase):
             for c in nx.connected_components(graph_with_all_edges)
         ]
 
+        if self.use_labels:
+            with open(
+                self.dataset_folder / Path(self.dataset_name + "_graph_labels.txt")
+            ) as file:
+                graphs_labels = [int(el) for el in file.read().splitlines()]
+        else:
+            graphs_labels = None
+
         # TODO SAVE PICKLE BACKUP
 
-        return graphs
+        return graphs, graphs_labels
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):

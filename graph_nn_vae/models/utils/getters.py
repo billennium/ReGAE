@@ -15,6 +15,7 @@ def get_loss(name: str, loss_weight: torch.Tensor = None):
         "MSE": torch.nn.MSELoss,
         "BCE": torch.nn.BCELoss,
         "BCEWithLogits": torch.nn.BCEWithLogitsLoss,
+        "CrossEntropy": nn.CrossEntropyLoss,
     }
     if loss_weight is not None:
         return losses[name](weight=loss_weight)
@@ -56,6 +57,10 @@ def get_metrics(metrics: List[str]):
         "MaskPrecision": MaskPrecision,
         "MaskRecall": MaskRecall,
         "MaxGraphSize": MaxGraphSize,
+        "Accuracy": torchmetrics.Accuracy,
+        "F1": torchmetrics.F1,
+        "Precision": torchmetrics.Precision,
+        "Recall": torchmetrics.Recall,
     }
     return [metrics_dict[m]() for m in metrics]
 

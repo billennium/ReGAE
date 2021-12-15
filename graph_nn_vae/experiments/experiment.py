@@ -50,9 +50,9 @@ class Experiment:
         if args.seed is not None:
             pl.seed_everything(args.seed)
 
-        if args.fast_dev_run:
-            args.batch_size_val = args.batch_size
-            args.batch_size_test = args.batch_size
+        # if args.fast_dev_run:
+        args.batch_size_val = args.batch_size
+        args.batch_size_test = args.batch_size
 
         self.data_loader: GraphLoaderBase = self.data_loader(**vars(args))
 
@@ -80,7 +80,9 @@ class Experiment:
             trainer.callbacks.append(lr_monitor)
 
         if args.early_stopping:
-            early_stopping = self.early_stopping(monitor="loss/train_avg", patience=3)
+            early_stopping = self.early_stopping(
+                monitor="loss/val", patience=args.early_stopping_patience
+            )
             trainer.callbacks.append(early_stopping)
 
         args.train_dataset_length = len(data_module.train_dataset)
@@ -98,16 +100,19 @@ class Experiment:
 
         if not args.no_evaluate:
             if args.checkpoint_monitor:
-                trainer.test(ckpt_path=checkpoint_callback.best_model_path)
+                trainer.test(
+                    ckpt_path=checkpoint_callback.best_model_path,
+                    test_dataloaders=data_module,
+                )
             else:
-                trainer.test(ckpt_path="best")
+                trainer.test(ckpt_path="best", test_dataloaders=data_module)
 
         print("Elapsed time:", "%.2f" % (end - start))
 
     def create_logger(self, logger_name: str = "tb") -> pl.loggers.LightningLoggerBase:
         if logger_name == "tb":
             return pl.loggers.TensorBoardLogger(
-                save_dir="tb_logs",
+                save_dir="tb_logs/" + self.model.model_name,
                 name=self.data_loader.data_name,
             )
         else:
@@ -161,7 +166,7 @@ class Experiment:
             "--checkpoint-monitor",
             dest="checkpoint_monitor",
             type=str,
-            default="",
+            default="loss/val",
             help="Metric used for checkpointing",
         )
         parser.add_argument(
@@ -184,6 +189,13 @@ class Experiment:
             dest="early_stopping",
             action="store_true",
             help="Enable early stopping",
+        )
+        parser.add_argument(
+            "--early_stopping_patience",
+            dest="early_stopping_patience",
+            type=int,
+            default=3,
+            help="Patience for early stopping",
         )
         parser.add_argument(
             "--lr_monitor",
