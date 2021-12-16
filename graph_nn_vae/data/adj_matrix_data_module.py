@@ -5,6 +5,8 @@ import numpy as np
 
 import torch
 
+from tqdm.auto import tqdm
+
 from graph_nn_vae.data.data_module import BaseDataModule
 from graph_nn_vae.data.graph_loaders import GraphLoaderBase
 from graph_nn_vae.util import adjmatrix, split_dataset_train_val_test
@@ -54,7 +56,7 @@ class AdjMatrixDataModule(BaseDataModule):
         adjacency_matrices = []
         adjacency_matrices_labels = [] if labels is not None else None
 
-        for index, graph in enumerate(graphs):
+        for index, graph in tqdm(enumerate(graphs), desc="preprocessing graphs"):
             for i in range(self.num_dataset_graph_permutations):
                 if i != 0:
                     adj_matrix = adjmatrix.random_permute(graph)
@@ -64,7 +66,7 @@ class AdjMatrixDataModule(BaseDataModule):
                 if self.bfs:
                     adj_matrix = adjmatrix.bfs_ordering(adj_matrix)
 
-                reshaped_matrix = adjmatrix.minimize_and_pad(
+                reshaped_matrix = adjmatrix.minimize_adj_matrix(
                     adj_matrix, max_number_of_nodes
                 )
                 adjacency_matrices.append((reshaped_matrix, graph.shape[0]))
