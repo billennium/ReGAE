@@ -3,6 +3,7 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 import networkx as nx
+import numpy as np
 
 from networkx.readwrite.gml import parse_gml_lines
 
@@ -16,7 +17,7 @@ class GraphLoaderBase:
     def __init__(self, **kwargs):
         pass
 
-    def load_graphs(self) -> Tuple[List[nx.Graph], List[int]]:
+    def load_graphs(self) -> Tuple[List[np.array], List[int]]:
         """
         Overload this function to specify graphs for the dataset.
         """
@@ -36,8 +37,11 @@ class SyntheticGraphLoader(GraphLoaderBase):
         self.data_name += "_" + graph_type
         super().__init__(**kwargs)
 
-    def load_graphs(self) -> Tuple[List[nx.Graph], List[int]]:
-        return create_synthetic_graphs(self.graph_type), None
+    def load_graphs(self) -> Tuple[List[np.array], List[int]]:
+        return [
+            nx.to_numpy_array(nx_graph, dtype=np.float32)
+            for nx_graph in create_synthetic_graphs(self.graph_type)
+        ], None
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
@@ -69,19 +73,31 @@ class RealGraphLoader(GraphLoaderBase):
         self.use_labels = use_labels
         super().__init__(**kwargs)
 
-    def load_graphs(self) -> Tuple[List[nx.Graph], List[int]]:
-        # TODO PICKLE FROM BACKUP
-        # TODO use less RAM
-        graph_with_all_edges = nx.read_edgelist(
-            self.dataset_folder / Path(self.dataset_name + "_A.txt"),
-            delimiter=", ",
-            data=int,
-        )
+    def load_graphs(self) -> Tuple[List[np.array], List[int]]:
+        with open(
+            self.dataset_folder / Path(self.dataset_name + "_graph_indicator.txt")
+        ) as file:
+            graph_indicator = file.read().splitlines()
+            graph_indicator = np.array([int(el) for el in graph_indicator])
 
-        graphs = [
-            graph_with_all_edges.subgraph(c)
-            for c in nx.connected_components(graph_with_all_edges)
-        ]
+        graphs_index, graphs_sizes = np.unique(graph_indicator, return_counts=True)
+        graph_F = [sum(graphs_sizes[: el - 1]) for el in graphs_index]
+
+        adj_matrices = []
+        for i in graphs_sizes:
+            adj_matrices.append(np.zeros((i, i)))
+        from tqdm.auto import tqdm
+
+        with open(self.dataset_folder / Path(self.dataset_name + "_A.txt")) as file:
+            for line in tqdm(file):
+                a, b = line.strip().split(",")
+                a = int(a)
+                b = int(b)
+                current_graph = graph_indicator[a - 1]
+                a = a - graph_F[current_graph - 1]
+                b = b - graph_F[current_graph - 1]
+
+                adj_matrices[current_graph - 1][a - 1, b - 1] = 1
 
         if self.use_labels:
             with open(
@@ -91,9 +107,7 @@ class RealGraphLoader(GraphLoaderBase):
         else:
             graphs_labels = None
 
-        # TODO SAVE PICKLE BACKUP
-
-        return graphs, graphs_labels
+        return adj_matrices, graphs_labels
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):

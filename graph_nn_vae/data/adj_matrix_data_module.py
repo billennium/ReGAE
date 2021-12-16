@@ -30,7 +30,7 @@ class AdjMatrixDataModule(BaseDataModule):
 
         self.prepare_data()
 
-    def create_graphs(self) -> Tuple[List[nx.Graph], List[int]]:
+    def create_graphs(self) -> Tuple[List[np.array], List[int]]:
         return self.data_loader.load_graphs()
 
     def max_number_of_nodes_in_graphs(self, graphs: List[nx.Graph]) -> int:
@@ -40,29 +40,26 @@ class AdjMatrixDataModule(BaseDataModule):
                 max_number_of_nodes = graph.number_of_nodes()
         return max_number_of_nodes
 
-    def nx_to_minimized_padded_adjacency_matrices(
+    def minimize_and_pad_adjacency_matrices(
         self,
-        nx_graphs: List[nx.Graph],
+        graphs: List[np.array],
         remove_duplicates: bool = True,
         labels: List[int] = None,
     ) -> List[Tuple[torch.Tensor, int]]:
         """
         Returns tuples of adj matrices with number of nodes.
         """
-        max_number_of_nodes = max_number_of_nodes_in_graphs(nx_graphs)
+        max_number_of_nodes = max_number_of_nodes_in_graphs(graphs)
 
         adjacency_matrices = []
         adjacency_matrices_labels = [] if labels is not None else None
 
-        for index, nx_graph in enumerate(nx_graphs):
-            np_adj_matrix = nx.to_numpy_array(
-                nx_graph, dtype=np.float32
-            )  # TODO move to_numpy_array to create graphs
+        for index, graph in enumerate(graphs):
             for i in range(self.num_dataset_graph_permutations):
                 if i != 0:
-                    adj_matrix = adjmatrix.random_permute(np_adj_matrix)
+                    adj_matrix = adjmatrix.random_permute(graph)
                 else:
-                    adj_matrix = np_adj_matrix
+                    adj_matrix = graph
 
                 if self.bfs:
                     adj_matrix = adjmatrix.bfs_ordering(adj_matrix)
@@ -70,7 +67,7 @@ class AdjMatrixDataModule(BaseDataModule):
                 reshaped_matrix = adjmatrix.minimize_and_pad(
                     adj_matrix, max_number_of_nodes
                 )
-                adjacency_matrices.append((reshaped_matrix, nx_graph.number_of_nodes()))
+                adjacency_matrices.append((reshaped_matrix, graph.shape[0]))
                 if labels is not None:
                     adjacency_matrices_labels.append(labels[index])
 
@@ -84,9 +81,9 @@ class AdjMatrixDataModule(BaseDataModule):
     def prepare_data(self, *args, **kwargs):
         super().prepare_data(*args, **kwargs)
 
-        nx_graphs, graph_labels = self.create_graphs()
-        adj_matrices, graph_labels = self.nx_to_minimized_padded_adjacency_matrices(
-            nx_graphs, labels=graph_labels
+        graphs, graph_labels = self.create_graphs()
+        adj_matrices, graph_labels = self.minimize_and_pad_adjacency_matrices(
+            graphs, labels=graph_labels
         )
 
         if self.use_labels and graph_labels is None:
