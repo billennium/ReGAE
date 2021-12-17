@@ -10,8 +10,6 @@ def remove_duplicates(graphs: list, labels: list = None):
     ]
     _, indices = np.unique(hashes, return_index=True)
 
-    print(len(adjency_matrixes), len(indices))
-
     if labels is None:
         return [graphs[i] for i in indices], None
     else:
