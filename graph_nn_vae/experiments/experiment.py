@@ -7,7 +7,7 @@ from typing import Type
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping
-
+import torch.multiprocessing
 from graph_nn_vae.data import BaseDataModule, GraphLoaderBase
 from graph_nn_vae.models.base import BaseModel
 from graph_nn_vae.models.autoencoder_components import GraphEncoder
@@ -49,6 +49,8 @@ class Experiment:
 
         if args.seed is not None:
             pl.seed_everything(args.seed)
+
+        torch.multiprocessing.set_sharing_strategy("file_system")
 
         # if args.fast_dev_run:
         args.batch_size_val = args.batch_size
