@@ -5,9 +5,7 @@ from tqdm import tqdm
 
 def remove_duplicates(graphs: list, labels: list = None):
     adjency_matrixes = [el[0] for el in graphs]
-    hashes = [
-        hash(el.int().numpy().tostring()) for el in tqdm(adjency_matrixes, "hashes")
-    ]
+    hashes = [hash(el.int().numpy().tostring()) for el in adjency_matrixes]
     _, indices = np.unique(hashes, return_index=True)
 
     if labels is None:

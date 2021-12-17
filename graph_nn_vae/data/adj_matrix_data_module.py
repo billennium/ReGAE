@@ -42,7 +42,7 @@ class AdjMatrixDataModule(BaseDataModule):
                 max_number_of_nodes = graph.number_of_nodes()
         return max_number_of_nodes
 
-    def minimize_and_pad_adjacency_matrices(
+    def process_adjacency_matrices(
         self,
         graphs: List[np.array],
         remove_duplicates: bool = True,
@@ -56,7 +56,7 @@ class AdjMatrixDataModule(BaseDataModule):
         adjacency_matrices = []
         adjacency_matrices_labels = [] if labels is not None else None
 
-        for index, graph in tqdm(enumerate(graphs), desc="preprocessing graphs"):
+        for index, graph in enumerate(tqdm(graphs, desc="preprocessing graphs")):
             for i in range(self.num_dataset_graph_permutations):
                 if i != 0:
                     adj_matrix = adjmatrix.random_permute(graph)
@@ -84,7 +84,7 @@ class AdjMatrixDataModule(BaseDataModule):
         super().prepare_data(*args, **kwargs)
 
         graphs, graph_labels = self.create_graphs()
-        adj_matrices, graph_labels = self.minimize_and_pad_adjacency_matrices(
+        adj_matrices, graph_labels = self.process_adjacency_matrices(
             graphs, labels=graph_labels
         )
 
