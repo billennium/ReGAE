@@ -202,7 +202,7 @@ class GraphDecoder(BaseModel):
         original_indices = torch.IntTensor(list(range(graph_encoding_batch.shape[0])))
         indices_of_finished_graphs = []
 
-        diagonal_embeddings = []
+        diagonal_embedding_squares = torch.Tensor([0])
 
         for _ in range(max_number_of_nodes):
             (
@@ -248,7 +248,9 @@ class GraphDecoder(BaseModel):
                 finished_doubled_embeddings = torch.cat(
                     (finished_emb_l, finished_emb_r), dim=-1
                 )
-                diagonal_embeddings.append(finished_doubled_embeddings.flatten())
+                diagonal_embedding_squares += (
+                    finished_doubled_embeddings.flatten().square().sum()
+                )
 
             new_embedding_l = new_embedding_l[indices_graphs_still_generating]
             new_embedding_r = new_embedding_r[indices_graphs_still_generating]
@@ -271,13 +273,15 @@ class GraphDecoder(BaseModel):
             unfinished_doubled_embeddings = torch.cat(
                 (new_embedding_l, new_embedding_r), dim=-1
             )
-            diagonal_embeddings.append(unfinished_doubled_embeddings.flatten())
+            diagonal_embedding_squares += (
+                unfinished_doubled_embeddings.flatten().square().sum()
+            )
 
         masks, concatenated_diagonals = torch.split(
             concatenated_diagonals_with_masks, (1, self.edge_size), dim=2
         )
 
-        diagonal_embeddings_norm = torch.norm(torch.cat(diagonal_embeddings))
+        diagonal_embeddings_norm = diagonal_embedding_squares.sqrt()
 
         return (concatenated_diagonals, masks), diagonal_embeddings_norm
 
