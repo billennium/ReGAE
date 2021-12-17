@@ -7,6 +7,11 @@ from graph_nn_vae import lr_schedulers
 
 from graph_nn_vae.metrics.edge_accuracy import EdgeAccuracy, MaskAccuracy
 from graph_nn_vae.metrics.graph_size import MaxGraphSize
+from graph_nn_vae.metrics.losses import (
+    MeanEmbeddingsLoss,
+    MeanKLDLoss,
+    MeanReconstructionLoss,
+)
 from graph_nn_vae.metrics.precision_recall import *
 
 
@@ -56,6 +61,9 @@ def get_metrics(metrics: List[str]):
         "MaskPrecision": MaskPrecision,
         "MaskRecall": MaskRecall,
         "MaxGraphSize": MaxGraphSize,
+        "MeanReconstructionLoss": MeanReconstructionLoss,
+        "MeanEmbeddingsLoss": MeanEmbeddingsLoss,
+        "MeanKLDLoss": MeanKLDLoss,
     }
     return [metrics_dict[m]() for m in metrics]
 

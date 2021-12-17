@@ -1,5 +1,5 @@
 from argparse import ArgumentParser, ArgumentError
-from typing import List, Tuple
+from typing import Callable, List, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -164,11 +164,17 @@ class GraphEncoder(BaseModel):
 
 
 class GraphDecoder(BaseModel):
+    fill_border_embeddings_fn: Callable
+    fill_border_separate_sides: bool
+
     def __init__(
         self,
         edge_decoder_class: nn.Module,
         embedding_size: int,
         edge_size: int,
+        graph_decoder_border_embedding_fill: str,
+        graph_decoder_filling_nn_layer_sizes: List[int],
+        graph_decoder_filling_nn_activation_function: str,
         **kwargs,
     ):
         if embedding_size % 2 != 0:
@@ -181,6 +187,12 @@ class GraphDecoder(BaseModel):
 
         self.edge_decoder = edge_decoder_class(
             embedding_size=self.internal_embedding_size, edge_size=edge_size, **kwargs
+        )
+
+        self.set_fill_border_embeddings_fn(
+            graph_decoder_border_embedding_fill,
+            graph_decoder_filling_nn_layer_sizes,
+            graph_decoder_filling_nn_activation_function,
         )
 
     def forward(
@@ -259,7 +271,7 @@ class GraphDecoder(BaseModel):
             prev_embeddings_l = prev_embeddings_l[indices_graphs_still_generating]
             prev_embeddings_r = prev_embeddings_r[indices_graphs_still_generating]
 
-            prev_embeddings_l, prev_embeddings_r = self.fill_missing_embeddings(
+            prev_embeddings_l, prev_embeddings_r = self.fill_border_embeddings_fn(
                 prev_embeddings_l, prev_embeddings_r, new_embedding_l, new_embedding_r
             )
 
@@ -281,7 +293,51 @@ class GraphDecoder(BaseModel):
 
         return (concatenated_diagonals, masks), diagonal_embeddings_norm
 
-    def fill_missing_embeddings(
+    def set_fill_border_embeddings_fn(
+        self,
+        name: str,
+        graph_decoder_filling_nn_layer_sizes: List[int],
+        graph_decoder_filling_nn_activation_function: str,
+    ) -> None:
+        if name == "pad":
+            self.fill_border_embeddings_fn = self.pad_missing_embeddings
+            return
+
+        activation_f = get_activation_function(
+            graph_decoder_filling_nn_activation_function
+        )
+        if name == "separate_sides_nn":
+            self.border_embedding_nn_l = sequential_from_layer_sizes(
+                self.internal_embedding_size * 2,
+                self.internal_embedding_size * 2,
+                graph_decoder_filling_nn_layer_sizes,
+                activation_f,
+            )
+            self.border_embedding_nn_r = sequential_from_layer_sizes(
+                self.internal_embedding_size * 2,
+                self.internal_embedding_size * 2,
+                graph_decoder_filling_nn_layer_sizes,
+                activation_f,
+            )
+            self.fill_border_separate_sides = True
+            self.fill_border_embeddings_fn = self.nn_fill_missing_embeddings
+            return
+        if name == "single_nn":
+            self.border_embedding_nn = sequential_from_layer_sizes(
+                self.internal_embedding_size * 2,
+                self.internal_embedding_size * 2,
+                graph_decoder_filling_nn_layer_sizes,
+                activation_f,
+            )
+            self.fill_border_separate_sides = False
+            self.fill_border_embeddings_fn = self.nn_fill_missing_embeddings
+            return
+
+        raise ArgumentError(
+            "unknown `graph_decoder_border_embedding_fill` argument value: " + name
+        )
+
+    def pad_missing_embeddings(
         self, prev_embeddings_l, prev_embeddings_r, new_embedding_l, new_embedding_r
     ) -> Tuple[Tensor, Tensor]:
         """
@@ -293,6 +349,68 @@ class GraphDecoder(BaseModel):
         new_embeddings_l = torch.nn.functional.pad(new_embedding_l, (0, 0, 1, 0))
         new_embeddings_r = torch.nn.functional.pad(new_embedding_r, (0, 0, 0, 1))
         return new_embeddings_l, new_embeddings_r
+
+    def nn_fill_missing_embeddings(
+        self, prev_embeddings_l, prev_embeddings_r, new_embedding_l, new_embedding_r
+    ) -> Tuple[Tensor, Tensor]:
+        """
+        Generate missing border embeddings from a nn.
+        """
+        prev_left_border_embedding_l = prev_embeddings_l[:, 0]
+        prev_left_border_embedding_r = prev_embeddings_r[:, 0]
+        prev_right_border_embedding_l = prev_embeddings_l[:, -1]
+        prev_right_border_embedding_r = prev_embeddings_r[:, -1]
+
+        if self.fill_border_separate_sides:
+            new_left_border_embedding = self.generate_nn_border_embedding(
+                prev_left_border_embedding_l,
+                prev_left_border_embedding_r,
+                self.border_embedding_nn_l,
+            )
+            new_right_border_embedding = self.generate_nn_border_embedding(
+                prev_right_border_embedding_r,
+                prev_right_border_embedding_l,
+                self.border_embedding_nn_r,
+            )
+        else:
+            new_left_border_embedding = self.generate_nn_border_embedding(
+                prev_left_border_embedding_l,
+                prev_left_border_embedding_r,
+                self.border_embedding_nn,
+            )
+            new_right_border_embedding = self.generate_nn_border_embedding(
+                prev_right_border_embedding_r,
+                prev_right_border_embedding_l,
+                self.border_embedding_nn,
+            )
+
+        new_embeddings_l = torch.cat(
+            (new_embedding_l, new_left_border_embedding[:, None]), dim=1
+        )
+        new_embeddings_r = torch.cat(
+            (new_right_border_embedding[:, None], new_embedding_r), dim=1
+        )
+        return new_embeddings_l, new_embeddings_r
+
+    def generate_nn_border_embedding(
+        self,
+        prev_outer_border_embedding,
+        prev_inner_border_embedding,
+        border_embedding_nn: nn.Module,
+    ) -> Tensor:
+        prev_border_embedding = torch.cat(
+            (prev_outer_border_embedding, prev_inner_border_embedding), dim=-1
+        )
+        filling_nn_ouptut = border_embedding_nn(prev_border_embedding)
+        new_border_embedding, weight = torch.split(
+            filling_nn_ouptut,
+            (self.internal_embedding_size, self.internal_embedding_size),
+            dim=-1,
+        )
+        new_border_embedding = weighted_average(
+            new_border_embedding, prev_outer_border_embedding, weight
+        )
+        return new_border_embedding
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
@@ -318,135 +436,30 @@ class GraphDecoder(BaseModel):
                 metavar="EDGE_SIZE",
                 help="number of dimensions of a graph's edge",
             )
+            parser.add_argument(
+                "--graph_decoder_border_embedding_fill",
+                dest="graph_decoder_border_embedding_fill",
+                default="separate_sides_nn",
+                type=str,
+                metavar="METHOD_NAME",
+                help="the name of the type of the adjacency matrix border embedding filling method. Available: 'pad', 'separate_sides_nn', 'single_nn'",
+            )
+            parser.add_argument(
+                "--graph_decoder_filling_nn_layer_sizes",
+                dest="graph_decoder_filling_nn_layer_sizes",
+                default=[256],
+                type=parse_layer_sizes_list,
+                metavar="EDGE_DECODER_FILL_H_SIZES",
+                help="list of the hidden layer sizes of the edge decoder's input embedding filling nn. Applies only to 'separate_sides_nn', 'single_nn'",
+            )
+            parser.add_argument(
+                "--graph_decoder_filling_nn_activation_function",
+                dest="graph_decoder_filling_nn_activation_function",
+                default="ELU",
+                type=str,
+                metavar="ACTIVATION_F_NAME",
+                help="name of the activation function of the edge decoderr's input embedding filling nn. Applies only to 'separate_sides_nn', 'single_nn'",
+            )
         except ArgumentError:
             pass
-        return parser
-
-
-class BorderFillingGraphDecoder(GraphDecoder):
-    def __init__(
-        self,
-        graph_decoder_filling_nn_layer_sizes: List[int],
-        graph_decoder_filling_nn_activation_function: str,
-        graph_decoder_filling_nn_layer_separate_sides: bool,
-        **kwargs,
-    ):
-
-        super().__init__(**kwargs)
-        self.separate_sides = graph_decoder_filling_nn_layer_separate_sides
-        activation_f = get_activation_function(
-            graph_decoder_filling_nn_activation_function
-        )
-
-        if self.separate_sides:
-            self.border_embedding_nn_l = sequential_from_layer_sizes(
-                self.internal_embedding_size * 2,
-                self.internal_embedding_size * 2,
-                graph_decoder_filling_nn_layer_sizes,
-                activation_f,
-            )
-            self.border_embedding_nn_r = sequential_from_layer_sizes(
-                self.internal_embedding_size * 2,
-                self.internal_embedding_size * 2,
-                graph_decoder_filling_nn_layer_sizes,
-                activation_f,
-            )
-        else:
-            self.border_embedding_nn = sequential_from_layer_sizes(
-                self.internal_embedding_size * 2,
-                self.internal_embedding_size * 2,
-                graph_decoder_filling_nn_layer_sizes,
-                activation_f,
-            )
-
-    def fill_missing_embeddings(
-        self, prev_embeddings_l, prev_embeddings_r, new_embedding_l, new_embedding_r
-    ) -> Tuple[Tensor, Tensor]:
-        """
-        Generate missing border embeddings from a nn.
-        """
-        prev_left_border_embedding_l = prev_embeddings_l[:, 0]
-        prev_left_border_embedding_r = prev_embeddings_r[:, 0]
-        prev_right_border_embedding_l = prev_embeddings_l[:, -1]
-        prev_right_border_embedding_r = prev_embeddings_r[:, -1]
-
-        if self.separate_sides:
-            new_left_border_embedding = self.generate_border_embedding(
-                prev_left_border_embedding_l,
-                prev_left_border_embedding_r,
-                self.border_embedding_nn_l,
-            )
-            new_right_border_embedding = self.generate_border_embedding(
-                prev_right_border_embedding_r,
-                prev_right_border_embedding_l,
-                self.border_embedding_nn_r,
-            )
-        else:
-            new_left_border_embedding = self.generate_border_embedding(
-                prev_left_border_embedding_l,
-                prev_left_border_embedding_r,
-                self.border_embedding_nn,
-            )
-            new_right_border_embedding = self.generate_border_embedding(
-                prev_right_border_embedding_r,
-                prev_right_border_embedding_l,
-                self.border_embedding_nn,
-            )
-
-        new_embeddings_l = torch.cat(
-            (new_embedding_l, new_left_border_embedding[:, None]), dim=1
-        )
-        new_embeddings_r = torch.cat(
-            (new_right_border_embedding[:, None], new_embedding_r), dim=1
-        )
-        return new_embeddings_l, new_embeddings_r
-
-    def generate_border_embedding(
-        self,
-        prev_outer_border_embedding,
-        prev_inner_border_embedding,
-        border_embedding_nn: nn.Module,
-    ) -> Tensor:
-        prev_border_embedding = torch.cat(
-            (prev_outer_border_embedding, prev_inner_border_embedding), dim=-1
-        )
-        filling_nn_ouptut = border_embedding_nn(prev_border_embedding)
-        new_border_embedding, weight = torch.split(
-            filling_nn_ouptut,
-            (self.internal_embedding_size, self.internal_embedding_size),
-            dim=-1,
-        )
-        new_border_embedding = weighted_average(
-            new_border_embedding, prev_outer_border_embedding, weight
-        )
-        return new_border_embedding
-
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser = GraphDecoder.add_model_specific_args(parser)
-        parser.add_argument(
-            "--graph_decoder_filling_nn_layer_sizes",
-            dest="graph_decoder_filling_nn_layer_sizes",
-            default=[256],
-            type=parse_layer_sizes_list,
-            metavar="EDGE_DECODER_FILL_H_SIZES",
-            help="list of the hidden layer sizes of the edge decoder's input embedding filling nn",
-        )
-        parser.add_argument(
-            "--graph_decoder_filling_nn_activation_function",
-            dest="graph_decoder_filling_nn_activation_function",
-            default="ELU",
-            type=str,
-            metavar="ACTIVATION_F_NAME",
-            help="name of the activation function of the edge decoderr's input embedding filling nn",
-        )
-        parser.add_argument(
-            "--graph_decoder_filling_nn_layer_separate_sides",
-            dest="graph_decoder_filling_nn_layer_separate_sides",
-            default=True,
-            type=bool,
-            metavar="BOOL",
-            help="whether the graph decoder border embedding filling nn should be separate (two nn) for each side or the same nn for both sides.",
-        )
         return parser
