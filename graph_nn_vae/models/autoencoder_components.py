@@ -202,7 +202,9 @@ class GraphDecoder(BaseModel):
         original_indices = torch.IntTensor(list(range(graph_encoding_batch.shape[0])))
         indices_of_finished_graphs = []
 
-        diagonal_embedding_squares = torch.Tensor([0])
+        diagonal_embedding_squares = torch.zeros(
+            [1], device=graph_encoding_batch.device
+        )
 
         for _ in range(max_number_of_nodes):
             (
