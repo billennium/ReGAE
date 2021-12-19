@@ -39,7 +39,7 @@ class FactorDecreasingOnMetricChange(torch.optim.lr_scheduler.ReduceLROnPlateau)
         self._prev_metric_value = None
 
     def step(self, metrics, epoch=None):
-        current = float(metrics) # convert `metrics` to float, in case it's a zero-dim Tensor
+        current = float(metrics)
         if not self._was_first_metric_read:
             self._prev_metric_value = current
             self._was_first_metric_read = True
@@ -57,3 +57,51 @@ class FactorDecreasingOnMetricChange(torch.optim.lr_scheduler.ReduceLROnPlateau)
             param_group["lr"] = new_lr
             if self.verbose:
                 print(f"Reducing learning rate of group {i} to {new_lr:.4e}.")
+
+
+class SingleTimeChangeOnMetricTreshold(torch.optim.lr_scheduler.ReduceLROnPlateau):
+    """
+    Sets the lr to a specific value when a metric crosses given treshold
+    """
+
+    def __init__(
+        self,
+        optimizer: torch.optim.Optimizer,
+        lr_change: float,
+        treshold: float,
+        verbose: bool = False,
+    ):
+        if not isinstance(optimizer, torch.optim.Optimizer):
+            raise TypeError("{} is not an Optimizer".format(type(optimizer).__name__))
+        self.optimizer: torch.optim.Optimizer = optimizer
+        self.verbose = verbose
+
+        self.treshold = treshold
+        self.is_treshold_crossed = False
+
+        if isinstance(lr_change, list) or isinstance(lr_change, tuple):
+            if len(lr_change) != len(optimizer.param_groups):
+                raise ValueError(
+                    "expected {} min_lrs, got {}".format(
+                        len(optimizer.param_groups), len(lr_change)
+                    )
+                )
+            self.lr_changes = list(lr_change)
+        else:
+            self.lr_changes = [lr_change] * len(optimizer.param_groups)
+
+    def step(self, metrics, epoch=None):
+        if not self.is_treshold_crossed:
+            current = float(metrics)
+            if current >= self.treshold:
+                self._update_lr()
+                self.is_treshold_crossed = True
+
+        self._last_lr = [group["lr"] for group in self.optimizer.param_groups]
+
+    def _update_lr(self):
+        for i, param_group in enumerate(self.optimizer.param_groups):
+            new_lr = self.lr_changes[i]
+            param_group["lr"] = new_lr
+            if self.verbose:
+                print(f"Changing learning rate of group {i} to {new_lr:.4e}.")
