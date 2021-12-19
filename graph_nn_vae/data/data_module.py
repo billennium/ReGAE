@@ -19,6 +19,7 @@ class BaseDataModule(pl.LightningDataModule):
         batch_size_val: int,
         batch_size_test: int,
         workers: int,
+        persistent_workers: bool = False,
         **kwargs
     ):
         super().__init__()
@@ -26,6 +27,7 @@ class BaseDataModule(pl.LightningDataModule):
         self.batch_size_val = batch_size_val
         self.batch_size_test = batch_size_test
         self.workers = workers
+        self.persistent_workers = persistent_workers
         self.train_dataset = None
         self.val_dataset = None
         self.test_dataset = None
@@ -36,6 +38,7 @@ class BaseDataModule(pl.LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.workers,
             pin_memory=True,
+            persistent_workers=self.persistent_workers,
             collate_fn=self.collate_fn_train,
             **kwargs
         )
@@ -45,6 +48,7 @@ class BaseDataModule(pl.LightningDataModule):
             self.val_dataset,
             batch_size=self.batch_size_val,
             num_workers=self.workers,
+            persistent_workers=self.persistent_workers,
             collate_fn=self.collate_fn_val,
             **kwargs
         )
@@ -54,6 +58,7 @@ class BaseDataModule(pl.LightningDataModule):
             self.test_dataset,
             batch_size=self.batch_size_test,
             num_workers=self.workers,
+            persistent_workers=self.persistent_workers,
             collate_fn=self.collate_fn_test,
             **kwargs
         )
@@ -100,6 +105,12 @@ class BaseDataModule(pl.LightningDataModule):
             type=int,
             metavar="W",
             help="number of data loading workers",
+        )
+        parser.add_argument(
+            "--persistent_workers",
+            dest="persistent_workers",
+            action="store_true",
+            help="turn on pytorch's data loader persistent workers",
         )
 
         return parser
