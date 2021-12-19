@@ -28,6 +28,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         lr_scheduler_metric: str,
         metrics: List[str],
         metric_update_interval: int = 1,
+        data_module=None,  # only for returning test_datamodule()
         **kwargs,
     ):
         super(BaseModel, self).__init__()
@@ -43,8 +44,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         self.metrics_test = nn.ModuleList(get_metrics(metrics))
         self.metric_update_interval = metric_update_interval
         self.metric_update_counter = 0
-
-        # self.min_loss = MinimumSaver()
+        self.data_module = data_module
 
     def forward(self, **kwargs) -> Tensor:
         raise NotImplementedError
@@ -85,18 +85,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         for metric in self.metrics_val:
             self.log(f"{metric.label}/val", metric, prog_bar=True)
         self.log("loss/val", loss, prog_bar=True)
-        # self.min_loss.log("loss/val_min", loss.item(), batch[0].shape[0])
         return loss
-
-    def validation_epoch_end(self, outputs: List[Any]) -> None:
-        pass
-        # self.min_loss.calculate("loss/val_min")
-        # self.log(
-        #     "loss/val_min",
-        #     # self.min_loss.get_min()["loss/val_min"],
-        #     prog_bar=True,
-        #     logger=False,
-        # )
 
     def test_step(self, batch, batch_idx):
         loss = self.step(batch, self.metrics_test)
@@ -105,15 +94,16 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         self.log("loss/test", loss)
         return loss
 
+    def test_dataloader(self):
+        # For some reason newer versions of Lightning require the model to define it's own
+        # test dataloader. We consider that to be the responsibilty of the DataModule.
+        return self.data_module.test_dataloader()
+
     def on_fit_end(self) -> None:
         if isinstance(self.logger, pl.loggers.TensorBoardLogger):
             # TensorBoardLogger does not always flush the logs.
             # To ensure this, we run it manually
             self.logger.experiment.flush()
-
-    # def on_test_epoch_end(self):
-    #     for key, value in self.min_loss.get_min().items():
-    #         self.logger.log_hyperparams({key: value})
 
     def configure_optimizers(self):
         optimizer = self.optimizer(
