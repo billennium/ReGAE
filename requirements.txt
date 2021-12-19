@@ -1,0 +1,6 @@
+numpy==1.21.2
+torch==1.9.0+cu111
+networkx==2.6.2
+pytest==6.2.5
+pytorch_lightning==1.5.6
+torchmetrics==0.6.1
