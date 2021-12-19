@@ -6,7 +6,7 @@ from graph_nn_vae.data import (
     SyntheticGraphLoader,
 )
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
-from graph_nn_vae.models.autoencoder_components import BorderFillingGraphDecoder
+from graph_nn_vae.models.autoencoder_components import GraphDecoder
 from graph_nn_vae.models.edge_decoders.memory_standard import (
     MemoryEdgeDecoder,
     ZeroFillingMemoryEdgeDecoder,
@@ -30,7 +30,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
         # lr_milestones = [400, 800, 1200]
         # lr_milestones = [v / val_and_lr_update_interval for v in lr_milestones]
 
-        RecurrentGraphAutoencoder.graph_decoder_class = BorderFillingGraphDecoder
+        RecurrentGraphAutoencoder.graph_decoder_class = GraphDecoder
         RecurrentGraphAutoencoder.edge_decoder_class = MemoryEdgeDecoder
 
         parser = RecurrentGraphAutoencoder.add_model_specific_args(parent_parser)
@@ -52,7 +52,6 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             decoder_hidden_layer_sizes=[2048],
             decoder_activation_function="ELU",
             metrics=[
-                # "EdgeAccuracy",
                 "EdgePrecision",
                 "EdgeRecall",
                 "MaskPrecision",
