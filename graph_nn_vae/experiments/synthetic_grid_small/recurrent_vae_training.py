@@ -37,7 +37,7 @@ class GraphAutoencoder(RecurrentGraphVAE):
         RecurrentGraphAutoencoder.graph_decoder_class = GraphDecoder
         RecurrentGraphAutoencoder.edge_decoder_class = MemoryEdgeDecoder
 
-        parser = RecurrentGraphAutoencoder.add_model_specific_args(parent_parser)
+        parser = RecurrentGraphVAE.add_model_specific_args(parent_parser)
         parser.set_defaults(
             loss_function="BCEWithLogits",
             mask_loss_function="BCEWithLogits",
