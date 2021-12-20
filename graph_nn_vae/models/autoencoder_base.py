@@ -106,7 +106,7 @@ class GraphAutoencoder(BaseModel):
 
 
 class RecurrentGraphAutoencoder(GraphAutoencoder):
-    model_name = ""
+    model_name = "RecurrentGraphAutoencoder"
 
     graph_encoder_class = GraphEncoder
     edge_encoder_class = MemoryEdgeEncoder

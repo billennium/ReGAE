@@ -3,6 +3,8 @@ from operator import itemgetter
 from argparse import ArgumentParser
 
 import torch
+from torch.utils import data
+
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.base import Callback
 from torch.functional import Tensor
@@ -35,6 +37,9 @@ class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
         self.minimal_subgraph_size = minimal_subgraph_size
         self.current_metrics = {}
 
+        self.current_training_dataloader = None
+        self.current_training_dataset_lvl = -1
+
     def get_subgraph_size_scheduler(self, name: str):
         return {
             "linear": LinearSubgrapghSizeScheduler,
@@ -42,21 +47,60 @@ class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
             "edge_metrics_based": EdgeMetricsBasedSubgrapghSizeScheduler,
         }[name]
 
+    def _init_scheduler(self):
+        self.subgraph_size_scheduler.set_epoch_num_source(self.trainer)
+        max_num_nodes_in_train = max(self.train_dataset, key=itemgetter(2))[2]
+        self.subgraph_size_monitor = SteppingGraphSizeMonitor(
+            self.subgraph_size_scheduler.get_current_subgraph_size,
+            max_num_nodes_in_train,
+        )
+        self.trainer.callbacks.append(self.subgraph_size_monitor)
+
+        self.current_metric_monitor = MetricMonitor(self)
+        self.trainer.callbacks.append(self.current_metric_monitor)
+
+        self.is_logging_initialized = True
+
     def train_dataloader(self, **kwargs):
         if not self.is_scheduling_initialized:
-            self.subgraph_size_scheduler.set_epoch_num_source(self.trainer)
-            max_num_nodes_in_train = max(self.train_dataset, key=itemgetter(2))[2]
-            self.subgraph_size_monitor = SteppingGraphSizeMonitor(
-                self.subgraph_size_scheduler.get_current_subgraph_size,
-                max_num_nodes_in_train,
+            self._init_scheduler()
+
+        scheduled_subgraph_size = (
+            self.subgraph_size_scheduler.get_current_subgraph_size()
+        )
+
+        if (scheduled_subgraph_size > self.current_training_dataset_lvl) and (
+            scheduled_subgraph_size < 1
+        ):
+            graphs = [g[0] for g in self.train_dataset]
+            num_nodes = [g[2] for g in self.train_dataset]
+
+            graphs, graph_masks, num_nodes = self.generate_subgraphs_for_batch(
+                graphs, num_nodes, scheduled_subgraph_size
             )
-            self.trainer.callbacks.append(self.subgraph_size_monitor)
+            current_training_dataset = list(zip(graphs, graph_masks, num_nodes))
 
-            self.current_metric_monitor = MetricMonitor(self)
-            self.trainer.callbacks.append(self.current_metric_monitor)
+            self.current_training_dataset_lvl = scheduled_subgraph_size
+            self.current_training_dataloader = data.DataLoader(
+                current_training_dataset,
+                batch_size=self.batch_size,
+                num_workers=self.workers,
+                pin_memory=True,
+                collate_fn=self.collate_fn_train,
+                **kwargs,
+            )
+        elif scheduled_subgraph_size >= 1 and self.current_training_dataset_lvl < 1:
+            self.current_training_dataset_lvl = 1
+            self.current_training_dataloader = data.DataLoader(
+                self.train_dataset,
+                batch_size=self.batch_size,
+                num_workers=self.workers,
+                pin_memory=True,
+                collate_fn=self.collate_fn_train,
+                **kwargs,
+            )
 
-            self.is_logging_initialized = True
-        return super().train_dataloader(**kwargs)
+        return self.current_training_dataloader
 
     def collate_graph_batch_training(self, batch):
         # As part of the collation graph diag_repr are padded with 0.0 and the graph masks
@@ -66,15 +110,6 @@ class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
         graphs = [g[0] for g in batch]
         graph_masks = [g[1] for g in batch]
         num_nodes = [g[2] for g in batch]
-
-        scheduled_subgraph_size = (
-            self.subgraph_size_scheduler.get_current_subgraph_size()
-        )
-
-        if scheduled_subgraph_size < 1.0:
-            graphs, graph_masks, num_nodes = self.generate_subgraphs_for_batch(
-                graphs, num_nodes, scheduled_subgraph_size
-            )
 
         graphs = torch.nn.utils.rnn.pad_sequence(
             graphs, batch_first=True, padding_value=0.0
@@ -202,6 +237,7 @@ class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
             type=int,
             help="minimal subgraph size",
         )
+        parser.set_defaults(reload_dataloaders_every_n_epochs=1)
         return parser
 
 
