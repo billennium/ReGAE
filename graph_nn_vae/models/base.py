@@ -75,7 +75,11 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
 
         loss = self.step(batch, metrics)
         for metric in metrics:
-            self.log(f"{metric.label}/train_avg", metric, on_step=False, on_epoch=True)
+            metric_name = (
+                metric.label if "label" in metric.__dir__() else type(metric).__name__
+            )
+
+            self.log(f"{metric_name}/train_avg", metric, on_step=False, on_epoch=True)
         self.log("loss/train_avg", loss, on_step=False, on_epoch=True)
 
         return loss
@@ -83,14 +87,20 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
     def validation_step(self, batch, batch_idx):
         loss = self.step(batch, self.metrics_val)
         for metric in self.metrics_val:
-            self.log(f"{metric.label}/val", metric, prog_bar=True)
+            metric_name = (
+                metric.label if "label" in metric.__dir__() else type(metric).__name__
+            )
+            self.log(f"{metric_name}/val", metric, prog_bar=True)
         self.log("loss/val", loss, prog_bar=True)
         return loss
 
     def test_step(self, batch, batch_idx):
         loss = self.step(batch, self.metrics_test)
         for metric in self.metrics_test:
-            self.log(f"{metric.label}/test", metric, prog_bar=True)
+            metric_name = (
+                metric.label if "label" in metric.__dir__() else type(metric).__name__
+            )
+            self.log(f"{metric_name}/test", metric, prog_bar=True)
         self.log("loss/test", loss)
         return loss
 

@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 from typing import List
 import networkx as nx
+import numpy as np
 
 from graph_nn_vae.experiments.experiment import Experiment
 from graph_nn_vae.data import (
@@ -43,10 +44,10 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             learning_rate=0.001,
             gradient_clip_val=0.7,
             batch_size=1,
-            embedding_size=256,
-            encoder_hidden_layer_sizes=[2048],
+            embedding_size=512,
+            encoder_hidden_layer_sizes=[1024, 768],
             encoder_activation_function="ELU",
-            decoder_hidden_layer_sizes=[2048],
+            decoder_hidden_layer_sizes=[768, 1024],
             decoder_activation_function="ELU",
             metrics=[
                 "EdgePrecision",
@@ -76,8 +77,30 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
 class OneBigBarabasiGraphLoader(GraphLoaderBase):
     data_name = "one_big_barabasi"
 
+    def __init__(self, barabasi_size, **kwargs):
+        self.barabasi_size = barabasi_size
+        super().__init__(**kwargs)
+
     def load_graphs(self) -> List[nx.Graph]:
-        return [nx.barabasi_albert_graph(100, 4)]
+        return {
+            "graphs": [
+                nx.to_numpy_array(
+                    nx.barabasi_albert_graph(self.barabasi_size, 4), dtype=np.float32
+                )
+            ]
+        }
+
+    @staticmethod
+    def add_model_specific_args(parent_parser: ArgumentParser):
+        parser = GraphLoaderBase.add_model_specific_args(parent_parser)
+        parser.add_argument(
+            "--barabasi_size",
+            dest="barabasi_size",
+            default=100,
+            type=int,
+            help="size of one barabasi graph",
+        )
+        return parser
 
 
 if __name__ == "__main__":
