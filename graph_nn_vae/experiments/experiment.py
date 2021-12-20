@@ -7,7 +7,6 @@ from typing import Type
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping
-from pytorch_lightning.plugins import DDPPlugin
 import torch.multiprocessing
 from graph_nn_vae.data import BaseDataModule, GraphLoaderBase
 from graph_nn_vae.models.base import BaseModel
@@ -69,9 +68,7 @@ class Experiment:
         )
 
         logger = self.create_logger(logger_name=args.logger_name)
-        trainer = pl.Trainer.from_argparse_args(
-            args, logger=logger, strategy=DDPPlugin(find_unused_parameters=False)
-        )
+        trainer = pl.Trainer.from_argparse_args(args, logger=logger)
 
         if args.checkpoint_monitor:
             checkpoint_callback = pl.callbacks.ModelCheckpoint(
