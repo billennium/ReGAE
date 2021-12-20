@@ -39,20 +39,13 @@ class GraphAutoencoder(BaseModel):
             batch, y_pred
         )
 
-        mask = y_pred_mask > float("-inf")
-        y_pred_edge_l, y_pred_mask_l, y_edge_l, y_mask_l = (
-            y_pred_edge[mask],
-            y_pred_mask[mask],
-            y_edge[mask],
-            y_mask[mask],
+        loss_reconstruction = self.calc_reconstruction_loss(
+            y_edge, y_mask, y_pred_edge, y_pred_mask
         )
-
-        loss_edges = self.edge_loss_function(y_pred_edge_l, y_edge_l.data)
-        loss_mask = self.mask_loss_function(y_pred_mask_l, y_mask_l)
         loss_embeddings = (
             diagonal_embeddings_norm * self.diagonal_embeddings_loss_weight
         )
-        loss = loss_edges + loss_mask + loss_embeddings
+        loss = loss_reconstruction + loss_embeddings
 
         for metric in metrics:
             metric(
@@ -61,9 +54,25 @@ class GraphAutoencoder(BaseModel):
                 mask_predicted=y_pred_mask,
                 mask_target=y_mask,
                 num_nodes=batch[2],
+                loss_reconstruction=loss_reconstruction,
+                loss_embeddings=loss_embeddings,
             )
 
         return loss
+
+    def calc_reconstruction_loss(
+        self, y_edge, y_mask, y_pred_edge, y_pred_mask
+    ) -> Tensor:
+        mask = y_pred_mask > float("-inf")
+        y_pred_edge_l, y_pred_mask_l, y_edge_l, y_mask_l = (
+            y_pred_edge[mask],
+            y_pred_mask[mask],
+            y_edge[mask],
+            y_mask[mask],
+        )
+        loss_edges = self.edge_loss_function(y_pred_edge_l, y_edge_l.data)
+        loss_mask = self.mask_loss_function(y_pred_mask_l, y_mask_l)
+        return loss_edges + loss_mask
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
@@ -116,10 +125,10 @@ class RecurrentGraphAutoencoder(GraphAutoencoder):
         num_nodes_batch = batch[2]
         max_num_nodes_in_graph_batch = max(num_nodes_batch)
 
-        graph_embdeddings = self.encoder(batch)
+        graph_embeddings = self.encoder(batch)
 
         reconstructed_graph_diagonals, diagonal_embeddings_norm = self.decoder(
-            graph_encoding_batch=graph_embdeddings,
+            graph_encoding_batch=graph_embeddings,
             max_number_of_nodes=max_num_nodes_in_graph_batch,
         )
 

@@ -7,6 +7,11 @@ from graph_nn_vae import lr_schedulers
 
 from graph_nn_vae.metrics.edge_accuracy import EdgeAccuracy, MaskAccuracy
 from graph_nn_vae.metrics.graph_size import MaxGraphSize
+from graph_nn_vae.metrics.losses import (
+    MeanEmbeddingsLoss,
+    MeanKLDLoss,
+    MeanReconstructionLoss,
+)
 from graph_nn_vae.metrics.precision_recall import *
 
 
@@ -40,11 +45,12 @@ def get_lr_scheduler(name: str):
     optimizers = {
         "NoSched": lr_schedulers.NoSched,
         "FactorDecreasingOnMetricChange": lr_schedulers.FactorDecreasingOnMetricChange,
+        "SingleTimeChangeOnMetricTreshold": lr_schedulers.SingleTimeChangeOnMetricTreshold,
         "StepLR": torch.optim.lr_scheduler.StepLR,
         "MultiStepLR": torch.optim.lr_scheduler.MultiStepLR,
         "ReduceLROnPlateau": torch.optim.lr_scheduler.ReduceLROnPlateau,
     }
-    return optimizers.get(name, lr_schedulers.NoSched)
+    return optimizers[name]
 
 
 def get_metrics(metrics: List[str]):
@@ -56,6 +62,9 @@ def get_metrics(metrics: List[str]):
         "MaskPrecision": MaskPrecision,
         "MaskRecall": MaskRecall,
         "MaxGraphSize": MaxGraphSize,
+        "MeanReconstructionLoss": MeanReconstructionLoss,
+        "MeanEmbeddingsLoss": MeanEmbeddingsLoss,
+        "MeanKLDLoss": MeanKLDLoss,
     }
     return [metrics_dict[m]() for m in metrics]
 

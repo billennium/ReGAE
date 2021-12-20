@@ -67,6 +67,11 @@
   params:
     name: recurrent_autoencoder
 
+- model: recurrent_vae
+  extends: model-base
+  params:
+    name: recurrent_vae
+
 - model: encoder_num_edges
   extends: model-partial
   params:

@@ -8,7 +8,6 @@ from graph_nn_vae.data import (
 )
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
 from graph_nn_vae.models.autoencoder_components import (
-    BorderFillingGraphDecoder,
     GraphDecoder,
 )
 from graph_nn_vae.models.edge_decoders.memory_standard import (
