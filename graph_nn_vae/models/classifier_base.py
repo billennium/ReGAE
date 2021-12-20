@@ -42,7 +42,6 @@ class GraphClassifierBase(BaseModel):
         return parser
 
 
-# TODO load encoder weights
 class RecurrentEncoderGraphClassifier(GraphClassifierBase):
     model_name = "RecurrentEncoderGraphClassifier"
 
@@ -50,28 +49,29 @@ class RecurrentEncoderGraphClassifier(GraphClassifierBase):
     edge_encoder_class = MemoryEdgeEncoder
     classifier_network_class = MLPClassifier
 
-    def __init__(self, **kwargs):
+    def __init__(
+        self, freeze_encoder: bool = False, checkpoint_path: str = "", **kwargs
+    ):
         super(RecurrentEncoderGraphClassifier, self).__init__(**kwargs)
 
         self.encoder = self.graph_encoder_class(self.edge_encoder_class, **kwargs)
         self.classifier_network = self.classifier_network_class(**kwargs)
+        self.freeze_encoder = freeze_encoder
 
-        # path_to_checkpoint = ""
-        # checkpoint = torch.load(path_to_checkpoint)
-        # encoder_checkpoint = {
-        #     k.replace("encoder.edge_encoder.", "edge_encoder."): v
-        #     for (k, v) in checkpoint["state_dict"].items()
-        #     if "encoder" in k
-        # }
-
-        # self.encoder.load_state_dict(encoder_checkpoint)
+        if checkpoint_path:
+            checkpoint = torch.load(checkpoint_path)
+            encoder_checkpoint = {
+                k.replace("encoder.edge_encoder.", "edge_encoder."): v
+                for (k, v) in checkpoint["state_dict"].items()
+                if "encoder" in k
+            }
+            self.encoder.load_state_dict(encoder_checkpoint)
 
     def forward(self, batch: Tensor) -> Tensor:
-        # for name, param in self.state_dict().items():
-        #     print(name)
-        #     print("M requires_grad: ", param.requires_grad)
-
-        with torch.no_grad():  # TODO PARAMETRIZE - maybe learn or not learn or learn only in some epochs
+        if self.freeze_encoder:
+            with torch.no_grad():
+                graph_embdeddings = self.encoder(batch)
+        else:
             graph_embdeddings = self.encoder(batch)
         predictions = self.classifier_network(graph_embdeddings)
 
@@ -86,4 +86,18 @@ class RecurrentEncoderGraphClassifier(GraphClassifierBase):
         )
         parser = cls.graph_encoder_class.add_model_specific_args(parent_parser=parser)
         parser = cls.edge_encoder_class.add_model_specific_args(parent_parser=parser)
+
+        parser.add_argument(
+            "--freeze_encoder",
+            dest="freeze_encoder",
+            action="store_true",
+            help="freeze encoder part",
+        )
+        parser.add_argument(
+            "--checkpoint_path",
+            dest="checkpoint_path",
+            default="",
+            type=str,
+            help="path to encoder checkpoint",
+        )
         return parser
