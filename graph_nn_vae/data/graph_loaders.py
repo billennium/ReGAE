@@ -87,7 +87,7 @@ class RealGraphLoader(GraphLoaderBase):
             graph_indicator = np.array([int(el) for el in graph_indicator])
 
         graphs_index, graphs_sizes = np.unique(graph_indicator, return_counts=True)
-        graph_F = [sum(graphs_sizes[: el - 1]) for el in graphs_index]
+        graph_size_cumulative = [sum(graphs_sizes[: el - 1]) for el in graphs_index]
 
         adj_matrices = []
         for i in graphs_sizes:
@@ -95,14 +95,20 @@ class RealGraphLoader(GraphLoaderBase):
 
         with open(self.dataset_folder / Path(self.dataset_name + "_A.txt")) as file:
             for line in tqdm(file, desc="reading edges"):
-                a, b = line.strip().split(",")
-                a = int(a)
-                b = int(b)
-                current_graph = graph_indicator[a - 1]
-                a = a - graph_F[current_graph - 1]
-                b = b - graph_F[current_graph - 1]
+                edge_first_node, edge_second_node = line.strip().split(",")
+                edge_first_node = int(edge_first_node)
+                edge_second_node = int(edge_second_node)
+                current_graph = graph_indicator[edge_first_node - 1]
+                edge_first_node = (
+                    edge_first_node - graph_size_cumulative[current_graph - 1]
+                )
+                edge_second_node = (
+                    edge_second_node - graph_size_cumulative[current_graph - 1]
+                )
 
-                adj_matrices[current_graph - 1][a - 1, b - 1] = 1
+                adj_matrices[current_graph - 1][
+                    edge_first_node - 1, edge_second_node - 1
+                ] = 1
 
         if self.use_labels:
             with open(

@@ -46,7 +46,7 @@ class GraphClassifier(RecurrentEncoderGraphClassifier):
             early_stopping=True,
             bfs=True,
             num_dataset_graph_permutations=1,
-            datasets_dir="/home/adam/phd/recurrent-graph-autoencoder/data",
+            datasets_dir="",
             dataset_name="IMDB-BINARY",
             use_labels=True,
             use_catche=True,
@@ -62,7 +62,10 @@ class GridBarabasiClassification(GraphLoaderBase):
         grids = create_synthetic_graphs("grid_small")
         barabasi = create_synthetic_graphs("barabasi_small")
 
-        return grids + barabasi, [0] * len(grids) + [1] * len(barabasi)
+        return {
+            "graphs": [nx.to_numpy_array(graph) for graph in grids + barabasi],
+            "labels": [0] * len(grids) + [1] * len(barabasi),
+        }
 
 
 if __name__ == "__main__":

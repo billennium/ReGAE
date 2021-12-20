@@ -14,9 +14,7 @@ from graph_nn_vae.data import (
 )
 
 
-class SmoothLearningStepGraphDataModule(
-    DiagonalRepresentationGraphDataModule
-):  # TODO labels
+class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
     data_name = "subgraphs"
     max_num_nodes_in_train_dataset: int
     is_scheduling_initialized = False
@@ -74,9 +72,7 @@ class SmoothLearningStepGraphDataModule(
         if (scheduled_subgraph_size > self.current_training_dataset_lvl) and (
             scheduled_subgraph_size < 1
         ):
-            graphs = [
-                g[0] for g in self.train_dataset
-            ]  # TODO optimize, dont do each time
+            graphs = [g[0] for g in self.train_dataset]
             num_nodes = [g[2] for g in self.train_dataset]
 
             graphs, graph_masks, num_nodes = self.generate_subgraphs_for_batch(

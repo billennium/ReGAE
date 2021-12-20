@@ -42,13 +42,13 @@ class GraphClassifier(RecurrentEncoderGraphClassifier):
             early_stopping_patience=20,
             bfs=True,
             num_dataset_graph_permutations=1,
-            datasets_dir="/home/adam/phd/recurrent-graph-autoencoder/data",
+            datasets_dir="",
             dataset_name="IMDB-BINARY",
             use_labels=True,
             workers=0,
             gpus=1,
             freeze_encoder=True,
-            checkpoint_path="/home/adam/phd/recurrent-graph-autoencoder/tb_logs_old/RecurrentGraphAutoencoder/IMDB-BINARY/version_2/epoch=119-step=2039.ckpt",
+            checkpoint_path="",
         )
         return parser
 
