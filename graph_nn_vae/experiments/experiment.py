@@ -7,6 +7,7 @@ from typing import Type
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.plugins import DDPPlugin
 import torch.multiprocessing
 from graph_nn_vae.data import BaseDataModule, GraphLoaderBase
 from graph_nn_vae.models.base import BaseModel
@@ -68,7 +69,10 @@ class Experiment:
         )
 
         logger = self.create_logger(logger_name=args.logger_name)
-        trainer = pl.Trainer.from_argparse_args(args, logger=logger)
+        trainer = pl.Trainer.from_argparse_args(
+            args, logger=logger, strategy=DDPPlugin(find_unused_parameters=False)
+        )
+
         if args.checkpoint_monitor:
             checkpoint_callback = pl.callbacks.ModelCheckpoint(
                 monitor=args.checkpoint_monitor,
@@ -104,10 +108,10 @@ class Experiment:
             if args.checkpoint_monitor:
                 trainer.test(
                     ckpt_path=checkpoint_callback.best_model_path,
-                    test_dataloaders=data_module,
+                    dataloaders=data_module,
                 )
             else:
-                trainer.test(ckpt_path="best", test_dataloaders=data_module)
+                trainer.test(ckpt_path="best", dataloaders=data_module)
 
         print("Elapsed time:", "%.2f" % (end - start))
 
