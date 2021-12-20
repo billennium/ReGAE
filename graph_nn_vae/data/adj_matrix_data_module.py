@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from argparse import ArgumentParser
 import networkx as nx
 import numpy as np
@@ -32,8 +32,9 @@ class AdjMatrixDataModule(BaseDataModule):
 
         self.prepare_data()
 
-    def create_graphs(self) -> Tuple[List[np.array], List[int]]:
-        return self.data_loader.load_graphs()
+    def create_graphs(self) -> Dict:
+        data = self.data_loader.load_graphs()
+        return data["graphs"], data.get("labels", None)
 
     def max_number_of_nodes_in_graphs(self, graphs: List[nx.Graph]) -> int:
         max_number_of_nodes = 0

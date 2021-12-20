@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from argparse import ArgumentParser
 from pathlib import Path
 from tqdm.auto import tqdm
@@ -19,7 +19,7 @@ class GraphLoaderBase:
     def __init__(self, **kwargs):
         pass
 
-    def load_graphs(self) -> Tuple[List[np.array], List[int]]:
+    def load_graphs(self) -> Dict:
         """
         Overload this function to specify graphs for the dataset.
         """
@@ -39,11 +39,13 @@ class SyntheticGraphLoader(GraphLoaderBase):
         self.data_name += "_" + graph_type
         super().__init__(**kwargs)
 
-    def load_graphs(self) -> Tuple[List[np.array], List[int]]:
-        return [
-            nx.to_numpy_array(nx_graph, dtype=np.float32)
-            for nx_graph in create_synthetic_graphs(self.graph_type)
-        ], None
+    def load_graphs(self) -> Dict:
+        return {
+            "graphs": [
+                nx.to_numpy_array(nx_graph, dtype=np.float32)
+                for nx_graph in create_synthetic_graphs(self.graph_type)
+            ]
+        }
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
@@ -77,7 +79,7 @@ class RealGraphLoader(GraphLoaderBase):
         self.max_graph_size = max_graph_size
         super().__init__(**kwargs)
 
-    def load_graphs(self) -> Tuple[List[np.array], List[int]]:
+    def load_graphs(self) -> Dict:
         with open(
             self.dataset_folder / Path(self.dataset_name + "_graph_indicator.txt")
         ) as file:
@@ -114,7 +116,7 @@ class RealGraphLoader(GraphLoaderBase):
             adj_matrices, graphs_labels, self.max_graph_size
         )
 
-        return (filtered_adj_matrices, filtered_graph_labels)
+        return {"graphs": filtered_adj_matrices, "labels": filtered_graph_labels}
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):

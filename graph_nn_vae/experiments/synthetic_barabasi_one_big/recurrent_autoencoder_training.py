@@ -66,7 +66,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             subgraph_stride=0.5,
             subgraph_scheduler_name="edge_metrics_based",
             subgraph_scheduler_params={
-                "subgraph_size_initial": 1,  # 0.005,
+                "subgraph_size_initial": 0.005,
                 "metrics_treshold": 0.6,
                 "step": 0.05,
             },
@@ -82,11 +82,13 @@ class OneBigBarabasiGraphLoader(GraphLoaderBase):
         super().__init__(**kwargs)
 
     def load_graphs(self) -> List[nx.Graph]:
-        return [
-            nx.to_numpy_array(
-                nx.barabasi_albert_graph(self.barabasi_size, 4), dtype=np.float32
-            )
-        ], None
+        return {
+            "graphs": [
+                nx.to_numpy_array(
+                    nx.barabasi_albert_graph(self.barabasi_size, 4), dtype=np.float32
+                )
+            ]
+        }
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
