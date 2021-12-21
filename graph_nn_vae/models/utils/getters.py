@@ -3,8 +3,15 @@ from typing import List
 import torch
 from torch import optim
 from torch import nn
+from graph_nn_vae import lr_schedulers
 
 from graph_nn_vae.metrics.edge_accuracy import EdgeAccuracy, MaskAccuracy
+from graph_nn_vae.metrics.graph_size import MaxGraphSize
+from graph_nn_vae.metrics.losses import (
+    MeanEmbeddingsLoss,
+    MeanKLDLoss,
+    MeanReconstructionLoss,
+)
 from graph_nn_vae.metrics.precision_recall import *
 
 
@@ -13,6 +20,7 @@ def get_loss(name: str, loss_weight: torch.Tensor = None):
         "MSE": torch.nn.MSELoss,
         "BCE": torch.nn.BCELoss,
         "BCEWithLogits": torch.nn.BCEWithLogitsLoss,
+        "CrossEntropy": nn.CrossEntropyLoss,
     }
     if loss_weight is not None:
         return losses[name](weight=loss_weight)
@@ -36,27 +44,14 @@ def AdamWAMSGrad(*args, **kwargs):
 
 def get_lr_scheduler(name: str):
     optimizers = {
-        "NoSched": NoSched,
+        "NoSched": lr_schedulers.NoSched,
+        "FactorDecreasingOnMetricChange": lr_schedulers.FactorDecreasingOnMetricChange,
+        "SingleTimeChangeOnMetricTreshold": lr_schedulers.SingleTimeChangeOnMetricTreshold,
         "StepLR": torch.optim.lr_scheduler.StepLR,
         "MultiStepLR": torch.optim.lr_scheduler.MultiStepLR,
         "ReduceLROnPlateau": torch.optim.lr_scheduler.ReduceLROnPlateau,
     }
-    return optimizers.get(name, NoSched)
-
-
-class NoSched(torch.optim.lr_scheduler._LRScheduler):
-    """
-    Does not decay the lr whatsoever.
-    """
-
-    def __init__(self, optimizer, last_epoch=-1, verbose=False):
-        super(NoSched, self).__init__(optimizer, last_epoch, verbose)
-
-    def get_lr(self):
-        return [group["lr"] for group in self.optimizer.param_groups]
-
-    def _get_closed_form_lr(self):
-        return self.base_lrs
+    return optimizers[name]
 
 
 def get_metrics(metrics: List[str]):
@@ -67,6 +62,14 @@ def get_metrics(metrics: List[str]):
         "EdgeRecall": EdgeRecall,
         "MaskPrecision": MaskPrecision,
         "MaskRecall": MaskRecall,
+        "MaxGraphSize": MaxGraphSize,
+        "MeanReconstructionLoss": MeanReconstructionLoss,
+        "MeanEmbeddingsLoss": MeanEmbeddingsLoss,
+        "MeanKLDLoss": MeanKLDLoss,
+        "Accuracy": torchmetrics.Accuracy,
+        "F1": torchmetrics.F1,
+        "Precision": torchmetrics.Precision,
+        "Recall": torchmetrics.Recall,
     }
     return [metrics_dict[m]() for m in metrics]
 

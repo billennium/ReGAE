@@ -13,23 +13,33 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.collate_fn = collate_graph_batch
+        self.collate_fn_train = self.collate_graph_batch
+        self.collate_fn_val = self.collate_graph_batch
+        self.collate_fn_test = self.collate_graph_batch
 
     def _adj_batch_to_diagonal(
         self, batch: List[Tuple[torch.Tensor, int]]
     ) -> List[Tuple[torch.Tensor, torch.Tensor, int]]:
 
         diag_represented_batch = []
-        for m in batch:
+        for example in batch:
+            m = example[0] if self.use_labels else example
             matrix = m[0]
             num_nodes = m[1]
             diag_represented_matrix = adj_matrix_to_diagonal_representation(
                 matrix, num_nodes
             )
             graph_mask = torch.ones(diag_represented_matrix.shape)
-            diag_represented_batch.append(
-                (diag_represented_matrix, graph_mask, num_nodes)
-            )
+
+            if self.use_labels:
+                processed_example = (
+                    (diag_represented_matrix, graph_mask, num_nodes),
+                    example[1],
+                )
+            else:
+                processed_example = (diag_represented_matrix, graph_mask, num_nodes)
+
+            diag_represented_batch.append(processed_example)
 
         return diag_represented_batch
 
@@ -39,30 +49,25 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
         self.val_dataset = self._adj_batch_to_diagonal(self.val_dataset)
         self.test_dataset = self._adj_batch_to_diagonal(self.test_dataset)
 
-    def train_dataloader(self, **kwargs):
-        dl = super().train_dataloader(**kwargs)
-        dl.collate_fn = self.collate_fn
-        return dl
+    def collate_graph_batch(self, batch):
+        # As part of the collation graph diag_repr are padded with 0.0 and the graph masks
+        # are padded with 1.0 to represent the end of the graphs.
 
-    def val_dataloader(self, **kwargs):
-        dl = super().val_dataloader(**kwargs)
-        dl.collate_fn = self.collate_fn
-        return dl
+        graphs = torch.nn.utils.rnn.pad_sequence(
+            [g[0][0] if self.use_labels else g[0] for g in batch],
+            batch_first=True,
+            padding_value=0.0,
+        )
+        graph_masks = torch.nn.utils.rnn.pad_sequence(
+            [g[0][1] if self.use_labels else g[1] for g in batch],
+            batch_first=True,
+            padding_value=0.0,
+        )
+        num_nodes = torch.tensor([g[0][2] if self.use_labels else g[2] for g in batch])
 
-    def test_dataloader(self, **kwargs):
-        dl = super().test_dataloader(**kwargs)
-        dl.collate_fn = self.collate_fn
-        return dl
+        if self.use_labels:
+            labels = torch.LongTensor([g[1] for g in batch])
+            return graphs, graph_masks, num_nodes, labels
 
-
-def collate_graph_batch(batch):
-    # As part of the collation graph diag_repr are padded with 0.0 and the graph masks
-    # are padded with 1.0 to represent the end of the graphs.
-    graphs = torch.nn.utils.rnn.pad_sequence(
-        [g[0] for g in batch], batch_first=True, padding_value=0.0
-    )
-    graph_masks = torch.nn.utils.rnn.pad_sequence(
-        [g[1] for g in batch], batch_first=True, padding_value=0.0
-    )
-    num_nodes = torch.tensor([g[2] for g in batch])
-    return graphs, graph_masks, num_nodes
+        else:
+            return graphs, graph_masks, num_nodes

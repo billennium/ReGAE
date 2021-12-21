@@ -7,8 +7,8 @@ from typing import Type
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping
-
-from graph_nn_vae.data import BaseDataModule
+import torch.multiprocessing
+from graph_nn_vae.data import BaseDataModule, GraphLoaderBase
 from graph_nn_vae.models.base import BaseModel
 from graph_nn_vae.models.autoencoder_components import GraphEncoder
 
@@ -34,10 +34,12 @@ class Experiment:
         self,
         model: Type[BaseModel],
         data_module: BaseDataModule,
+        data_loader: GraphLoaderBase,
         parser_default: dict = None,
     ):
         self.model = model
         self.data_module = data_module
+        self.data_loader = data_loader
         self.early_stopping = EarlyStopping
         self.parser_default = parser_default if parser_default is not None else {}
 
@@ -48,18 +50,25 @@ class Experiment:
         if args.seed is not None:
             pl.seed_everything(args.seed)
 
-        if args.fast_dev_run:
-            args.batch_size_val = args.batch_size
-            args.batch_size_test = args.batch_size
+        torch.multiprocessing.set_sharing_strategy("file_system")
 
-        data_module: BaseDataModule = self.data_module(**vars(args))
+        # if args.fast_dev_run:
+        args.batch_size_val = args.batch_size
+        args.batch_size_test = args.batch_size
+
+        self.data_loader: GraphLoaderBase = self.data_loader(**vars(args))
+
+        data_module: BaseDataModule = self.data_module(
+            **vars(args), data_loader=self.data_loader
+        )
+
         model = self.model(
-            **vars(args),
-            loss_weight=data_module.loss_weight(),
+            **vars(args), loss_weight=data_module.loss_weight(), data_module=data_module
         )
 
         logger = self.create_logger(logger_name=args.logger_name)
         trainer = pl.Trainer.from_argparse_args(args, logger=logger)
+
         if args.checkpoint_monitor:
             checkpoint_callback = pl.callbacks.ModelCheckpoint(
                 monitor=args.checkpoint_monitor,
@@ -69,11 +78,13 @@ class Experiment:
             trainer.callbacks.append(checkpoint_callback)
 
         if args.lr_monitor:
-            lr_monitor = LearningRateMonitor(logging_interval='step')
+            lr_monitor = LearningRateMonitor(logging_interval="step")
             trainer.callbacks.append(lr_monitor)
 
         if args.early_stopping:
-            early_stopping = self.early_stopping(monitor="loss/train_avg", patience=3)
+            early_stopping = self.early_stopping(
+                monitor="loss/val", patience=args.early_stopping_patience
+            )
             trainer.callbacks.append(early_stopping)
 
         args.train_dataset_length = len(data_module.train_dataset)
@@ -91,17 +102,20 @@ class Experiment:
 
         if not args.no_evaluate:
             if args.checkpoint_monitor:
-                trainer.test(ckpt_path=checkpoint_callback.best_model_path)
+                trainer.test(
+                    ckpt_path=checkpoint_callback.best_model_path,
+                    dataloaders=data_module,
+                )
             else:
-                trainer.test(ckpt_path="best")
+                trainer.test(ckpt_path="best", dataloaders=data_module)
 
         print("Elapsed time:", "%.2f" % (end - start))
 
     def create_logger(self, logger_name: str = "tb") -> pl.loggers.LightningLoggerBase:
         if logger_name == "tb":
             return pl.loggers.TensorBoardLogger(
-                save_dir="tb_logs",
-                name=self.data_module.data_name,
+                save_dir="tb_logs/" + self.model.model_name,
+                name=self.data_loader.data_name,
             )
         else:
             raise RuntimeError(f"unknown logger name: {logger_name}")
@@ -110,11 +124,11 @@ class Experiment:
         parser = argparse.ArgumentParser(add_help=True)
         parser = self.add_trainer_parser(parser)
         parser = self.add_experiment_parser(parser)
+        parser = self.data_loader.add_model_specific_args(parser)
         parser = self.data_module.add_model_specific_args(parser)
         parser = self.model.add_model_specific_args(parser)
         # parser = self.early_stopping.add_callback_specific_args(parser)
         parser.set_defaults(
-            progress_bar_refresh_rate=2,
             **self.parser_default,
         )
         parser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
@@ -154,7 +168,7 @@ class Experiment:
             "--checkpoint-monitor",
             dest="checkpoint_monitor",
             type=str,
-            default="",
+            default="loss/val",
             help="Metric used for checkpointing",
         )
         parser.add_argument(
@@ -177,6 +191,13 @@ class Experiment:
             dest="early_stopping",
             action="store_true",
             help="Enable early stopping",
+        )
+        parser.add_argument(
+            "--early_stopping_patience",
+            dest="early_stopping_patience",
+            type=int,
+            default=3,
+            help="Patience for early stopping",
         )
         parser.add_argument(
             "--lr_monitor",

@@ -5,7 +5,12 @@ from typing import Any, Callable, Dict, List, Tuple, Union
 import torch
 from torch import Tensor, nn
 import pytorch_lightning as pl
-from graph_nn_vae.models.utils.getters import get_metrics, get_loss, get_optimizer, get_lr_scheduler
+from graph_nn_vae.models.utils.getters import (
+    get_metrics,
+    get_loss,
+    get_optimizer,
+    get_lr_scheduler,
+)
 
 
 class BaseModel(pl.LightningModule, metaclass=ABCMeta):
@@ -23,6 +28,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         lr_scheduler_metric: str,
         metrics: List[str],
         metric_update_interval: int = 1,
+        data_module=None,  # only for returning test_datamodule()
         **kwargs,
     ):
         super(BaseModel, self).__init__()
@@ -38,8 +44,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         self.metrics_test = nn.ModuleList(get_metrics(metrics))
         self.metric_update_interval = metric_update_interval
         self.metric_update_counter = 0
-
-        # self.min_loss = MinimumSaver()
+        self.data_module = data_module
 
     def forward(self, **kwargs) -> Tensor:
         raise NotImplementedError
@@ -70,44 +75,45 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
 
         loss = self.step(batch, metrics)
         for metric in metrics:
-            self.log(f"{metric.label}/train_avg", metric, on_step=False, on_epoch=True)
+            metric_name = (
+                metric.label if "label" in metric.__dir__() else type(metric).__name__
+            )
+
+            self.log(f"{metric_name}/train_avg", metric, on_step=False, on_epoch=True)
         self.log("loss/train_avg", loss, on_step=False, on_epoch=True)
+
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss = self.step(batch, self.metrics_val)
         for metric in self.metrics_val:
-            self.log(f"{metric.label}/val", metric, prog_bar=True)
+            metric_name = (
+                metric.label if "label" in metric.__dir__() else type(metric).__name__
+            )
+            self.log(f"{metric_name}/val", metric, prog_bar=True)
         self.log("loss/val", loss, prog_bar=True)
-        # self.min_loss.log("loss/val_min", loss.item(), batch[0].shape[0])
         return loss
-
-    def validation_epoch_end(self, outputs: List[Any]) -> None:
-        pass
-        # self.min_loss.calculate("loss/val_min")
-        # self.log(
-        #     "loss/val_min",
-        #     # self.min_loss.get_min()["loss/val_min"],
-        #     prog_bar=True,
-        #     logger=False,
-        # )
 
     def test_step(self, batch, batch_idx):
         loss = self.step(batch, self.metrics_test)
         for metric in self.metrics_test:
-            self.log(f"{metric.label}/test", metric, prog_bar=True)
+            metric_name = (
+                metric.label if "label" in metric.__dir__() else type(metric).__name__
+            )
+            self.log(f"{metric_name}/test", metric, prog_bar=True)
         self.log("loss/test", loss)
         return loss
+
+    def test_dataloader(self):
+        # For some reason newer versions of Lightning require the model to define it's own
+        # test dataloader. We consider that to be the responsibilty of the DataModule.
+        return self.data_module.test_dataloader()
 
     def on_fit_end(self) -> None:
         if isinstance(self.logger, pl.loggers.TensorBoardLogger):
             # TensorBoardLogger does not always flush the logs.
             # To ensure this, we run it manually
             self.logger.experiment.flush()
-
-    # def on_test_epoch_end(self):
-    #     for key, value in self.min_loss.get_min().items():
-    #         self.logger.log_hyperparams({key: value})
 
     def configure_optimizers(self):
         optimizer = self.optimizer(
@@ -119,15 +125,10 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         )
 
         return {
-            'optimizer': optimizer,
-            'lr_scheduler': scheduler,
-            'monitor': self.lr_scheduler_metric
+            "optimizer": optimizer,
+            "lr_scheduler": scheduler,
+            "monitor": self.lr_scheduler_metric,
         }
-
-    def get_progress_bar_dict(self) -> Dict[str, Union[int, str]]:
-        tqdm_dict = super().get_progress_bar_dict()
-        tqdm_dict.pop("v_num", None)
-        return tqdm_dict
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):

@@ -1,18 +1,23 @@
 from argparse import ArgumentParser, ArgumentError
-from typing import List, Tuple
+from typing import Callable, List, Tuple
 
 import torch
 from torch import nn, Tensor
 from torch.nn import functional as F
 
 from graph_nn_vae.models.base import BaseModel
-from graph_nn_vae.models.edge_decoders import MemoryEdgeDecoder
-from graph_nn_vae.models.edge_encoders import MemoryEdgeEncoder
+from graph_nn_vae.models.utils.calc import weighted_average
+from graph_nn_vae.models.utils.layers import (
+    parse_layer_sizes_list,
+    sequential_from_layer_sizes,
+)
+from graph_nn_vae.models.utils.getters import get_activation_function
 
 
 class GraphEncoder(BaseModel):
     def __init__(
         self,
+        edge_encoder_class: nn.Module,
         embedding_size: int,
         edge_size: int,
         **kwargs,
@@ -20,7 +25,7 @@ class GraphEncoder(BaseModel):
         self.embedding_size = embedding_size
         self.edge_size = edge_size
         super(GraphEncoder, self).__init__(**kwargs)
-        self.edge_encoder = MemoryEdgeEncoder(embedding_size, edge_size, **kwargs)
+        self.edge_encoder = edge_encoder_class(embedding_size, edge_size, **kwargs)
 
     def forward(self, input_batch: Tensor) -> Tensor:
         """
@@ -42,7 +47,6 @@ class GraphEncoder(BaseModel):
         :return:
             Graph embedding Tensor of dimensions [batch_size x embedding_size]
         """
-
         diagonal_repr_graphs_batch = input_batch[0]
         diagonal_repr_graphs_batch.requires_grad = True
         num_nodes_batch = input_batch[2]
@@ -57,7 +61,7 @@ class GraphEncoder(BaseModel):
         first_diag_length = num_diagonals
         diag_right_pos = int((1 + num_diagonals) * num_diagonals / 2)
 
-        graph_counts_per_size = torch.bincount(num_nodes_batch)
+        graph_counts_per_size = self.torch_bincount(num_nodes_batch)
 
         # Embedding batch is represented in the shape: [graph_idx, embedding_idx, embedding]
         # Starting with `0` for no graphs yet. Will get filled approprately in the recurrent loop.
@@ -104,6 +108,16 @@ class GraphEncoder(BaseModel):
         # Reorder back to the original batch order and skip the no longer needed second dimension.
         return prev_embedding[indices_in_original_batch_order, 0, :]
 
+    def torch_bincount(self, t: Tensor) -> Tensor:
+        """
+        torch.bincount() when used on CUDA may lead to nondeterministic gradients. From testing, this isn't an issue in our use case.
+        """
+        was_deterministic = torch.are_deterministic_algorithms_enabled()
+        torch.use_deterministic_algorithms(False)
+        t = torch.bincount(t)
+        torch.use_deterministic_algorithms(was_deterministic)
+        return t
+
     def step(self, batch: Tensor) -> Tensor:
         embeddings = self(batch)
         diagonal_repr_graphs_batch = batch[0]
@@ -122,7 +136,6 @@ class GraphEncoder(BaseModel):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser = MemoryEdgeEncoder.add_model_specific_args(parent_parser=parser)
         try:  # these may collide with an upper autoencoder, but that's fine
             parser = BaseModel.add_model_specific_args(parent_parser=parser)
         except ArgumentError:
@@ -151,11 +164,17 @@ class GraphEncoder(BaseModel):
 
 
 class GraphDecoder(BaseModel):
+    fill_border_embeddings_fn: Callable
+    fill_border_separate_sides: bool
+
     def __init__(
         self,
+        edge_decoder_class: nn.Module,
         embedding_size: int,
         edge_size: int,
-        max_number_of_nodes: int,
+        graph_decoder_border_embedding_fill: str,
+        graph_decoder_filling_nn_layer_sizes: List[int],
+        graph_decoder_filling_nn_activation_function: str,
         **kwargs,
     ):
         if embedding_size % 2 != 0:
@@ -164,21 +183,28 @@ class GraphDecoder(BaseModel):
             )
         self.internal_embedding_size = int(embedding_size / 2)
         self.edge_size = edge_size
-        self.max_number_of_nodes = max_number_of_nodes
         super().__init__(**kwargs)
 
-        self.edge_decoder = MemoryEdgeDecoder(
+        self.edge_decoder = edge_decoder_class(
             embedding_size=self.internal_embedding_size, edge_size=edge_size, **kwargs
         )
 
-    def forward(self, graph_encoding_batch: Tensor) -> Tuple[Tensor, Tensor]:
+        self.set_fill_border_embeddings_fn(
+            graph_decoder_border_embedding_fill,
+            graph_decoder_filling_nn_layer_sizes,
+            graph_decoder_filling_nn_activation_function,
+        )
+
+    def forward(
+        self, graph_encoding_batch: Tensor, max_number_of_nodes: int
+    ) -> Tuple[Tensor, Tensor]:
         """
         :param graph_encoding_batch: batch of graph encodings (products of an encoder) of dimensions [batch_size, embedding_size]
         :return: graph adjacency matrices tensor of dimensions [batch_size, num_nodes, num_nodes, edge_size]
         """
         decoded_diagonals_with_masks = []
         # The working embeddings batch has this shape: [graph_idx x embdedding_idx x embedding]
-        prev_doubled_embeddings = graph_encoding_batch[:, None, :]
+        prev_doubled_embeddings = graph_encoding_batch[:, None]
         prev_embeddings_l, prev_embeddings_r = torch.split(
             prev_doubled_embeddings,
             (self.internal_embedding_size, self.internal_embedding_size),
@@ -188,9 +214,11 @@ class GraphDecoder(BaseModel):
         original_indices = torch.IntTensor(list(range(graph_encoding_batch.shape[0])))
         indices_of_finished_graphs = []
 
-        diagonal_embeddings = []
+        diagonal_embedding_squares = torch.zeros(
+            [1], device=graph_encoding_batch.device
+        )
 
-        for _ in range(self.max_number_of_nodes):
+        for _ in range(max_number_of_nodes):
             (
                 decoded_edges_with_mask,
                 new_embedding_l,
@@ -234,7 +262,9 @@ class GraphDecoder(BaseModel):
                 finished_doubled_embeddings = torch.cat(
                     (finished_emb_l, finished_emb_r), dim=-1
                 )
-                diagonal_embeddings.append(finished_doubled_embeddings.flatten())
+                diagonal_embedding_squares += (
+                    finished_doubled_embeddings.flatten().square().sum()
+                )
 
             new_embedding_l = new_embedding_l[indices_graphs_still_generating]
             new_embedding_r = new_embedding_r[indices_graphs_still_generating]
@@ -242,9 +272,12 @@ class GraphDecoder(BaseModel):
             if new_embedding_l.shape[0] == 0:
                 break
 
-            # add zeroes to both sides - these are the empty embeddings of the far-out edges
-            prev_embeddings_l = torch.nn.functional.pad(new_embedding_l, (0, 0, 1, 0))
-            prev_embeddings_r = torch.nn.functional.pad(new_embedding_r, (0, 0, 0, 1))
+            prev_embeddings_l = prev_embeddings_l[indices_graphs_still_generating]
+            prev_embeddings_r = prev_embeddings_r[indices_graphs_still_generating]
+
+            prev_embeddings_l, prev_embeddings_r = self.fill_border_embeddings_fn(
+                prev_embeddings_l, prev_embeddings_r, new_embedding_l, new_embedding_r
+            )
 
         concatenated_diagonals_with_masks = torch.cat(
             decoded_diagonals_with_masks, dim=1
@@ -254,20 +287,140 @@ class GraphDecoder(BaseModel):
             unfinished_doubled_embeddings = torch.cat(
                 (new_embedding_l, new_embedding_r), dim=-1
             )
-            diagonal_embeddings.append(unfinished_doubled_embeddings.flatten())
+            diagonal_embedding_squares += (
+                unfinished_doubled_embeddings.flatten().square().sum()
+            )
 
         masks, concatenated_diagonals = torch.split(
             concatenated_diagonals_with_masks, (1, self.edge_size), dim=2
         )
 
-        diagonal_embeddings_norm = torch.norm(torch.cat(diagonal_embeddings))
+        diagonal_embeddings_norm = diagonal_embedding_squares.sqrt()
 
         return (concatenated_diagonals, masks), diagonal_embeddings_norm
+
+    def set_fill_border_embeddings_fn(
+        self,
+        name: str,
+        graph_decoder_filling_nn_layer_sizes: List[int],
+        graph_decoder_filling_nn_activation_function: str,
+    ) -> None:
+        if name == "pad":
+            self.fill_border_embeddings_fn = self.pad_missing_embeddings
+            return
+
+        activation_f = get_activation_function(
+            graph_decoder_filling_nn_activation_function
+        )
+        if name == "separate_sides_nn":
+            self.border_embedding_nn_l = sequential_from_layer_sizes(
+                self.internal_embedding_size * 2,
+                self.internal_embedding_size * 2,
+                graph_decoder_filling_nn_layer_sizes,
+                activation_f,
+            )
+            self.border_embedding_nn_r = sequential_from_layer_sizes(
+                self.internal_embedding_size * 2,
+                self.internal_embedding_size * 2,
+                graph_decoder_filling_nn_layer_sizes,
+                activation_f,
+            )
+            self.fill_border_separate_sides = True
+            self.fill_border_embeddings_fn = self.nn_fill_missing_embeddings
+            return
+        if name == "single_nn":
+            self.border_embedding_nn = sequential_from_layer_sizes(
+                self.internal_embedding_size * 2,
+                self.internal_embedding_size * 2,
+                graph_decoder_filling_nn_layer_sizes,
+                activation_f,
+            )
+            self.fill_border_separate_sides = False
+            self.fill_border_embeddings_fn = self.nn_fill_missing_embeddings
+            return
+
+        raise ArgumentError(
+            "unknown `graph_decoder_border_embedding_fill` argument value: " + name
+        )
+
+    def pad_missing_embeddings(
+        self, prev_embeddings_l, prev_embeddings_r, new_embedding_l, new_embedding_r
+    ) -> Tuple[Tensor, Tensor]:
+        """
+        Returns new left and right embeddings with the graph border padding embedding filled.
+        The edge encoder can't generate an embedding "incoming" from the borders.
+
+        This version simply adds zeroes to both sides.
+        """
+        new_embeddings_l = torch.nn.functional.pad(new_embedding_l, (0, 0, 1, 0))
+        new_embeddings_r = torch.nn.functional.pad(new_embedding_r, (0, 0, 0, 1))
+        return new_embeddings_l, new_embeddings_r
+
+    def nn_fill_missing_embeddings(
+        self, prev_embeddings_l, prev_embeddings_r, new_embedding_l, new_embedding_r
+    ) -> Tuple[Tensor, Tensor]:
+        """
+        Generate missing border embeddings from a nn.
+        """
+        prev_left_border_embedding_l = prev_embeddings_l[:, 0]
+        prev_left_border_embedding_r = prev_embeddings_r[:, 0]
+        prev_right_border_embedding_l = prev_embeddings_l[:, -1]
+        prev_right_border_embedding_r = prev_embeddings_r[:, -1]
+
+        if self.fill_border_separate_sides:
+            new_left_border_embedding = self.generate_nn_border_embedding(
+                prev_left_border_embedding_l,
+                prev_left_border_embedding_r,
+                self.border_embedding_nn_l,
+            )
+            new_right_border_embedding = self.generate_nn_border_embedding(
+                prev_right_border_embedding_r,
+                prev_right_border_embedding_l,
+                self.border_embedding_nn_r,
+            )
+        else:
+            new_left_border_embedding = self.generate_nn_border_embedding(
+                prev_left_border_embedding_l,
+                prev_left_border_embedding_r,
+                self.border_embedding_nn,
+            )
+            new_right_border_embedding = self.generate_nn_border_embedding(
+                prev_right_border_embedding_r,
+                prev_right_border_embedding_l,
+                self.border_embedding_nn,
+            )
+
+        new_embeddings_l = torch.cat(
+            (new_embedding_l, new_left_border_embedding[:, None]), dim=1
+        )
+        new_embeddings_r = torch.cat(
+            (new_right_border_embedding[:, None], new_embedding_r), dim=1
+        )
+        return new_embeddings_l, new_embeddings_r
+
+    def generate_nn_border_embedding(
+        self,
+        prev_outer_border_embedding,
+        prev_inner_border_embedding,
+        border_embedding_nn: nn.Module,
+    ) -> Tensor:
+        prev_border_embedding = torch.cat(
+            (prev_outer_border_embedding, prev_inner_border_embedding), dim=-1
+        )
+        filling_nn_ouptut = border_embedding_nn(prev_border_embedding)
+        new_border_embedding, weight = torch.split(
+            filling_nn_ouptut,
+            (self.internal_embedding_size, self.internal_embedding_size),
+            dim=-1,
+        )
+        new_border_embedding = weighted_average(
+            new_border_embedding, prev_outer_border_embedding, weight
+        )
+        return new_border_embedding
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser = MemoryEdgeDecoder.add_model_specific_args(parent_parser=parser)
         try:  # these may collide with an upper autoencoder, but that's fine
             parser = BaseModel.add_model_specific_args(parent_parser=parser)
         except ArgumentError:
@@ -289,15 +442,30 @@ class GraphDecoder(BaseModel):
                 metavar="EDGE_SIZE",
                 help="number of dimensions of a graph's edge",
             )
+            parser.add_argument(
+                "--graph_decoder_border_embedding_fill",
+                dest="graph_decoder_border_embedding_fill",
+                default="separate_sides_nn",
+                type=str,
+                metavar="METHOD_NAME",
+                help="the name of the type of the adjacency matrix border embedding filling method. Available: 'pad', 'separate_sides_nn', 'single_nn'",
+            )
+            parser.add_argument(
+                "--graph_decoder_filling_nn_layer_sizes",
+                dest="graph_decoder_filling_nn_layer_sizes",
+                default=[256],
+                type=parse_layer_sizes_list,
+                metavar="EDGE_DECODER_FILL_H_SIZES",
+                help="list of the hidden layer sizes of the edge decoder's input embedding filling nn. Applies only to 'separate_sides_nn', 'single_nn'",
+            )
+            parser.add_argument(
+                "--graph_decoder_filling_nn_activation_function",
+                dest="graph_decoder_filling_nn_activation_function",
+                default="ELU",
+                type=str,
+                metavar="ACTIVATION_F_NAME",
+                help="name of the activation function of the edge decoderr's input embedding filling nn. Applies only to 'separate_sides_nn', 'single_nn'",
+            )
         except ArgumentError:
             pass
-        parser.add_argument(
-            "--max-num-nodes",
-            "--max-number-of-nodes",
-            dest="max_number_of_nodes",
-            default=50,
-            type=int,
-            metavar="NUM_NODES",
-            help="max number of nodes of generated graphs",
-        )
         return parser
