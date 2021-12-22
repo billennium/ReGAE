@@ -242,6 +242,7 @@ class GraphDecoder(BaseModel):
         diagonal_embedding_squares = torch.zeros(
             [1], device=graph_encoding_batch.device
         )
+        mask_state = None
 
         for _ in range(max_number_of_nodes):
             (
@@ -250,8 +251,7 @@ class GraphDecoder(BaseModel):
                 new_embedding_r,
             ) = self.edge_decoder(prev_embeddings_l, prev_embeddings_r)
 
-            # decoded_edges_with_mask = torch.sigmoid(decoded_edges_with_mask)
-            masks = decoded_edges_with_mask[:, :, 0]
+            masks = decoded_edges_with_mask[..., 0]
             # just here, not part of the output - used for checking if the graphs are finished in the loop
             masks = torch.sigmoid(masks)
 
@@ -261,11 +261,7 @@ class GraphDecoder(BaseModel):
                     [
                         decoded_edges_with_mask_padded[:i],
                         torch.full(
-                            (
-                                1,
-                                decoded_edges_with_mask_padded.shape[1],
-                                decoded_edges_with_mask_padded.shape[2],
-                            ),
+                            (1, *decoded_edges_with_mask_padded.shape[1:]),
                             fill_value=float("-inf"),
                             device=decoded_edges_with_mask_padded.device,
                         ),
@@ -274,16 +270,16 @@ class GraphDecoder(BaseModel):
                 )
             decoded_diagonals_with_masks.append(decoded_edges_with_mask_padded)
 
-            indices_graphs_still_generating = torch.mean(masks, dim=1) > 0.5
+            indices_graphs_finished, mask_state = find_finished_masks(masks, mask_state)
 
             indices_of_finished_graphs.extend(
-                original_indices[~indices_graphs_still_generating].tolist()
+                original_indices[indices_graphs_finished].tolist()
             )
-            original_indices = original_indices[indices_graphs_still_generating]
+            original_indices = original_indices[~indices_graphs_finished]
 
-            if any(~indices_graphs_still_generating):
-                finished_emb_l = new_embedding_l[~indices_graphs_still_generating]
-                finished_emb_r = new_embedding_r[~indices_graphs_still_generating]
+            if any(indices_graphs_finished):
+                finished_emb_l = new_embedding_l[indices_graphs_finished]
+                finished_emb_r = new_embedding_r[indices_graphs_finished]
                 finished_doubled_embeddings = torch.cat(
                     (finished_emb_l, finished_emb_r), dim=-1
                 )
@@ -291,14 +287,14 @@ class GraphDecoder(BaseModel):
                     finished_doubled_embeddings.flatten().square().sum()
                 )
 
-            new_embedding_l = new_embedding_l[indices_graphs_still_generating]
-            new_embedding_r = new_embedding_r[indices_graphs_still_generating]
+            new_embedding_l = new_embedding_l[~indices_graphs_finished]
+            new_embedding_r = new_embedding_r[~indices_graphs_finished]
 
             if new_embedding_l.shape[0] == 0:
                 break
 
-            prev_embeddings_l = prev_embeddings_l[indices_graphs_still_generating]
-            prev_embeddings_r = prev_embeddings_r[indices_graphs_still_generating]
+            prev_embeddings_l = prev_embeddings_l[~indices_graphs_finished]
+            prev_embeddings_r = prev_embeddings_r[~indices_graphs_finished]
 
             prev_embeddings_l, prev_embeddings_r = self.fill_border_embeddings_fn(
                 prev_embeddings_l, prev_embeddings_r, new_embedding_l, new_embedding_r
@@ -317,7 +313,7 @@ class GraphDecoder(BaseModel):
             )
 
         masks, concatenated_diagonals = torch.split(
-            concatenated_diagonals_with_masks, (1, self.edge_size), dim=2
+            concatenated_diagonals_with_masks, (1, self.edge_size), dim=-1
         )
 
         diagonal_embeddings_norm = diagonal_embedding_squares.sqrt()
@@ -494,3 +490,53 @@ class GraphDecoder(BaseModel):
         except ArgumentError:
             pass
         return parser
+
+
+def find_finished_masks(
+    masks: Tensor, prev_mask_state: Tensor
+) -> Tuple[List[int], Tensor]:
+    num_graphs = masks.shape[0]
+    num_mask_blocks = masks.shape[1]
+    block_size = masks.shape[2]
+    num_diagonals_in_block = 2 * block_size - 1
+
+    # The prev_mask_state is a Tensor containing weighted means of the previous masks,
+    # but only the ones relevant, i.e. the means of the diagonals after the previous center.
+    if prev_mask_state is None:
+        # create a state of mean-neutral 0.5s
+        num_diagonals_from_prev_mask_relevant_in_curr_mask = int(
+            num_diagonals_in_block / 2
+        )
+        neutral_means = torch.zeros(
+            (num_graphs, num_diagonals_from_prev_mask_relevant_in_curr_mask),
+            device=masks.device,
+        )
+        prev_mask_state = neutral_means
+
+    prev_means = prev_mask_state
+    absolute_diag_offset = block_size * (num_mask_blocks - 1)
+
+    # calculate block diagonal means
+    curr_diag_means = torch.zeros(
+        (num_graphs, num_diagonals_in_block),
+        device=masks.device,
+    )
+    center_diag_offset = int(num_diagonals_in_block / 2)
+    reduced_dims = tuple(range(1, masks.ndim - 1))
+    for diag_offset in range(num_diagonals_in_block):
+        t_diag_offset = diag_offset - center_diag_offset
+        diag = torch.diagonal(masks, offset=t_diag_offset, dim1=2, dim2=3)
+        diag_mean = torch.mean(diag, dim=reduced_dims)
+        curr_absolute_diag_offset = absolute_diag_offset + diag_offset
+        diag_len = diag.shape[2]
+        diag_weight = diag_len * num_mask_blocks / (curr_absolute_diag_offset + 1)
+        curr_diag_means[:, diag_offset] = diag_mean * diag_weight
+
+    curr_diag_means[:, :center_diag_offset] += prev_means
+    indices_graph_diags_finished = curr_diag_means[:, : center_diag_offset + 1] <= 0.5
+    indices_graphs_finished = indices_graph_diags_finished.sum(dim=1) > 0
+
+    curr_mask_state = curr_diag_means[:, center_diag_offset + 1 :]
+    curr_mask_state = curr_mask_state[~indices_graphs_finished]
+
+    return (indices_graphs_finished, curr_mask_state)
