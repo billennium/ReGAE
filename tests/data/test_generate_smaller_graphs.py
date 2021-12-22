@@ -46,7 +46,7 @@ def test_generate_subgraphs(graph, graph_size, n, stride, probability, expected)
     graphs, graph_masks, graph_sizes = generate_subgraphs(
         graph=graph,
         graph_size=graph_size,
-        n=n,
+        new_size=n,
         stride=stride,
         probability=probability,
     )

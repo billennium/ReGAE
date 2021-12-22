@@ -135,7 +135,7 @@ class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
                 )
                 stride = int(current_subgraph_size * self.subgraph_stride)
 
-                subgrpahs, subgraph_masks, subgraph_sizes = self.generate_subgraphs(
+                subgrpahs, subgraph_masks, subgraph_sizes = generate_subgraphs(
                     graph,
                     graph_size,
                     new_size=current_subgraph_size,
@@ -152,49 +152,6 @@ class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
                 splitted_graphs_sizes.append(graph_size)
 
         return splitted_graphs, splitted_graph_masks, splitted_graphs_sizes
-
-    def generate_subgraphs(
-        self,
-        graph,
-        graph_size: int,
-        new_size: int,
-        stride: int = 1,
-        probability: float = 1.0,
-    ):
-        if new_size > graph_size:
-            return [graph], [torch.ones(graph.shape)], [graph_size]
-
-        candidates = torch.arange(0, graph_size - new_size + 1, stride).int()
-        if (graph_size - new_size) not in candidates:
-            candidates = torch.cat(
-                [candidates, torch.IntTensor([graph_size - new_size])]
-            )
-        if probability < 1:
-            candidates = candidates[torch.rand(len(candidates)) < probability]
-
-        if len(candidates) == 0:
-            return ([], [], [])
-
-        graph_diagonals = []
-        index = 0
-        for diag_len in range(1, graph_size):
-            if diag_len > graph_size - new_size:
-                graph_diagonals.append(graph[index : index + diag_len])
-            index = index + diag_len
-
-        subgraphs = []
-        subgraphs_masks = []
-        graph_sizes = []
-
-        for k in candidates:
-            reduced_graph = torch.cat(
-                [graph_diagonals[i][k : k + i + 1] for i in range(new_size - 1)]
-            )
-            subgraphs.append(reduced_graph)
-            subgraphs_masks.append(torch.ones(reduced_graph.shape))
-            graph_sizes.append(new_size)
-
-        return (subgraphs, subgraphs_masks, graph_sizes)
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
@@ -239,6 +196,47 @@ class SmoothLearningStepGraphDataModule(DiagonalRepresentationGraphDataModule):
         )
         parser.set_defaults(reload_dataloaders_every_n_epochs=1)
         return parser
+
+
+def generate_subgraphs(
+    graph,
+    graph_size: int,
+    new_size: int,
+    stride: int = 1,
+    probability: float = 1.0,
+):
+    if new_size > graph_size:
+        return [graph], [torch.ones(graph.shape)], [graph_size]
+
+    candidates = torch.arange(0, graph_size - new_size + 1, stride).int()
+    if (graph_size - new_size) not in candidates:
+        candidates = torch.cat([candidates, torch.IntTensor([graph_size - new_size])])
+    if probability < 1:
+        candidates = candidates[torch.rand(len(candidates)) < probability]
+
+    if len(candidates) == 0:
+        return ([], [], [])
+
+    graph_diagonals = []
+    index = 0
+    for diag_len in range(1, graph_size):
+        if diag_len > graph_size - new_size:
+            graph_diagonals.append(graph[index : index + diag_len])
+        index = index + diag_len
+
+    subgraphs = []
+    subgraphs_masks = []
+    graph_sizes = []
+
+    for k in candidates:
+        reduced_graph = torch.cat(
+            [graph_diagonals[i][k : k + i + 1] for i in range(new_size - 1)]
+        )
+        subgraphs.append(reduced_graph)
+        subgraphs_masks.append(torch.ones(reduced_graph.shape))
+        graph_sizes.append(new_size)
+
+    return (subgraphs, subgraphs_masks, graph_sizes)
 
 
 class SubgrapghSizeScheduler:
