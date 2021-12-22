@@ -67,9 +67,7 @@ class AdjMatrixDataModule(BaseDataModule):
                 if self.bfs:
                     adj_matrix = adjmatrix.bfs_ordering(adj_matrix)
 
-                reshaped_matrix = adjmatrix.minimize_adj_matrix(
-                    adj_matrix, max_number_of_nodes
-                )
+                reshaped_matrix = adjmatrix.minimize_adj_matrix(adj_matrix)
                 adjacency_matrices.append((reshaped_matrix, graph.shape[0]))
                 if labels is not None:
                     adjacency_matrices_labels.append(labels[index])
