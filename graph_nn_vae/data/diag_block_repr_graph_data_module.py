@@ -78,7 +78,7 @@ class DiagonalBlockRepresentationGraphDataModule(DiagonalRepresentationGraphData
             parser.add_argument(
                 "--block_size",
                 dest="block_size",
-                default=3,
+                default=1,
                 type=int,
                 help="size (width or height) of a block of adjacency matrix edges",
             )
