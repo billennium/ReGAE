@@ -17,7 +17,13 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
         self.collate_fn_val = self.collate_graph_batch
         self.collate_fn_test = self.collate_graph_batch
 
-    def _adj_batch_to_diagonal(
+    def prepare_data(self, *args, **kwargs):
+        super().prepare_data(*args, **kwargs)
+        self.train_dataset = self.adjust_batch_representation(self.train_dataset)
+        self.val_dataset = self.adjust_batch_representation(self.val_dataset)
+        self.test_dataset = self.adjust_batch_representation(self.test_dataset)
+
+    def adjust_batch_representation(
         self, batch: List[Tuple[torch.Tensor, int]]
     ) -> List[Tuple[torch.Tensor, torch.Tensor, int]]:
 
@@ -42,12 +48,6 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
             diag_represented_batch.append(processed_example)
 
         return diag_represented_batch
-
-    def prepare_data(self, *args, **kwargs):
-        super().prepare_data(*args, **kwargs)
-        self.train_dataset = self._adj_batch_to_diagonal(self.train_dataset)
-        self.val_dataset = self._adj_batch_to_diagonal(self.val_dataset)
-        self.test_dataset = self._adj_batch_to_diagonal(self.test_dataset)
 
     def collate_graph_batch(self, batch):
         # As part of the collation graph diag_repr are padded with 0.0 and the graph masks
