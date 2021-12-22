@@ -2,7 +2,7 @@ import torch
 
 
 def calculate_num_blocks(num_nodes: int, block_size: int):
-    return int(num_nodes / block_size)
+    return torch.ceil((num_nodes - 1) / block_size)
 
 
 def adj_matrix_to_diagonal_block_representation(
@@ -51,7 +51,7 @@ def adj_matrix_to_diagonal_block_representation(
     # if block_size == 1:
     #     block_adj_matrix = adj_matrix[:, :, None, None, :]
     # else:
-    blocks_per_dim = calculate_num_blocks(adj_matrix.shape[0], block_size)
+    blocks_per_dim = int(adj_matrix.shape[0] / block_size)
     block_rows = []
     for block_y in range(blocks_per_dim):
         block_y_start = block_y * block_size
