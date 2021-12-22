@@ -12,6 +12,9 @@ from graph_nn_vae.models.utils.layers import (
     sequential_from_layer_sizes,
 )
 from graph_nn_vae.models.utils.getters import get_activation_function
+from graph_nn_vae.util.adjmatrix.diagonal_block_representation import (
+    calculate_num_blocks,
+)
 
 
 class GraphEncoder(BaseModel):
@@ -20,12 +23,16 @@ class GraphEncoder(BaseModel):
         edge_encoder_class: nn.Module,
         embedding_size: int,
         edge_size: int,
+        block_size: int,
         **kwargs,
     ):
         self.embedding_size = embedding_size
         self.edge_size = edge_size
+        self.block_size = block_size
         super(GraphEncoder, self).__init__(**kwargs)
-        self.edge_encoder = edge_encoder_class(embedding_size, edge_size, **kwargs)
+        self.edge_encoder = edge_encoder_class(
+            embedding_size, edge_size, block_size, **kwargs
+        )
 
     def forward(self, input_batch: Tensor) -> Tensor:
         """
@@ -50,38 +57,46 @@ class GraphEncoder(BaseModel):
         diagonal_repr_graphs_batch = input_batch[0]
         diagonal_repr_graphs_batch.requires_grad = True
         num_nodes_batch = input_batch[2]
+        num_blocks_batch = torch.stack(
+            [
+                calculate_num_blocks(num_nodes, self.block_size)
+                for num_nodes in num_nodes_batch
+            ]
+        ).int()
 
-        sorted_num_nodes_batch, ordered_indices = num_nodes_batch.sort(descending=True)
+        sorted_num_blocks_batch, ordered_indices = num_blocks_batch.sort(
+            descending=True
+        )
         _, indices_in_original_batch_order = ordered_indices.sort()
 
         diagonal_repr_graphs_batch = diagonal_repr_graphs_batch[ordered_indices]
 
-        max_num_nodes = sorted_num_nodes_batch[0]
-        num_diagonals = max_num_nodes - 1
+        max_num_blocks = sorted_num_blocks_batch[0]
+        num_diagonals = max_num_blocks
         first_diag_length = num_diagonals
         diag_right_pos = int((1 + num_diagonals) * num_diagonals / 2)
 
-        graph_counts_per_size = self.torch_bincount(num_nodes_batch)
+        graph_counts_per_size = self.torch_bincount(num_blocks_batch)
 
         # Embedding batch is represented in the shape: [graph_idx, embedding_idx, embedding]
         # Starting with `0` for no graphs yet. Will get filled approprately in the recurrent loop.
         prev_embedding = torch.zeros(
-            (0, max_num_nodes, self.embedding_size),
+            (0, max_num_blocks + 1, self.embedding_size),
             requires_grad=True,
             device=diagonal_repr_graphs_batch.device,
         )
 
-        for diagonal_offset in range(max_num_nodes - 1):
+        for diagonal_offset in range(max_num_blocks):
             # Some graphs from the input batch may have been too small for the previous diagonal.
             # Check if they should be added now and init their embeddings.
             graphs_to_add_in_curr_diag = graph_counts_per_size[
-                max_num_nodes - diagonal_offset
+                max_num_blocks - diagonal_offset
             ]
             if graphs_to_add_in_curr_diag != 0:
                 new_graph_init_tokens = torch.zeros(
                     (
                         graphs_to_add_in_curr_diag,
-                        max_num_nodes - diagonal_offset,
+                        max_num_blocks + 1 - diagonal_offset,
                         self.embedding_size,
                     ),
                     requires_grad=True,
@@ -157,6 +172,16 @@ class GraphEncoder(BaseModel):
                 type=int,
                 metavar="EDGE_SIZE",
                 help="number of dimensions of a graph's edge",
+            )
+        except ArgumentError:
+            pass
+        try:  # may collide with a data module, but that's fine
+            parser.add_argument(
+                "--block_size",
+                dest="block_size",
+                default=1,
+                type=int,
+                help="size (width or height) of a block of adjacency matrix edges",
             )
         except ArgumentError:
             pass

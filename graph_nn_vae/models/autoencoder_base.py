@@ -10,6 +10,13 @@ from graph_nn_vae.models.edge_encoders.memory_standard import MemoryEdgeEncoder
 from graph_nn_vae.models.edge_decoders.memory_standard import MemoryEdgeDecoder
 from graph_nn_vae.models.utils.getters import get_loss
 
+from graph_nn_vae.util.adjmatrix.diagonal_block_representation import (
+    diagonal_block_to_adj_matrix_representation,
+)
+from graph_nn_vae.util.adjmatrix.diagonal_representation import (
+    adj_matrix_to_diagonal_representation,
+)
+
 
 class GraphAutoencoder(BaseModel):
     is_with_graph_mask = False
@@ -30,11 +37,50 @@ class GraphAutoencoder(BaseModel):
             self.mask_loss_function = get_loss(mask_loss_function, mask_loss_weight)
         self.diagonal_embeddings_loss_weight = diagonal_embeddings_loss_weight
 
+    def convert_batch_from_block(self, batch):
+        graphs = []
+        masks = []
+
+        for i in range(batch[0].shape[0]):
+            graph = batch[0][i]
+            mask = batch[1][i]
+            num_nodes = batch[2][i]
+
+            graphs.append(
+                adj_matrix_to_diagonal_representation(
+                    diagonal_block_to_adj_matrix_representation(graph, num_nodes),
+                    num_nodes,
+                )
+            )
+            masks.append(
+                adj_matrix_to_diagonal_representation(
+                    diagonal_block_to_adj_matrix_representation(mask, num_nodes),
+                    num_nodes,
+                )
+            )
+
+        graphs = torch.nn.utils.rnn.pad_sequence(
+            graphs,
+            batch_first=True,
+            padding_value=0.0,
+        )
+        masks = torch.nn.utils.rnn.pad_sequence(
+            masks,
+            batch_first=True,
+            padding_value=0.0,
+        )
+
+        return (graphs, masks, batch[2])
+
     def step(self, batch, metrics: List[Callable] = []) -> Tensor:
         if not self.is_with_graph_mask:
             return super().step(batch, metrics)
 
         y_pred, diagonal_embeddings_norm = self(batch)
+
+        if len(y_pred[0].shape) == 3:
+            batch = self.convert_batch_from_block(batch)
+
         y_edge, y_mask, y_pred_edge, y_pred_mask = self.adjust_y_to_prediction(
             batch, y_pred
         )
