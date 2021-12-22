@@ -104,6 +104,10 @@ def diagonal_block_to_adj_matrix_representation(
     edge_size = diagonal_block_graph.shape[-1]
     num_columns = divide_integer_round_up(num_nodes - 1, block_size)
 
+    num_unpadded_blocks = int((num_columns + 1) / 2 * num_columns)
+    diagonal_block_graph = diagonal_block_graph[:num_unpadded_blocks]
+    num_blocks = num_unpadded_blocks
+
     num_missing_blocks_for_full_matrix = num_columns * num_columns - num_blocks
     diagonal_block_graph = torch.nn.functional.pad(
         diagonal_block_graph, (0, 0, 0, 0, 0, 0, 0, num_missing_blocks_for_full_matrix)
