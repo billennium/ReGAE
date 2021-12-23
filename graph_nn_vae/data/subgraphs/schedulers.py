@@ -6,14 +6,14 @@ import pytorch_lightning as pl
 
 def get_subgraph_size_scheduler(name: str):
     return {
-        "linear": LinearSubgrapghSizeScheduler,
-        "step": StepSubgrapghSizeScheduler,
-        "edge_metrics_based": EdgeMetricsBasedSubgrapghSizeScheduler,
+        "linear": LinearSubgraphSizeScheduler,
+        "step": StepSubgraphSizeScheduler,
+        "edge_metrics_based": EdgeMetricsBasedSubgraphSizeScheduler,
         "no_graph_scheduler": None,
     }[name]
 
 
-class SubgrapghSizeScheduler:
+class SubgraphSizeScheduler:
     _get_current_epoch: Callable
 
     def __init__(
@@ -57,7 +57,7 @@ class SubgrapghSizeScheduler:
         return parser
 
 
-class LinearSubgrapghSizeScheduler(SubgrapghSizeScheduler):
+class LinearSubgraphSizeScheduler(SubgraphSizeScheduler):
     """
     Scales the graph subgraphs linearly.
     Requires a float `speed` subgraph_scheduler_params param.
@@ -72,7 +72,7 @@ class LinearSubgrapghSizeScheduler(SubgrapghSizeScheduler):
         return max(min(float(self.trainer.current_epoch * self.params["speed"]), 1), 0)
 
 
-class StepSubgrapghSizeScheduler(SubgrapghSizeScheduler):
+class StepSubgraphSizeScheduler(SubgraphSizeScheduler):
     """
     Scales the graph subgraphs by steps.
     Requires a int `step_length` and int `step_size` subgraph_scheduler_params params.
@@ -96,7 +96,7 @@ class StepSubgrapghSizeScheduler(SubgrapghSizeScheduler):
         )
 
 
-class EdgeMetricsBasedSubgrapghSizeScheduler(SubgrapghSizeScheduler):
+class EdgeMetricsBasedSubgraphSizeScheduler(SubgraphSizeScheduler):
     """
     Scales the graph subgraphs based on edge metrics
     Requires a int `step` and float `metrics_treshold` subgraph_scheduler_params params.
