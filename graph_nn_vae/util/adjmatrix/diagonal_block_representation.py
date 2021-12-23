@@ -1,8 +1,9 @@
 import torch
+from torch.functional import Tensor
 
 
-def calculate_num_blocks(num_nodes: int, block_size: int):
-    return torch.ceil((num_nodes - 1) / block_size)
+def calculate_num_blocks(num_nodes: Tensor, block_size: int):
+    return torch.ceil((num_nodes - 1) / block_size).int()
 
 
 def adj_matrix_to_diagonal_block_representation(

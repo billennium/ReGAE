@@ -2,7 +2,7 @@ from argparse import ArgumentParser
 
 from graph_nn_vae.experiments.experiment import Experiment
 from graph_nn_vae.data import (
-    DiagonalRepresentationGraphDataModule,
+    DiagonalBlockRepresentationGraphDataModule,
     RealGraphLoader,
 )
 from graph_nn_vae.models.classifier_base import RecurrentEncoderGraphClassifier
@@ -55,5 +55,5 @@ class GraphClassifier(RecurrentEncoderGraphClassifier):
 
 if __name__ == "__main__":
     Experiment(
-        GraphClassifier, DiagonalRepresentationGraphDataModule, RealGraphLoader
+        GraphClassifier, DiagonalBlockRepresentationGraphDataModule, RealGraphLoader
     ).run()

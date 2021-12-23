@@ -2,9 +2,8 @@ from argparse import ArgumentParser
 
 from graph_nn_vae.experiments.experiment import Experiment
 from graph_nn_vae.data import (
-    DiagonalRepresentationGraphDataModule,
+    DiagonalBlockRepresentationGraphDataModule,
     RealGraphLoader,
-    SmoothLearningStepGraphDataModule,
 )
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
 from graph_nn_vae.models.autoencoder_components import (
@@ -50,10 +49,11 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             learning_rate=0.0001,
             gradient_clip_val=1.0,
             batch_size=32,
-            embedding_size=64,
-            encoder_hidden_layer_sizes=[256, 128],
+            embedding_size=256,
+            block_size=3,
+            encoder_hidden_layer_sizes=[1024, 768],
             encoder_activation_function="ELU",
-            decoder_hidden_layer_sizes=[256, 128],
+            decoder_hidden_layer_sizes=[768, 1024],
             decoder_activation_function="ELU",
             metrics=[
                 "EdgeAccuracy",
@@ -63,21 +63,19 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
                 "MaskRecall",
                 "MaxGraphSize",
             ],
-            # max_number_of_nodes=140,
             max_epochs=10000,
-            check_val_every_n_epoch=20,
-            metric_update_interval=20,
+            check_val_every_n_epoch=5,
+            metric_update_interval=5,
             early_stopping=False,
             bfs=True,
             num_dataset_graph_permutations=1,
             datasets_dir="",
             dataset_name="IMDB-BINARY",
-            use_catche=True,
         )
         return parser
 
 
 if __name__ == "__main__":
     Experiment(
-        GraphAutoencoder, DiagonalRepresentationGraphDataModule, RealGraphLoader
+        GraphAutoencoder, DiagonalBlockRepresentationGraphDataModule, RealGraphLoader
     ).run()

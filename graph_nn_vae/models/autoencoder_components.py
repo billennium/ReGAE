@@ -57,12 +57,7 @@ class GraphEncoder(BaseModel):
         diagonal_repr_graphs_batch = input_batch[0]
         diagonal_repr_graphs_batch.requires_grad = True
         num_nodes_batch = input_batch[2]
-        num_blocks_batch = torch.stack(
-            [
-                calculate_num_blocks(num_nodes, self.block_size)
-                for num_nodes in num_nodes_batch
-            ]
-        ).int()
+        num_blocks_batch = calculate_num_blocks(num_nodes_batch, self.block_size)
 
         sorted_num_blocks_batch, ordered_indices = num_blocks_batch.sort(
             descending=True
