@@ -14,7 +14,7 @@ RUN apt update && \
     apt clean && rm -rf /var/lib/apt/lists/*
 
 RUN python3.9 -m pip install --upgrade pip
-RUN python3.9 -m pip install torch==1.9.0+cu111 torchvision==0.11.2+cu111 torchaudio==0.10.1+cu111 -f https://download.pytorch.org/whl/cu111/torch_stable.html
+RUN python3.9 -m pip install torch==1.10.1+cu113 torchvision==0.11.2+cu113 torchaudio==0.10.1+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
 RUN python3.9 -m pip install guildai gpustat
 
 COPY requirements.txt /requirements.txt
