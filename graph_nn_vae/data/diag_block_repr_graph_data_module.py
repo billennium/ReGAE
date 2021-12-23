@@ -19,7 +19,7 @@ from graph_nn_vae.util.callbacks import MetricMonitor, SteppingGraphSizeMonitor
 from graph_nn_vae.data.subgraphs import (
     get_subgraph_size_scheduler,
     generate_subgraphs,
-    SubgrapghSizeScheduler,
+    SubgraphSizeScheduler,
 )
 
 
@@ -218,7 +218,7 @@ class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
         parser = AdjMatrixDataModule.add_model_specific_args(parent_parser)
-        parser = SubgrapghSizeScheduler.add_model_specific_args(parser)
+        parser = SubgraphSizeScheduler.add_model_specific_args(parser)
         parser.add_argument(
             "--subgraph_scheduler_name",
             dest="subgraph_scheduler_name",

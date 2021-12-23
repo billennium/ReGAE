@@ -6,11 +6,10 @@ import numpy as np
 from graph_nn_vae.experiments.experiment import Experiment
 from graph_nn_vae.data import (
     GraphLoaderBase,
-    SmoothLearningStepGraphDataModule,
+    DiagonalBlockRepresentationGraphDataModule,
 )
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
 from graph_nn_vae.models.autoencoder_components import (
-    BorderFillingGraphDecoder,
     GraphDecoder,
 )
 from graph_nn_vae.models.edge_decoders.memory_standard import (
@@ -27,7 +26,7 @@ from graph_nn_vae.models.edge_decoders.single_input_embedding import (
 class GraphAutoencoder(RecurrentGraphAutoencoder):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
-        RecurrentGraphAutoencoder.graph_decoder_class = BorderFillingGraphDecoder
+        RecurrentGraphAutoencoder.graph_decoder_class = GraphDecoder
         RecurrentGraphAutoencoder.edge_decoder_class = MemoryEdgeDecoder
 
         parser = RecurrentGraphAutoencoder.add_model_specific_args(parent_parser)
@@ -45,6 +44,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             gradient_clip_val=0.7,
             batch_size=1,
             embedding_size=512,
+            block_size=3,
             encoder_hidden_layer_sizes=[1024, 768],
             encoder_activation_function="ELU",
             decoder_hidden_layer_sizes=[768, 1024],
@@ -64,7 +64,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             num_dataset_graph_permutations=1,
             minimal_subgraph_size=10,
             subgraph_stride=0.5,
-            subgraph_scheduler_name="edge_metrics_based",
+            # subgraph_scheduler_name="edge_metrics_based",
             subgraph_scheduler_params={
                 "subgraph_size_initial": 0.005,
                 "metrics_treshold": 0.6,
@@ -105,5 +105,7 @@ class OneBigBarabasiGraphLoader(GraphLoaderBase):
 
 if __name__ == "__main__":
     Experiment(
-        GraphAutoencoder, SmoothLearningStepGraphDataModule, OneBigBarabasiGraphLoader
+        GraphAutoencoder,
+        DiagonalBlockRepresentationGraphDataModule,
+        OneBigBarabasiGraphLoader,
     ).run()
