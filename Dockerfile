@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.3.1-runtime-ubuntu20.04
+FROM nvidia/cuda:11.0.3-runtime-ubuntu20.04
 
 RUN apt update && \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install tzdata && \
@@ -13,9 +13,9 @@ RUN apt update && \
     apt install --no-install-recommends -y python3.9 python3-pip python3-setuptools python3-distutils && \
     apt clean && rm -rf /var/lib/apt/lists/*
 
+RUN python3.9 -m pip install torch torchvision torchaudio
 RUN python3.9 -m pip install --upgrade pip
-RUN python3.9 -m pip install torch==1.10.1+cu113 torchvision==0.11.2+cu113 torchaudio==0.10.1+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
-RUN python3.9 -m pip install guildai gpustat
+RUN python3.9 -m pip install guildai 
 
 COPY requirements.txt /requirements.txt
 RUN python3.9 -m pip install --no-cache-dir -r /requirements.txt
