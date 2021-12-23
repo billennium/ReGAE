@@ -197,6 +197,7 @@ class GraphDecoder(BaseModel):
         edge_decoder_class: nn.Module,
         embedding_size: int,
         edge_size: int,
+        block_size: int,
         graph_decoder_border_embedding_fill: str,
         graph_decoder_filling_nn_layer_sizes: List[int],
         graph_decoder_filling_nn_activation_function: str,
@@ -208,10 +209,14 @@ class GraphDecoder(BaseModel):
             )
         self.internal_embedding_size = int(embedding_size / 2)
         self.edge_size = edge_size
+        self.block_size = block_size
         super().__init__(**kwargs)
 
         self.edge_decoder = edge_decoder_class(
-            embedding_size=self.internal_embedding_size, edge_size=edge_size, **kwargs
+            embedding_size=self.internal_embedding_size,
+            edge_size=edge_size,
+            block_size=block_size,
+            **kwargs,
         )
 
         self.set_fill_border_embeddings_fn(
@@ -243,8 +248,9 @@ class GraphDecoder(BaseModel):
             [1], device=graph_encoding_batch.device
         )
         mask_state = None
+        max_num_blocks = int(calculate_num_blocks(max_number_of_nodes, self.block_size))
 
-        for _ in range(max_number_of_nodes):
+        for _ in range(max_num_blocks):
             (
                 decoded_edges_with_mask,
                 new_embedding_l,
@@ -463,6 +469,16 @@ class GraphDecoder(BaseModel):
                 metavar="EDGE_SIZE",
                 help="number of dimensions of a graph's edge",
             )
+            try:  # may collide with a data module, but that's fine
+                parser.add_argument(
+                    "--block_size",
+                    dest="block_size",
+                    default=1,
+                    type=int,
+                    help="size (width or height) of a block of adjacency matrix edges",
+                )
+            except ArgumentError:
+                pass
             parser.add_argument(
                 "--graph_decoder_border_embedding_fill",
                 dest="graph_decoder_border_embedding_fill",

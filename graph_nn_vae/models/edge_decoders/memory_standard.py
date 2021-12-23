@@ -100,17 +100,6 @@ class MemoryEdgeDecoder(nn.Module):
             metavar="ACTIVATION_F_NAME",
             help="name of the activation function of hidden layers",
         )
-        try:  # may collide with a data module, but that's fine
-            parser.add_argument(
-                "--block_size",
-                dest="block_size",
-                default=1,
-                type=int,
-                help="size (width or height) of a block of adjacency matrix edges",
-            )
-        except ArgumentError:
-            pass
-
         return parser
 
 
