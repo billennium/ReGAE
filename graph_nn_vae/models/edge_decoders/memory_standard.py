@@ -1,5 +1,5 @@
 from typing import List, Tuple
-from argparse import ArgumentParser
+from argparse import ArgumentError, ArgumentParser
 
 import torch
 from torch import nn, Tensor
@@ -17,6 +17,7 @@ class MemoryEdgeDecoder(nn.Module):
         self,
         embedding_size: int,
         edge_size: int,
+        block_size: int,
         decoder_hidden_layer_sizes: List[int],
         decoder_activation_function: str,
         **kwargs,
@@ -24,10 +25,14 @@ class MemoryEdgeDecoder(nn.Module):
         super().__init__()
         self.embedding_size = embedding_size
         self.edge_size = edge_size
+        self.block_size = block_size
 
         nn_input_size = embedding_size * 2
         graph_end_mask_size = 1
-        nn_output_size = embedding_size * 4 + graph_end_mask_size + edge_size
+        self.edge_with_mask_block_size = block_size ** 2 * (
+            graph_end_mask_size + edge_size
+        )
+        nn_output_size = embedding_size * 4 + self.edge_with_mask_block_size
 
         activation_f = get_activation_function(decoder_activation_function)
         self.nn = sequential_from_layer_sizes(
@@ -50,11 +55,18 @@ class MemoryEdgeDecoder(nn.Module):
         ) = torch.split(
             nn_output,
             [
-                1 + self.edge_size,
+                self.edge_with_mask_block_size,
                 self.embedding_size * 2,
                 self.embedding_size * 2,
             ],
             dim=2,
+        )
+
+        decoded_edges_with_mask = decoded_edges_with_mask.view(
+            *decoded_edges_with_mask.shape[:-1],
+            self.block_size,
+            self.block_size,
+            self.edge_size + 1,
         )
 
         doubled_embeddings = weighted_average(

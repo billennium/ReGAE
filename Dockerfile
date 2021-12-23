@@ -1,6 +1,7 @@
-FROM nvidia/cuda:11.1.1-runtime-ubuntu20.04
+FROM nvidia/cuda:11.3.1-runtime-ubuntu20.04
 
 RUN apt update && \
+    DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install tzdata && \
     apt install --no-install-recommends -y \
     build-essential \
     software-properties-common \

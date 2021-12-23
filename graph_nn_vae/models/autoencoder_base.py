@@ -10,6 +10,13 @@ from graph_nn_vae.models.edge_encoders.memory_standard import MemoryEdgeEncoder
 from graph_nn_vae.models.edge_decoders.memory_standard import MemoryEdgeDecoder
 from graph_nn_vae.models.utils.getters import get_loss
 
+from graph_nn_vae.util.adjmatrix.diagonal_block_representation import (
+    diagonal_block_to_adj_matrix_representation,
+)
+from graph_nn_vae.util.adjmatrix.diagonal_representation import (
+    adj_matrix_to_diagonal_representation,
+)
+
 
 class GraphAutoencoder(BaseModel):
     is_with_graph_mask = False
@@ -35,6 +42,7 @@ class GraphAutoencoder(BaseModel):
             return super().step(batch, metrics)
 
         y_pred, diagonal_embeddings_norm = self(batch)
+
         y_edge, y_mask, y_pred_edge, y_pred_mask = self.adjust_y_to_prediction(
             batch, y_pred
         )
@@ -180,9 +188,6 @@ def equalize_dim_by_padding(
             True if padding_value == 1.0 or padding_value == float("inf") else False
         )
 
-    padded_t = torch.nn.functional.pad(
-        padded_t,
-        [0] * (dim * 2 + 1) + [abs(diff)],
-        value=padding_value,
-    )
+    pad_dims = [0] * ((padded_t.ndim - dim) * 2 - 1) + [abs(diff)]
+    padded_t = torch.nn.functional.pad(padded_t, pad_dims, value=padding_value)
     return (padded_t, t2) if diff < 0 else (t1, padded_t)

@@ -1,5 +1,5 @@
 from typing import List
-from argparse import ArgumentParser
+from argparse import ArgumentParser, ArgumentError
 
 import torch
 from torch import nn, Tensor
@@ -17,6 +17,7 @@ class MemoryEdgeEncoder(nn.Module):
         self,
         embedding_size: int,
         edge_size: int,
+        block_size: int,
         encoder_hidden_layer_sizes: List[int],
         encoder_activation_function: str,
         **kwargs,
@@ -24,7 +25,9 @@ class MemoryEdgeEncoder(nn.Module):
         super().__init__()
         self.embedding_size = embedding_size
         self.edge_size = edge_size
-        input_size = 2 * embedding_size + edge_size
+        self.block_size = block_size
+
+        input_size = 2 * embedding_size + edge_size * (block_size * block_size)
 
         activation_f = get_activation_function(encoder_activation_function)
         self.nn = sequential_from_layer_sizes(
@@ -37,7 +40,9 @@ class MemoryEdgeEncoder(nn.Module):
     def forward(
         self, diagonal_x: Tensor, embedding_l: Tensor, embedding_r: Tensor
     ) -> Tensor:
-        x = torch.cat((embedding_l, embedding_r, diagonal_x), dim=-1)
+        x = torch.cat(
+            (embedding_l, embedding_r, diagonal_x.flatten(start_dim=2)), dim=-1
+        )
         nn_output = self.nn(x)
 
         (embedding, mem_overwrite_ratio, embedding_ratio,) = torch.split(
