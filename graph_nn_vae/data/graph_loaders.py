@@ -68,7 +68,7 @@ class RealGraphLoader(GraphLoaderBase):
         datasets_dir: str = "",
         dataset_name: str = "",
         use_labels: bool = False,
-        max_graph_size: int = 1000,
+        max_graph_size: int = None,
         **kwargs
     ):
         self.dataset_dir = Path(datasets_dir)
@@ -118,9 +118,10 @@ class RealGraphLoader(GraphLoaderBase):
         else:
             graphs_labels = None
 
-        filtered_adj_matrices, filtered_graph_labels = filter_out_big_graphs(
-            adj_matrices, graphs_labels, self.max_graph_size
-        )
+        if self.max_graph_size:
+            filtered_adj_matrices, filtered_graph_labels = filter_out_big_graphs(
+                adj_matrices, graphs_labels, self.max_graph_size
+            )
 
         return {"graphs": filtered_adj_matrices, "labels": filtered_graph_labels}
 
@@ -130,7 +131,6 @@ class RealGraphLoader(GraphLoaderBase):
         parser.add_argument(
             "--max_graph_size",
             dest="max_graph_size",
-            default=1000,
             type=int,
             help="ignore graphs which has more nodes",
         )
