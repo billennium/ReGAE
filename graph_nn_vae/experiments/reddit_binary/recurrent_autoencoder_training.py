@@ -48,15 +48,15 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             lr_scheduler_metric="loss/train_avg",
             learning_rate=0.0001,
             gradient_clip_val=1.0,
-            batch_size=32,
-            embedding_size=256,
-            block_size=5,
+            batch_size=8,
+            embedding_size=512,
+            block_size=9,
             encoder_hidden_layer_sizes=[1024, 768],
             encoder_activation_function="ELU",
             decoder_hidden_layer_sizes=[768, 1024],
             decoder_activation_function="ELU",
             metrics=[
-                "EdgeAccuracy",
+                # "EdgeAccuracy",
                 "EdgePrecision",
                 "EdgeRecall",
                 "MaskPrecision",
@@ -70,7 +70,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             bfs=True,
             num_dataset_graph_permutations=1,
             datasets_dir="",
-            dataset_name="IMDB-BINARY",
+            dataset_name="REDDIT-BINARY",
         )
         return parser
 
