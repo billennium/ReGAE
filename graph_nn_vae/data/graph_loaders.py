@@ -119,11 +119,11 @@ class RealGraphLoader(GraphLoaderBase):
             graphs_labels = None
 
         if self.max_graph_size:
-            filtered_adj_matrices, filtered_graph_labels = filter_out_big_graphs(
+            adj_matrices, graphs_labels = filter_out_big_graphs(
                 adj_matrices, graphs_labels, self.max_graph_size
             )
 
-        return {"graphs": filtered_adj_matrices, "labels": filtered_graph_labels}
+        return {"graphs": adj_matrices, "labels": graphs_labels}
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
