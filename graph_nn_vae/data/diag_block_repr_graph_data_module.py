@@ -70,6 +70,7 @@ class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
         self.trainer.callbacks.append(self.current_metric_monitor)
 
         self.is_logging_initialized = True
+        self.is_scheduling_initialized = True
 
     def prepare_data(self, *args, **kwargs):
         super().prepare_data(*args, **kwargs)
