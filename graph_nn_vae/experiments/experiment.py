@@ -52,9 +52,10 @@ class Experiment:
 
         torch.multiprocessing.set_sharing_strategy("file_system")
 
-        # if args.fast_dev_run:
-        args.batch_size_val = args.batch_size
-        args.batch_size_test = args.batch_size
+        if args.batch_size_val is None:
+            args.batch_size_val = args.batch_size
+        if args.batch_size_test is None:
+            args.batch_size_test = args.batch_size
 
         self.data_loader: GraphLoaderBase = self.data_loader(**vars(args))
 
