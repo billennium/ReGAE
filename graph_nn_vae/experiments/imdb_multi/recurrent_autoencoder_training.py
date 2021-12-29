@@ -55,7 +55,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             decoder_hidden_layer_sizes=[768, 1024],
             decoder_activation_function="ELU",
             metrics=[
-                "EdgeAccuracy",
+                # "EdgeAccuracy",
                 "EdgePrecision",
                 "EdgeRecall",
                 "MaskPrecision",
@@ -69,7 +69,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             bfs=True,
             num_dataset_graph_permutations=1,
             datasets_dir="",
-            dataset_name="IMDB-BINARY",
+            dataset_name="IMDB-MULTI",
         )
         return parser
 

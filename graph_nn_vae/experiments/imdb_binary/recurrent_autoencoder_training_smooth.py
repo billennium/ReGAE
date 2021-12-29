@@ -7,7 +7,6 @@ from graph_nn_vae.data import (
 )
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
 from graph_nn_vae.models.autoencoder_components import (
-    BorderFillingGraphDecoder,
     GraphDecoder,
 )
 from graph_nn_vae.models.edge_decoders.memory_standard import (
@@ -51,7 +50,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             gradient_clip_val=1.0,
             batch_size=32,
             embedding_size=256,
-            block_size=3,
+            block_size=5,
             encoder_hidden_layer_sizes=[1024, 768],
             encoder_activation_function="ELU",
             decoder_hidden_layer_sizes=[768, 1024],
