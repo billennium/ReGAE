@@ -7,7 +7,7 @@ def calculate_num_blocks(num_nodes: Tensor, block_size: int):
 
 
 def adj_matrix_to_diagonal_block_representation(
-    adj_matrix: torch.Tensor, num_nodes: int, block_size: int
+    adj_matrix: torch.Tensor, num_nodes: int, block_size: int, pad_value=0
 ) -> torch.Tensor:
     """
     The adjacency matrix has a shape like [y, x, edge_size].
@@ -40,13 +40,16 @@ def adj_matrix_to_diagonal_block_representation(
     The size of the dimensions:             [ num_blocks : block_size : block_size : edge_size ]
     """
 
+    triu_indices = torch.triu_indices(adj_matrix.shape[0], adj_matrix.shape[0])
+    adj_matrix[triu_indices[0], triu_indices[1]] = pad_value
+
     adj_matrix = adj_matrix[1:num_nodes, : num_nodes - 1, :]
 
     pad_diff = adj_matrix.shape[0] % block_size
     if pad_diff != 0:
         pad_diff = block_size - pad_diff
         adj_matrix = torch.nn.functional.pad(
-            adj_matrix, (0, 0, 0, pad_diff, pad_diff, 0)
+            adj_matrix, (0, 0, 0, pad_diff, pad_diff, 0), value=pad_value
         )
 
     # if block_size == 1:
