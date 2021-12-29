@@ -15,7 +15,7 @@ class EdgePrecision(torchmetrics.Precision):
         **kwargs,
     ):
         edges_predicted = torch.sigmoid(edges_predicted).round().int().flatten()
-        edges_target = edges_target.int().flatten()
+        edges_target = torch.clamp(edges_target.int().flatten(), min=0)
 
         super().update(edges_predicted, edges_target)
 
@@ -36,7 +36,7 @@ class EdgeRecall(torchmetrics.Recall):
         **kwargs,
     ):
         edges_predicted = torch.sigmoid(edges_predicted).round().int().flatten()
-        edges_target = edges_target.int().flatten()
+        edges_target = torch.clamp(edges_target.int().flatten(), min=0)
 
         super().update(edges_predicted, edges_target)
 

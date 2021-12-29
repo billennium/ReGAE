@@ -78,6 +78,9 @@ class GraphAutoencoder(BaseModel):
             y_edge[mask],
             y_mask[mask],
         )
+        y_edge_l = torch.clamp(y_edge_l, min=0)
+        y_mask_l = torch.clamp(y_mask_l, min=0)
+
         loss_edges = self.edge_loss_function(y_pred_edge_l, y_edge_l.data)
         loss_mask = self.mask_loss_function(y_pred_mask_l, y_mask_l)
         return loss_edges + loss_mask

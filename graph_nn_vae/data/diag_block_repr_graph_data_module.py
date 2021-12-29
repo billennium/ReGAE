@@ -88,7 +88,7 @@ class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
             matrix = graph_info[0]
             num_nodes = graph_info[1]
             diag_block_graph = adj_matrix_to_diagonal_block_representation(
-                matrix, num_nodes, self.block_size
+                matrix, num_nodes, self.block_size, pad_value=-1
             )
             adj_matrix_mask = torch.tril(
                 torch.ones((num_nodes, num_nodes)), diagonal=-1
