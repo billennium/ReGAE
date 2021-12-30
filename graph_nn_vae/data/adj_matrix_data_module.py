@@ -50,12 +50,43 @@ class AdjMatrixDataModule(BaseDataModule):
                 max_number_of_nodes = graph.number_of_nodes()
         return max_number_of_nodes
 
-    def process_adjacency_matrices(
+    def multiplicate_graphs(
         self,
         graph_data,
         remove_duplicates: bool = True,
+    ):
+        graphs = [el[0] for el in graph_data] if self.use_labels else graph_data
+        labels = [el[1] for el in graph_data] if self.use_labels else None
+
+        multipliacted_graphs = []
+        multipliacted_labels = [] if labels else None
+
+        for index, graph in enumerate(graphs):
+            for i in range(self.num_dataset_graph_permutations):
+                if i != 0:
+                    adj_matrix = adjmatrix.random_permute(graph)
+                else:
+                    adj_matrix = graph
+
+                multipliacted_graphs.append(adj_matrix)
+                if labels is not None:
+                    multipliacted_labels.append(labels[index])
+
+        if remove_duplicates:
+            multipliacted_graphs, multipliacted_labels = adjmatrix.remove_duplicates(
+                multipliacted_graphs, multipliacted_labels
+            )
+
+        return (
+            list(zip(multipliacted_graphs, multipliacted_labels))
+            if labels is not None
+            else multipliacted_graphs
+        )
+
+    def process_adjacency_matrices(
+        self,
+        graph_data,
         data_set_name: str = "",
-        num_dataset_graph_permutations: int = 1,
     ) -> List[Tuple[torch.Tensor, int]]:
         """
         Returns tuples of adj matrices with number of nodes.
@@ -69,24 +100,15 @@ class AdjMatrixDataModule(BaseDataModule):
         for index, graph in enumerate(
             tqdm(graphs, desc="preprocessing " + data_set_name)
         ):
-            for i in range(num_dataset_graph_permutations):
-                if i != 0:
-                    adj_matrix = adjmatrix.random_permute(graph)
-                else:
-                    adj_matrix = graph
+            adj_matrix = graph
 
-                if self.bfs:
-                    adj_matrix = adjmatrix.bfs_ordering(adj_matrix)
+            if self.bfs:
+                adj_matrix = adjmatrix.bfs_ordering(adj_matrix)
 
-                reshaped_matrix = adjmatrix.minimize_adj_matrix(adj_matrix)
-                adjacency_matrices.append((reshaped_matrix, graph.shape[0]))
-                if labels is not None:
-                    adjacency_matrices_labels.append(labels[index])
-
-        if remove_duplicates:
-            adjacency_matrices, adjacency_matrices_labels = adjmatrix.remove_duplicates(
-                adjacency_matrices, adjacency_matrices_labels
-            )
+            reshaped_matrix = adjmatrix.minimize_adj_matrix(adj_matrix)
+            adjacency_matrices.append((reshaped_matrix, graph.shape[0]))
+            if labels is not None:
+                adjacency_matrices_labels.append(labels[index])
 
         return (
             list(zip(adjacency_matrices, adjacency_matrices_labels))
@@ -109,11 +131,14 @@ class AdjMatrixDataModule(BaseDataModule):
 
             graph_data = list(zip(graphs, graph_labels)) if self.use_labels else graphs
 
+            if self.num_dataset_graph_permutations > 1:
+                graph_data = self.multiplicate_graphs(graph_data)
+
             (
                 self.train_dataset,
                 self.val_dataset,
                 self.test_dataset,
-            ) = split_dataset_train_val_test(graph_data, [0.7, 0.2, 0.1])
+            ) = split_dataset_train_val_test(graph_data, [0.7, 0.15, 0.15])
 
             if len(self.val_dataset) == 0 or len(self.train_dataset) == 0:
                 self.train_dataset = graph_data
@@ -131,7 +156,6 @@ class AdjMatrixDataModule(BaseDataModule):
 
         self.train_dataset = self.process_adjacency_matrices(
             self.train_dataset,
-            num_dataset_graph_permutations=self.num_dataset_graph_permutations,
             data_set_name="train set",
         )
         self.val_dataset = self.process_adjacency_matrices(

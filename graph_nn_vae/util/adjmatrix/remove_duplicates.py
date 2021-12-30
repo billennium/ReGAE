@@ -1,11 +1,8 @@
-import torch
 import numpy as np
-from tqdm import tqdm
 
 
 def remove_duplicates(graphs: list, labels: list = None):
-    adjency_matrixes = [el[0] for el in graphs]
-    hashes = [hash(el.int().numpy().tostring()) for el in adjency_matrixes]
+    hashes = [hash(el.astype(int).tostring()) for el in graphs]
     _, indices = np.unique(hashes, return_index=True)
 
     if labels is None:
