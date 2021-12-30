@@ -31,8 +31,9 @@ def print_dataset_statistics(graphs_data, name, use_labels=False):
             stats[(foo_name + " " + stat_name)] = np.round(foo(stat_value), 2)
 
     if use_labels:
-        for label, count in np.unique(labels):
-            stats['Label "' + label + '" count'] = count
+        labels, counts = np.unique(labels, return_counts=True)
+        for label, count in zip(labels, counts):
+            stats['Label "' + str(label) + '" count'] = count
 
     for name, value in stats.items():
         print(name.rjust(25), ":", value)

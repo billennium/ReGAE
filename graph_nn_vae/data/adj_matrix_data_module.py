@@ -167,16 +167,61 @@ class AdjMatrixDataModule(BaseDataModule):
 
     def load_pickled_data(self):
         with open(self.pickled_dataset_path, "rb") as input:
-            (self.train_dataset, self.val_dataset, self.test_dataset) = pickle.load(
-                input
-            )
+            (
+                train_graphs,
+                val_graphs,
+                test_graphs,
+                train_labels,
+                val_labels,
+                test_labels,
+            ) = pickle.load(input)
+        if self.use_labels:
+            self.train_dataset = list(zip(train_graphs, train_labels))
+            self.val_dataset = list(zip(val_graphs, val_labels))
+            self.test_dataset = list(zip(test_graphs, test_labels))
+        else:
+            self.train_dataset = train_graphs
+            self.val_dataset = val_graphs
+            self.test_dataset = test_graphs
+
         print("Dataset successfully loaded!")
         print("File path:", self.pickled_dataset_path)
 
     def pickle_dataset(self):
         with open(self.save_dataset_to_pickle, "wb") as output:
+            train_graphs = (
+                [el[0] for el in self.train_dataset]
+                if self.use_labels
+                else self.train_dataset
+            )
+            train_labels = (
+                [el[1] for el in self.train_dataset] if self.use_labels else None
+            )
+            val_graphs = (
+                [el[0] for el in self.val_dataset]
+                if self.use_labels
+                else self.val_dataset
+            )
+            val_labels = [el[1] for el in self.val_dataset] if self.use_labels else None
+            test_graphs = (
+                [el[0] for el in self.test_dataset]
+                if self.use_labels
+                else self.test_dataset
+            )
+            test_labels = (
+                [el[1] for el in self.test_dataset] if self.use_labels else None
+            )
+
             pickle.dump(
-                (self.train_dataset, self.val_dataset, self.test_dataset), output
+                (
+                    train_graphs,
+                    val_graphs,
+                    test_graphs,
+                    train_labels,
+                    val_labels,
+                    test_labels,
+                ),
+                output,
             )
         print("Dataset successfully pickled!")
         print("File path:", self.save_dataset_to_pickle)
