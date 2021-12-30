@@ -51,7 +51,11 @@ class AdjMatrixDataModule(BaseDataModule):
         return max_number_of_nodes
 
     def process_adjacency_matrices(
-        self, graph_data, remove_duplicates: bool = True, data_set_name: str = ""
+        self,
+        graph_data,
+        remove_duplicates: bool = True,
+        data_set_name: str = "",
+        num_dataset_graph_permutations: int = 1,
     ) -> List[Tuple[torch.Tensor, int]]:
         """
         Returns tuples of adj matrices with number of nodes.
@@ -65,7 +69,7 @@ class AdjMatrixDataModule(BaseDataModule):
         for index, graph in enumerate(
             tqdm(graphs, desc="preprocessing " + data_set_name)
         ):
-            for i in range(self.num_dataset_graph_permutations):
+            for i in range(num_dataset_graph_permutations):
                 if i != 0:
                     adj_matrix = adjmatrix.random_permute(graph)
                 else:
@@ -126,7 +130,9 @@ class AdjMatrixDataModule(BaseDataModule):
         print_dataset_statistics(self.test_dataset, "Test dataset", self.use_labels)
 
         self.train_dataset = self.process_adjacency_matrices(
-            self.train_dataset, data_set_name="train set"
+            self.train_dataset,
+            num_dataset_graph_permutations=self.num_dataset_graph_permutations,
+            data_set_name="train set",
         )
         self.val_dataset = self.process_adjacency_matrices(
             self.val_dataset, data_set_name="val set"
