@@ -26,6 +26,7 @@ class GraphAutoencoder(BaseModel):
         mask_loss_function: str = None,
         mask_loss_weight=None,
         diagonal_embeddings_loss_weight: int = 0,
+        weight_loss_positive_edges: float = 1.0,
         **kwargs,
     ):
         super(GraphAutoencoder, self).__init__(**kwargs)
@@ -36,6 +37,7 @@ class GraphAutoencoder(BaseModel):
                 mask_loss_weight = torch.Tensor([mask_loss_weight])
             self.mask_loss_function = get_loss(mask_loss_function, mask_loss_weight)
         self.diagonal_embeddings_loss_weight = diagonal_embeddings_loss_weight
+        self.weight_loss_positive_edges = weight_loss_positive_edges
 
     def step(self, batch, metrics: List[Callable] = []) -> Tensor:
         if not self.is_with_graph_mask:
@@ -81,14 +83,26 @@ class GraphAutoencoder(BaseModel):
         y_edge_l = torch.clamp(y_edge_l, min=0)
         y_mask_l = torch.clamp(y_mask_l, min=0)
 
-        loss_edges = self.edge_loss_function(y_pred_edge_l, y_edge_l.data)
+        positive_mask = y_edge_l.data == 1
+        positive_fraction = positive_mask.sum() / positive_mask.shape[0]
+        loss_edges_negative = self.edge_loss_function(
+            y_pred_edge_l[~positive_mask], y_edge_l.data[~positive_mask]
+        ) * (1 - positive_fraction)
+        loss_edges_positive = (
+            self.edge_loss_function(
+                y_pred_edge_l[positive_mask], y_edge_l.data[positive_mask]
+            )
+            * positive_fraction
+            * self.weight_loss_positive_edges
+        )
         loss_mask = self.mask_loss_function(y_pred_mask_l, y_mask_l)
-        return loss_edges + loss_mask
+        return loss_edges_negative + loss_edges_positive + loss_mask
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)
         parser = BaseModel.add_model_specific_args(parent_parser=parser)
+
         parser.add_argument(
             "--mask_loss_function",
             dest="mask_loss_function",
