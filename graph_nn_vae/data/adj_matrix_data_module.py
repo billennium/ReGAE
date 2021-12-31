@@ -100,11 +100,11 @@ class AdjMatrixDataModule(BaseDataModule):
                         pass
 
             if len(train_graph_permutations_train) != 0:
-                self.train_dataset = flatten(train_graph_permutations_train)
+                self.train_dataset = train_graph_permutations_train
             if len(train_graph_permutations_val) != 0:
-                self.val_datasets.append(flatten(train_graph_permutations_val))
+                self.val_datasets.append(train_graph_permutations_val)
             if len(train_graph_permutations_test) != 0:
-                self.val_datasets.append(flatten(train_graph_permutations_test))
+                self.val_datasets.append(train_graph_permutations_test)
 
             if self.save_dataset_to_pickle:
                 self.pickle_dataset()
@@ -115,20 +115,16 @@ class AdjMatrixDataModule(BaseDataModule):
         for i, d in enumerate(self.test_datasets):
             print_dataset_statistics(d, f"Test dataset {i}", self.use_labels)
 
-        self.train_dataset = self.minimize_and_append_missing_dataset_info(
+        self.train_dataset = self.prepare_dataset_for_autoencoder(
             self.train_dataset,
-            dataset_name="train set",
+            dataset_name="train",
         )
         self.val_datasets = [
-            self.minimize_and_append_missing_dataset_info(
-                d, dataset_name=f"val set {i}"
-            )
+            self.prepare_dataset_for_autoencoder(d, dataset_name=f"val {i}")
             for i, d in enumerate(self.val_datasets)
         ]
         self.test_datasets = [
-            self.minimize_and_append_missing_dataset_info(
-                d, dataset_name=f"test set {i}"
-            )
+            self.prepare_dataset_for_autoencoder(d, dataset_name=f"test {i}")
             for i, d in enumerate(self.test_datasets)
         ]
 
@@ -136,32 +132,40 @@ class AdjMatrixDataModule(BaseDataModule):
         data = self.data_loader.load_graphs()
         return data["graphs"], data.get("labels", None)
 
-    def minimize_and_append_missing_dataset_info(
+    def prepare_dataset_for_autoencoder(
         self,
         graph_data,
         dataset_name: str = "",
     ) -> List[Tuple[torch.Tensor, int]]:
         """
-        Returns tuples of minimized adj matrices with number of nodes.
+        Reorders adj matrices with bfs, removes duplicates, minimizes the matrices and appends num_nodes info.
         """
         graphs = [el[0] for el in graph_data] if self.use_labels else graph_data
         labels = [el[1] for el in graph_data] if self.use_labels else None
 
-        adjacency_matrices = []
-        adjacency_matrices_labels = [] if labels is not None else None
+        adj_matrices = []
+        adj_matrix_labels = [] if labels is not None else None
 
         for index, adj_matrix in enumerate(
-            tqdm(graphs, desc="minimizing " + dataset_name)
+            tqdm(graphs, desc=f"preparing dataset {dataset_name} for autoencoder")
         ):
-            reshaped_matrix = adjmatrix.minimize_adj_matrix(adj_matrix)
-            adjacency_matrices.append((reshaped_matrix, adj_matrix.shape[0]))
+            adj_matrix = adjmatrix.bfs_ordering(adj_matrix)
+            adj_matrix = adjmatrix.minimize_adj_matrix(adj_matrix)
+            adj_matrices.append((adj_matrix, adj_matrix.shape[0]))
             if labels is not None:
-                adjacency_matrices_labels.append(labels[index])
+                adj_matrix_labels.append(labels[index])
+
+        unique_matrix_indices = adjmatrix.get_unique_indices(
+            [m[0] for m in adj_matrices]
+        )
+        adj_matrices = [adj_matrices[i] for i in unique_matrix_indices]
+        if self.use_labels:
+            adj_matrix_labels = [adj_matrix_labels[i] for i in unique_matrix_indices]
 
         return (
-            list(zip(adjacency_matrices, adjacency_matrices_labels))
-            if adjacency_matrices_labels is not None
-            else adjacency_matrices
+            list(zip(adj_matrices, adj_matrix_labels))
+            if adj_matrix_labels is not None
+            else adj_matrices
         )
 
     def max_number_of_nodes_in_graphs(self, graphs: List[nx.Graph]) -> int:
@@ -178,7 +182,9 @@ class AdjMatrixDataModule(BaseDataModule):
         permuted_graphs = []
 
         for i, graph in enumerate(graphs):
-            graph_permutations = adjmatrix.permute_unique_bfs(graph, num_permutations)
+            graph_permutations = [graph] + [
+                adjmatrix.random_permute(graph) for _ in range(num_permutations - 1)
+            ]
             if self.use_labels:
                 multiplied_labels = [labels[i] for _ in len(graph_permutations)]
                 permuted_graphs.append(list(zip(permuted_graphs, multiplied_labels)))
