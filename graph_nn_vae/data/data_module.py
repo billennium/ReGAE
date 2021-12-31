@@ -78,6 +78,15 @@ class BaseDataModule(pl.LightningDataModule):
     def loss_weight(self) -> Optional[Tensor]:
         return None
 
+    def num_train_dataloaders(self) -> int:
+        return 1
+
+    def num_val_dataloaders(self) -> int:
+        return len(self.val_datasets)
+
+    def num_test_dataloaders(self) -> int:
+        return len(self.test_datasets)
+
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
         parser = ArgumentParser(parents=[parent_parser], add_help=False)

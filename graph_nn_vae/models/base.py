@@ -28,6 +28,10 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         lr_scheduler_metric: str,
         metrics: List[str],
         metric_update_interval: int = 1,
+        # these are used for initializing the apropriate number of metrics
+        num_train_dataloaders: int = 1,
+        num_val_dataloaders: int = 1,
+        num_test_dataloaders: int = 1,
         data_module=None,  # only for returning test_datamodule()
         **kwargs,
     ):
@@ -39,12 +43,38 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         self.lr_scheduler_name = lr_scheduler_name
         self.lr_scheduler_params = lr_scheduler_params
         self.lr_scheduler_metric = lr_scheduler_metric
-        self.metrics_train = nn.ModuleList(get_metrics(metrics))
-        self.metrics_val = nn.ModuleList(get_metrics(metrics))
-        self.metrics_test = nn.ModuleList(get_metrics(metrics))
+        self.initialize_metrics(
+            metrics, num_train_dataloaders, num_val_dataloaders, num_test_dataloaders
+        )
         self.metric_update_interval = metric_update_interval
         self.metric_update_counter = 0
         self.data_module = data_module
+
+    def initialize_metrics(
+        self,
+        metric_names,
+        num_train_dataloaders,
+        num_val_dataloaders,
+        num_test_dataloaders,
+    ):
+        self.metrics_train = nn.ModuleList(
+            [
+                nn.ModuleList(get_metrics(metric_names))
+                for _ in range(num_train_dataloaders)
+            ]
+        )
+        self.metrics_val = nn.ModuleList(
+            [
+                nn.ModuleList(get_metrics(metric_names))
+                for _ in range(num_val_dataloaders)
+            ]
+        )
+        self.metrics_test = nn.ModuleList(
+            [
+                nn.ModuleList(get_metrics(metric_names))
+                for _ in range(num_test_dataloaders)
+            ]
+        )
 
     def forward(self, **kwargs) -> Tensor:
         raise NotImplementedError
@@ -71,7 +101,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             self.metric_update_counter % self.metric_update_interval == 0
         )
         self.metric_update_counter += 1
-        metrics = self.metrics_train if should_update_metric else []
+        metrics = self.metrics_train[dataset_idx] if should_update_metric else []
 
         loss = self.step(batch, metrics)
 
@@ -102,10 +132,11 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         return "" if dataset_idx == 0 else f"_{dataset_idx}"
 
     def validation_step(self, batch, batch_idx, dataset_idx=0):
-        loss = self.step(batch, self.metrics_val)
+        metrics = self.metrics_val[dataset_idx]
+        loss = self.step(batch, metrics)
 
         metric_idx_str = self.get_metric_dataset_idx(dataset_idx)
-        for metric in self.metrics_val:
+        for metric in metrics:
             metric_name = (
                 metric.label if "label" in metric.__dir__() else type(metric).__name__
             )
@@ -121,10 +152,11 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         return loss
 
     def test_step(self, batch, batch_idx, dataset_idx=0):
-        loss = self.step(batch, self.metrics_test)
+        metrics = self.metrics_test[dataset_idx]
+        loss = self.step(batch, metrics)
 
         metric_idx_str = self.get_metric_dataset_idx(dataset_idx)
-        for metric in self.metrics_test:
+        for metric in metrics:
             metric_name = (
                 metric.label if "label" in metric.__dir__() else type(metric).__name__
             )

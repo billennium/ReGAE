@@ -64,7 +64,12 @@ class Experiment:
         )
 
         model = self.model(
-            **vars(args), loss_weight=data_module.loss_weight(), data_module=data_module
+            **vars(args),
+            loss_weight=data_module.loss_weight(),
+            data_module=data_module,
+            num_train_dataloaders=data_module.num_train_dataloaders(),
+            num_val_dataloaders=data_module.num_val_dataloaders(),
+            num_test_dataloaders=data_module.num_test_dataloaders(),
         )
 
         logger = self.create_logger(logger_name=args.logger_name)
