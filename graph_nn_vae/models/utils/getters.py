@@ -23,6 +23,8 @@ def get_loss(name: str, loss_weight: torch.Tensor = None):
         "CrossEntropy": nn.CrossEntropyLoss,
     }
     if loss_weight is not None:
+        if isinstance(loss_weight, float):
+            loss_weight = torch.Tensor([loss_weight])
         return losses[name](weight=loss_weight)
     else:
         return losses[name]()
