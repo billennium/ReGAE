@@ -1,6 +1,5 @@
 from typing import List, Tuple, Dict, Optional
 from argparse import ArgumentParser
-import networkx as nx
 import pickle
 import os
 from tqdm.auto import tqdm
@@ -11,7 +10,6 @@ import torch
 from graph_nn_vae.data.data_module import BaseDataModule
 from graph_nn_vae.data.graph_loaders import GraphLoaderBase
 from graph_nn_vae.util import adjmatrix, split_dataset_train_val_test, flatten
-from graph_nn_vae.util.graphs import max_number_of_nodes_in_graphs
 from graph_nn_vae.util.convert_size import convert_size
 from graph_nn_vae.data.util.print_dataset_statistics import print_dataset_statistics
 
@@ -26,6 +24,8 @@ class AdjMatrixDataModule(BaseDataModule):
         train_val_test_split: list,
         train_val_test_permutation_split: Optional[list],
         bfs: bool = False,
+        deduplicate_train: bool = False,
+        deduplicate_val_test: bool = False,
         use_labels: bool = False,
         save_dataset_to_pickle: str = None,
         pickled_dataset_path: str = None,
@@ -34,6 +34,8 @@ class AdjMatrixDataModule(BaseDataModule):
         super().__init__(**kwargs)
         self.num_dataset_graph_permutations = num_dataset_graph_permutations
         self.bfs = bfs
+        self.deduplicate_train = deduplicate_train
+        self.deduplicate_val_test = deduplicate_val_test
         self.train_val_test_split = train_val_test_split
         self.train_val_test_permutation_split = train_val_test_permutation_split
         self.data_loader = data_loader
@@ -117,14 +119,19 @@ class AdjMatrixDataModule(BaseDataModule):
 
         self.train_dataset = self.prepare_dataset_for_autoencoder(
             self.train_dataset,
+            self.deduplicate_train,
             dataset_name="train",
         )
         self.val_datasets = [
-            self.prepare_dataset_for_autoencoder(d, dataset_name=f"val {i}")
+            self.prepare_dataset_for_autoencoder(
+                d, self.deduplicate_val_test, dataset_name=f"val {i}"
+            )
             for i, d in enumerate(self.val_datasets)
         ]
         self.test_datasets = [
-            self.prepare_dataset_for_autoencoder(d, dataset_name=f"test {i}")
+            self.prepare_dataset_for_autoencoder(
+                d, self.deduplicate_val_test, dataset_name=f"test {i}"
+            )
             for i, d in enumerate(self.test_datasets)
         ]
 
@@ -135,6 +142,7 @@ class AdjMatrixDataModule(BaseDataModule):
     def prepare_dataset_for_autoencoder(
         self,
         graph_data,
+        deduplicate: bool,
         dataset_name: str = "",
     ) -> List[Tuple[torch.Tensor, int]]:
         """
@@ -155,12 +163,10 @@ class AdjMatrixDataModule(BaseDataModule):
             if labels is not None:
                 adj_matrix_labels.append(labels[index])
 
-        unique_matrix_indices = adjmatrix.get_unique_indices(
-            [m[0] for m in adj_matrices]
-        )
-        adj_matrices = [adj_matrices[i] for i in unique_matrix_indices]
-        if self.use_labels:
-            adj_matrix_labels = [adj_matrix_labels[i] for i in unique_matrix_indices]
+        if deduplicate:
+            adj_matrices, adj_matrix_labels = self.deduplicate_graph_batch(
+                adj_matrices, adj_matrix_labels
+            )
 
         return (
             list(zip(adj_matrices, adj_matrix_labels))
@@ -168,12 +174,14 @@ class AdjMatrixDataModule(BaseDataModule):
             else adj_matrices
         )
 
-    def max_number_of_nodes_in_graphs(self, graphs: List[nx.Graph]) -> int:
-        max_number_of_nodes = 0
-        for graph in graphs:
-            if graph.number_of_nodes() > max_number_of_nodes:
-                max_number_of_nodes = graph.number_of_nodes()
-        return max_number_of_nodes
+    def deduplicate_graph_batch(self, adj_matrices, adj_matrix_labels):
+        unique_matrix_indices = adjmatrix.get_unique_indices(
+            [m[0] for m in adj_matrices]
+        )
+        adj_matrices = [adj_matrices[i] for i in unique_matrix_indices]
+        if adj_matrix_labels is not None:
+            adj_matrix_labels = [adj_matrix_labels[i] for i in unique_matrix_indices]
+        return unique_matrix_indices, adj_matrix_labels
 
     def permute_adj_matrices(self, graph_data, num_permutations: int):
         graphs = [el[0] for el in graph_data] if self.use_labels else graph_data
@@ -185,6 +193,7 @@ class AdjMatrixDataModule(BaseDataModule):
             graph_permutations = [graph] + [
                 adjmatrix.random_permute(graph) for _ in range(num_permutations - 1)
             ]
+            graph_permutations = adjmatrix.remove_duplicates(graph_permutations)
             if self.use_labels:
                 multiplied_labels = [labels[i] for _ in len(graph_permutations)]
                 permuted_graphs.append(list(zip(permuted_graphs, multiplied_labels)))
@@ -296,6 +305,18 @@ class AdjMatrixDataModule(BaseDataModule):
                 Use this to check how well the network generalizes to unknown train dataset permutations. \
                 The metrics for the permutation val test datasets will be marked with "_1". \
                 Passing anything but a list will disable permutation splitting.""",
+        )
+        parser.add_argument(
+            "--deduplicate_train",
+            dest="deduplicate_train",
+            action="store_true",
+            help="remove duplicates from the train dataset after applying bfs ordering",
+        )
+        parser.add_argument(
+            "--deduplicate_val_test",
+            dest="deduplicate_val_test",
+            action="store_true",
+            help="remove duplicates from val and test datasets after applying bfs ordering",
         )
         parser.add_argument(
             "--use_labels",
