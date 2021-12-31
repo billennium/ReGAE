@@ -24,13 +24,13 @@ class BaseDataModule(pl.LightningDataModule):
     ):
         super().__init__()
         self.batch_size = batch_size
-        self.batch_size_val = batch_size_val
-        self.batch_size_test = batch_size_test
+        self.batch_size_val = batch_size_val if batch_size_val > 0 else batch_size
+        self.batch_size_test = batch_size_test if batch_size_test > 0 else batch_size
         self.workers = workers
         self.persistent_workers = persistent_workers
         self.train_dataset = None
-        self.val_dataset = None
-        self.test_dataset = None
+        self.val_datasets = []
+        self.test_datasets = []
 
     def train_dataloader(self, **kwargs):
         return data.DataLoader(
@@ -44,24 +44,30 @@ class BaseDataModule(pl.LightningDataModule):
         )
 
     def val_dataloader(self, **kwargs):
-        return data.DataLoader(
-            self.val_dataset,
-            batch_size=self.batch_size_val,
-            num_workers=self.workers,
-            persistent_workers=self.persistent_workers,
-            collate_fn=self.collate_fn_val,
-            **kwargs
-        )
+        return [
+            data.DataLoader(
+                dataset,
+                batch_size=self.batch_size_val,
+                num_workers=self.workers,
+                persistent_workers=self.persistent_workers,
+                collate_fn=self.collate_fn_val,
+                **kwargs
+            )
+            for dataset in self.val_datasets
+        ]
 
     def test_dataloader(self, **kwargs):
-        return data.DataLoader(
-            self.test_dataset,
-            batch_size=self.batch_size_test,
-            num_workers=self.workers,
-            persistent_workers=self.persistent_workers,
-            collate_fn=self.collate_fn_test,
-            **kwargs
-        )
+        return [
+            data.DataLoader(
+                dataset,
+                batch_size=self.batch_size_test,
+                num_workers=self.workers,
+                persistent_workers=self.persistent_workers,
+                collate_fn=self.collate_fn_test,
+                **kwargs
+            )
+            for dataset in self.test_datasets
+        ]
 
     def input_size(self) -> int:
         raise NotImplementedError
@@ -86,7 +92,7 @@ class BaseDataModule(pl.LightningDataModule):
         parser.add_argument(
             "--batch_size_val",
             dest="batch_size_val",
-            default=1,
+            default=-1,
             type=int,
             metavar="SIZE",
             help="batch size of validation data.",
@@ -94,14 +100,14 @@ class BaseDataModule(pl.LightningDataModule):
         parser.add_argument(
             "--batch_size_test",
             dest="batch_size_test",
-            default=1,
+            default=-1,
             type=int,
             metavar="SIZE",
             help="batch size of test data.",
         )
         parser.add_argument(
             "--workers",
-            default=1,
+            default=-1,
             type=int,
             metavar="W",
             help="number of data loading workers",

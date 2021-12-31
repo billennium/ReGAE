@@ -25,7 +25,6 @@ from graph_nn_vae.data.subgraphs import (
 
 class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
     data_name = "DiagBlockRepr"
-    max_num_nodes_in_train_dataset: int
     is_scheduling_initialized = False
 
     def __init__(self, block_size: int, subgraph_scheduler_name: str, **kwargs):
@@ -59,7 +58,9 @@ class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
 
     def init_scheduler(self):
         self.subgraph_size_scheduler.set_epoch_num_source(self.trainer)
-        max_num_nodes_in_train = max(self.train_dataset, key=itemgetter(2))[2]
+        max_num_nodes_in_train = self.get_max_num_nodes_in_dataset(
+            self.train_datasets[0]
+        )
         self.subgraph_size_monitor = SteppingGraphSizeMonitor(
             self.subgraph_size_scheduler.get_current_subgraph_size,
             max_num_nodes_in_train,
@@ -72,11 +73,18 @@ class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
         self.is_logging_initialized = True
         self.is_scheduling_initialized = True
 
+    def get_max_num_nodes_in_dataset(self, dataset):
+        return max(dataset, key=itemgetter(2))[2]
+
     def prepare_data(self, *args, **kwargs):
         super().prepare_data(*args, **kwargs)
         self.train_dataset = self.adjust_batch_representation(self.train_dataset)
-        self.val_dataset = self.adjust_batch_representation(self.val_dataset)
-        self.test_dataset = self.adjust_batch_representation(self.test_dataset)
+        self.val_datasets = [
+            self.adjust_batch_representation(d) for d in self.val_datasets
+        ]
+        self.test_datasets = [
+            self.adjust_batch_representation(d) for d in self.test_datasets
+        ]
 
     def adjust_batch_representation(
         self, batch: List[Tuple[torch.Tensor, int]]

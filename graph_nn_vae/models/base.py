@@ -66,7 +66,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
 
         return loss
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx, dataset_idx=0):
         should_update_metric = (
             self.metric_update_counter % self.metric_update_interval == 0
         )
@@ -74,34 +74,67 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         metrics = self.metrics_train if should_update_metric else []
 
         loss = self.step(batch, metrics)
+
+        metric_idx_str = self.get_metric_dataset_idx(dataset_idx)
         for metric in metrics:
             metric_name = (
                 metric.label if "label" in metric.__dir__() else type(metric).__name__
             )
 
-            self.log(f"{metric_name}/train_avg", metric, on_step=False, on_epoch=True)
-        self.log("loss/train_avg", loss, on_step=False, on_epoch=True)
+            self.log(
+                f"{metric_name}/train_avg{metric_idx_str}",
+                metric,
+                on_step=False,
+                on_epoch=True,
+                add_dataloader_idx=False,
+            )
+        self.log(
+            f"loss/train_avg{metric_idx_str}",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            add_dataloader_idx=False,
+        )
 
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def get_metric_dataset_idx(self, dataset_idx: int) -> str:
+        return "" if dataset_idx == 0 else f"_{dataset_idx}"
+
+    def validation_step(self, batch, batch_idx, dataset_idx=0):
         loss = self.step(batch, self.metrics_val)
+
+        metric_idx_str = self.get_metric_dataset_idx(dataset_idx)
         for metric in self.metrics_val:
             metric_name = (
                 metric.label if "label" in metric.__dir__() else type(metric).__name__
             )
-            self.log(f"{metric_name}/val", metric, prog_bar=True)
-        self.log("loss/val", loss, prog_bar=True)
+            self.log(
+                f"{metric_name}/val{metric_idx_str}",
+                metric,
+                prog_bar=True,
+                add_dataloader_idx=False,
+            )
+        self.log(
+            f"loss/val{metric_idx_str}", loss, prog_bar=True, add_dataloader_idx=False
+        )
         return loss
 
-    def test_step(self, batch, batch_idx):
+    def test_step(self, batch, batch_idx, dataset_idx=0):
         loss = self.step(batch, self.metrics_test)
+
+        metric_idx_str = self.get_metric_dataset_idx(dataset_idx)
         for metric in self.metrics_test:
             metric_name = (
                 metric.label if "label" in metric.__dir__() else type(metric).__name__
             )
-            self.log(f"{metric_name}/test", metric, prog_bar=True)
-        self.log("loss/test", loss)
+            self.log(
+                f"{metric_name}/test{metric_idx_str}",
+                metric,
+                prog_bar=True,
+                add_dataloader_idx=False,
+            )
+        self.log(f"loss/test{metric_idx_str}", loss, add_dataloader_idx=False)
         return loss
 
     def test_dataloader(self):

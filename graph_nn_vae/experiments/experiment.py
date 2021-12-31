@@ -89,8 +89,8 @@ class Experiment:
             trainer.callbacks.append(early_stopping)
 
         args.train_dataset_length = len(data_module.train_dataset)
-        args.val_dataset_length = len(data_module.val_dataset)
-        args.test_dataset_length = len(data_module.test_dataset)
+        args.val_dataset_length = [len(d) for d in data_module.val_datasets]
+        args.test_dataset_length = [len(d) for d in data_module.test_datasets]
 
         arg_dict = {
             k: v for (k, v) in vars(args).items() if not callable(v) and v is not None
