@@ -54,7 +54,9 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
         **kwargs
     ):
         kwargs["data_module"] = self
-        self.subgraph_size_scheduler = self.subgraph_size_scheduler(scheduler_params)
+        self.subgraph_size_scheduler = self.subgraph_size_scheduler(
+            scheduler_params, **kwargs
+        )
         self.subgraph_stride = max(min(1, subgraph_stride), 0)
         self.minimal_subgraph_size = minimal_subgraph_size
         self.current_metrics = {}
@@ -64,9 +66,7 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
 
     def init_scheduler(self):
         self.subgraph_size_scheduler.set_epoch_num_source(self.trainer)
-        max_num_nodes_in_train = self.get_max_num_nodes_in_dataset(
-            self.train_datasets[0]
-        )
+        max_num_nodes_in_train = self.get_max_num_nodes_in_dataset(self.train_dataset)
         self.subgraph_size_monitor = SteppingGraphSizeMonitor(
             self.subgraph_size_scheduler.get_current_subgraph_size,
             max_num_nodes_in_train,

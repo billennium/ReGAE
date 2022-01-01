@@ -43,9 +43,13 @@ class MLPClassifier(BaseModel):
     def forward(self, graphs: Tensor) -> Tensor:
         return self.nn(graphs)
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
+        try:
+            parent_parser = BaseModel.add_model_specific_args(parent_parser)
+        except ArgumentError:
+            pass
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--classifier_hidden_layer_sizes",
             dest="classifier_hidden_layer_sizes",
@@ -70,4 +74,4 @@ class MLPClassifier(BaseModel):
             metavar="DROPOUT",
             help="value of dropout between classifier hidden layers",
         )
-        return parser
+        return parent_parser

@@ -195,8 +195,8 @@ class AdjMatrixDataModule(BaseDataModule):
             ]
             graph_permutations = adjmatrix.remove_duplicates(graph_permutations)
             if self.use_labels:
-                multiplied_labels = [labels[i] for _ in len(graph_permutations)]
-                permuted_graphs.append(list(zip(permuted_graphs, multiplied_labels)))
+                multiplied_labels = [labels[i] for _ in range(len(graph_permutations))]
+                permuted_graphs.append(list(zip(graph_permutations, multiplied_labels)))
             else:
                 permuted_graphs.append(graph_permutations)
 
