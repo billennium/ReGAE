@@ -49,7 +49,6 @@ class GraphClassifier(RecurrentEncoderGraphClassifier):
             datasets_dir="",
             dataset_name="IMDB-BINARY",
             use_labels=True,
-            use_catche=True,
             workers=0,
         )
         return parser

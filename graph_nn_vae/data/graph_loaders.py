@@ -148,10 +148,4 @@ class RealGraphLoader(GraphLoaderBase):
             type=str,
             help="name of dataset (IMDB_BINARY, IMDB_MULTI, COLLAB, REDDIT-BINARY, REDDIT-MULTI-5K, REDDIT-MULTI-12K)",
         )
-        parser.add_argument(
-            "--use_catche",
-            dest="use_catche",
-            action="store_true",
-            help="catche subgraphs into pickle file, if file exist, read insted of loading from txt files",
-        )
         return parser
