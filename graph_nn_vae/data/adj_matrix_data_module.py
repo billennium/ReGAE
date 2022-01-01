@@ -8,14 +8,14 @@ import json
 import torch
 
 from graph_nn_vae.data.data_module import BaseDataModule
-from graph_nn_vae.data.graph_loaders import GraphLoaderBase
+from graph_nn_vae.data.graph_loaders import BaseGraphLoader
 from graph_nn_vae.util import adjmatrix, split_dataset_train_val_test, flatten, errors
 from graph_nn_vae.util.convert_size import convert_size
 from graph_nn_vae.data.util.print_dataset_statistics import print_dataset_statistics
 
 
 class AdjMatrixDataModule(BaseDataModule):
-    graphloader_class: Type[GraphLoaderBase] = None  # override in experiment
+    graphloader_class: Type[BaseGraphLoader] = None  # override in experiment
 
     def __init__(
         self,
@@ -49,7 +49,7 @@ class AdjMatrixDataModule(BaseDataModule):
             raise errors.MisconfigurationException(
                 "the graphloader_class attribute of the DataModule was not specified"
             )
-        self.graphloader: GraphLoaderBase = self.graphloader_class(**kwargs)
+        self.graphloader: BaseGraphLoader = self.graphloader_class(**kwargs)
         self.data_name = self.graphloader.data_name
 
     def prepare_data(self, *args, **kwargs):

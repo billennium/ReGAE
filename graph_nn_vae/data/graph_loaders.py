@@ -13,7 +13,7 @@ from graph_nn_vae.data.synthetic_graphs_create import create_synthetic_graphs
 from graph_nn_vae.util.adjmatrix import filter_out_big_graphs
 
 
-class GraphLoaderBase:
+class BaseGraphLoader:
     data_name = "graph_loader"
 
     def __init__(self, **kwargs):
@@ -30,7 +30,7 @@ class GraphLoaderBase:
         return parent_parser
 
 
-class SyntheticGraphLoader(GraphLoaderBase):
+class SyntheticGraphLoader(BaseGraphLoader):
     data_name = "synthetic"
 
     def __init__(self, graph_type: str = "", **kwargs):
@@ -48,7 +48,7 @@ class SyntheticGraphLoader(GraphLoaderBase):
 
     @classmethod
     def add_model_specific_args(cls, parent_parser: ArgumentParser):
-        parent_parser = GraphLoaderBase.add_model_specific_args(parent_parser)
+        parent_parser = BaseGraphLoader.add_model_specific_args(parent_parser)
         parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--graph_type",
@@ -60,7 +60,7 @@ class SyntheticGraphLoader(GraphLoaderBase):
         return parent_parser
 
 
-class RealGraphLoader(GraphLoaderBase):
+class RealGraphLoader(BaseGraphLoader):
     data_name = "real"
 
     def __init__(
@@ -127,7 +127,7 @@ class RealGraphLoader(GraphLoaderBase):
 
     @classmethod
     def add_model_specific_args(cls, parent_parser: ArgumentParser):
-        parent_parser = GraphLoaderBase.add_model_specific_args(parent_parser)
+        parent_parser = BaseGraphLoader.add_model_specific_args(parent_parser)
         parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--max_graph_size",

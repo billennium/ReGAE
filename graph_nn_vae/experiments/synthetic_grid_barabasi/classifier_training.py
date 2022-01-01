@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 
 from graph_nn_vae.experiments.experiment import Experiment
 from graph_nn_vae.experiments.decorators import add_graphloader_args
-from graph_nn_vae.data import GraphLoaderBase, DiagonalRepresentationGraphDataModule
+from graph_nn_vae.data import BaseGraphLoader, DiagonalRepresentationGraphDataModule
 from graph_nn_vae.models.classifier_base import RecurrentEncoderGraphClassifier
 
 
@@ -51,7 +51,7 @@ class ExperimentModel(RecurrentEncoderGraphClassifier):
         return parser
 
 
-class GridBarabasiClassification(GraphLoaderBase):
+class GridBarabasiClassification(BaseGraphLoader):
     data_name = "grid_barabasi_classification"
 
     def load_graphs(self):

@@ -6,7 +6,7 @@ import numpy as np
 from graph_nn_vae.experiments.experiment import Experiment
 from graph_nn_vae.experiments.decorators import add_graphloader_args
 from graph_nn_vae.data import (
-    GraphLoaderBase,
+    BaseGraphLoader,
     DiagonalRepresentationGraphDataModule,
 )
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
@@ -60,7 +60,7 @@ class ExperimentModel(RecurrentGraphAutoencoder):
         return parser
 
 
-class OneBigBarabasiGraphLoader(GraphLoaderBase):
+class OneBigBarabasiGraphLoader(BaseGraphLoader):
     data_name = "one_big_barabasi"
 
     def __init__(self, barabasi_size, **kwargs):
@@ -78,7 +78,7 @@ class OneBigBarabasiGraphLoader(GraphLoaderBase):
 
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
-        parser = GraphLoaderBase.add_model_specific_args(parent_parser)
+        parser = BaseGraphLoader.add_model_specific_args(parent_parser)
         parser.add_argument(
             "--barabasi_size",
             dest="barabasi_size",

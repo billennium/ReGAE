@@ -8,9 +8,8 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping
 import torch.multiprocessing
-from graph_nn_vae.data import BaseDataModule, GraphLoaderBase
+from graph_nn_vae.data import BaseDataModule
 from graph_nn_vae.models.base import BaseModel
-from graph_nn_vae.models.autoencoder_components import GraphEncoder
 
 from pytorch_lightning.callbacks import LearningRateMonitor
 
