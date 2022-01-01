@@ -20,7 +20,7 @@ from graph_nn_vae.data.subgraphs import (
 )
 
 
-class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
+class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
     data_name = "DiagBlockRepr"
     is_scheduling_initialized = False
 
