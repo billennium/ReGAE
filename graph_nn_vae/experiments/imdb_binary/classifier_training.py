@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 
 from graph_nn_vae.experiments.experiment import Experiment
+from graph_nn_vae.experiments.decorators import add_dataloader_args
 from graph_nn_vae.data import (
     DiagonalRepresentationGraphDataModule,
     RealGraphLoader,
@@ -8,7 +9,7 @@ from graph_nn_vae.data import (
 from graph_nn_vae.models.classifier_base import RecurrentEncoderGraphClassifier
 
 
-class GraphClassifier(RecurrentEncoderGraphClassifier):
+class ExperimentModel(RecurrentEncoderGraphClassifier):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
         parser = RecurrentEncoderGraphClassifier.add_model_specific_args(parent_parser)
@@ -53,7 +54,10 @@ class GraphClassifier(RecurrentEncoderGraphClassifier):
         return parser
 
 
+@add_dataloader_args
+class ExperimentDataModule(DiagonalRepresentationGraphDataModule):
+    dataloader_class = RealGraphLoader
+
+
 if __name__ == "__main__":
-    Experiment(
-        GraphClassifier, DiagonalRepresentationGraphDataModule, RealGraphLoader
-    ).run()
+    Experiment(ExperimentModel, ExperimentDataModule).run()

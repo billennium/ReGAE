@@ -1,32 +1,17 @@
 from argparse import ArgumentParser
-from typing import List
-import networkx as nx
 
 from graph_nn_vae.experiments.experiment import Experiment
+from graph_nn_vae.experiments.decorators import add_dataloader_args
 from graph_nn_vae.data import (
-    GraphLoaderBase,
+    DiagonalRepresentationGraphDataModule,
     SyntheticGraphLoader,
-    SmoothLearningStepGraphDataModule,
 )
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
-from graph_nn_vae.models.autoencoder_components import GraphDecoder
-from graph_nn_vae.models.edge_decoders.memory_standard import (
-    MemoryEdgeDecoder,
-    ZeroFillingMemoryEdgeDecoder,
-)
-from graph_nn_vae.models.edge_decoders.single_input_embedding import (
-    MeanSingleInputMemoryEdgeDecoder,
-    RandomSingleInputMemoryEdgeDecoder,
-    WeightingSingleInputMemoryEdgeDecoder,
-)
 
 
-class GraphAutoencoder(RecurrentGraphAutoencoder):
+class ExperimentModel(RecurrentGraphAutoencoder):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
-        RecurrentGraphAutoencoder.graph_decoder_class = GraphDecoder
-        RecurrentGraphAutoencoder.edge_decoder_class = MemoryEdgeDecoder
-
         parser = RecurrentGraphAutoencoder.add_model_specific_args(parent_parser)
         parser.set_defaults(
             loss_function="BCEWithLogits",
@@ -57,7 +42,6 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             check_val_every_n_epoch=5,
             metric_update_interval=1,
             early_stopping=False,
-            bfs=True,
             num_dataset_graph_permutations=1,
             minimal_subgraph_size=10,
             subgraph_stride=0.5,
@@ -67,15 +51,15 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
                 "metrics_treshold": 0.6,
                 "step": 0.025,
             },
-            workers=0,
-            # gpus=1,
-            # precision=16,
             graph_type="grid",
         )
         return parser
 
 
+@add_dataloader_args
+class ExperimentDataModule(DiagonalRepresentationGraphDataModule):
+    dataloader_class = SyntheticGraphLoader
+
+
 if __name__ == "__main__":
-    Experiment(
-        GraphAutoencoder, SmoothLearningStepGraphDataModule, SyntheticGraphLoader
-    ).run()
+    Experiment(ExperimentModel, ExperimentDataModule).run()

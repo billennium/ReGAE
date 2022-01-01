@@ -21,7 +21,6 @@ from graph_nn_vae.data.subgraphs import (
 
 
 class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
-    data_name = "DiagBlockRepr"
     is_scheduling_initialized = False
 
     def __init__(
