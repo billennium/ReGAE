@@ -143,13 +143,15 @@ class GraphEncoder(BaseModel):
             num_edges[i, 0] = torch.sum(diagonal_repr_graph)
         return F.mse_loss(embeddings, num_edges)
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
         try:  # these may collide with an upper autoencoder, but that's fine
-            parser = BaseModel.add_model_specific_args(parent_parser=parser)
+            parent_parser = BaseModel.add_model_specific_args(
+                parent_parser=parent_parser
+            )
         except ArgumentError:
             pass
+        parser = parent_parser.add_argument_group(cls.__name__)
         try:  # these may collide with an encoder module, but that's fine
             parser = BaseModel.add_model_specific_args(parent_parser=parser)
             parser.add_argument(
@@ -180,7 +182,7 @@ class GraphEncoder(BaseModel):
             )
         except ArgumentError:
             pass
-        return parser
+        return parent_parser
 
 
 class GraphDecoder(BaseModel):
@@ -440,13 +442,15 @@ class GraphDecoder(BaseModel):
         )
         return new_border_embedding
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
         try:  # these may collide with an upper autoencoder, but that's fine
-            parser = BaseModel.add_model_specific_args(parent_parser=parser)
+            parent_parser = BaseModel.add_model_specific_args(
+                parent_parser=parent_parser
+            )
         except ArgumentError:
             pass
+        parser = parent_parser.add_argument_group(cls.__name__)
         try:  # these may collide with an encoder module, but that's fine
             parser.add_argument(
                 "--embedding-size",
@@ -500,7 +504,7 @@ class GraphDecoder(BaseModel):
             )
         except ArgumentError:
             pass
-        return parser
+        return parent_parser
 
 
 def find_finished_masks(

@@ -102,8 +102,10 @@ class RecurrentGraphVAE(RecurrentGraphAutoencoder):
 
     @classmethod
     def add_model_specific_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser = RecurrentGraphAutoencoder.add_model_specific_args(parent_parser=parser)
+        parent_parser = RecurrentGraphAutoencoder.add_model_specific_args(
+            parent_parser=parent_parser
+        )
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--kld_loss_weight",
             dest="kld_loss_weight",
@@ -112,4 +114,4 @@ class RecurrentGraphVAE(RecurrentGraphAutoencoder):
             metavar="LOSS_WEIGHT",
             help="weight of the Kullback-Leibler divergence loss",
         )
-        return parser
+        return parent_parser

@@ -52,9 +52,10 @@ class Experiment:
 
         torch.multiprocessing.set_sharing_strategy("file_system")
 
-        # if args.fast_dev_run:
-        args.batch_size_val = args.batch_size
-        args.batch_size_test = args.batch_size
+        if args.batch_size_val is None:
+            args.batch_size_val = args.batch_size
+        if args.batch_size_test is None:
+            args.batch_size_test = args.batch_size
 
         self.data_loader: GraphLoaderBase = self.data_loader(**vars(args))
 
@@ -63,7 +64,12 @@ class Experiment:
         )
 
         model = self.model(
-            **vars(args), loss_weight=data_module.loss_weight(), data_module=data_module
+            **vars(args),
+            loss_weight=data_module.loss_weight(),
+            data_module=data_module,
+            num_train_dataloaders=data_module.num_train_dataloaders(),
+            num_val_dataloaders=data_module.num_val_dataloaders(),
+            num_test_dataloaders=data_module.num_test_dataloaders(),
         )
 
         logger = self.create_logger(logger_name=args.logger_name)
@@ -88,8 +94,8 @@ class Experiment:
             trainer.callbacks.append(early_stopping)
 
         args.train_dataset_length = len(data_module.train_dataset)
-        args.val_dataset_length = len(data_module.val_dataset)
-        args.test_dataset_length = len(data_module.test_dataset)
+        args.val_dataset_length = [len(d) for d in data_module.val_datasets]
+        args.test_dataset_length = [len(d) for d in data_module.test_datasets]
 
         arg_dict = {
             k: v for (k, v) in vars(args).items() if not callable(v) and v is not None
@@ -142,7 +148,9 @@ class Experiment:
         )
         return parser
 
-    def add_experiment_parser(self, parser: argparse.ArgumentParser):
+    @classmethod
+    def add_experiment_parser(cls, parent_parser: argparse.ArgumentParser):
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--no-evaluate",
             dest="no_evaluate",
@@ -205,4 +213,4 @@ class Experiment:
             action="store_true",
             help="Enable learning rate monitor",
         )
-        return parser
+        return parent_parser

@@ -16,7 +16,7 @@ def minimize_and_pad(adj_matrix: np.ndarray, target_num_nodes: int) -> Tensor:
         constant_values=0.0,
     )
     torch_matrix = torch.Tensor(padded_matrix)
-    if len(torch_matrix.shape) == 2:
+    if torch_matrix.ndim == 2:
         torch_matrix = torch_matrix[:, :, None]
     return torch_matrix
 

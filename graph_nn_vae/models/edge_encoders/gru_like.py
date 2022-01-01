@@ -51,6 +51,6 @@ class GRULikeEdgeEncoder(nn.Module):
         y = weighted_average(weighted_prev_emb, h, mem_overwrite_ratio)
         return y
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
         return parent_parser

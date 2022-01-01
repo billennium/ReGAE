@@ -1,6 +1,5 @@
 from typing import List, Tuple
 from argparse import ArgumentError, ArgumentParser
-
 from operator import itemgetter
 
 import torch
@@ -14,21 +13,24 @@ from graph_nn_vae.util.adjmatrix.diagonal_block_representation import (
     adj_matrix_to_diagonal_block_representation,
     calculate_num_blocks,
 )
-
 from graph_nn_vae.util.callbacks import MetricMonitor, SteppingGraphSizeMonitor
 from graph_nn_vae.data.subgraphs import (
     get_subgraph_size_scheduler,
     generate_subgraphs,
-    SubgraphSizeScheduler,
 )
 
 
-class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
+class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
     data_name = "DiagBlockRepr"
-    max_num_nodes_in_train_dataset: int
     is_scheduling_initialized = False
 
-    def __init__(self, block_size: int, subgraph_scheduler_name: str, **kwargs):
+    def __init__(
+        self,
+        block_size: int,
+        subgraph_scheduler_name: str,
+        subgraph_scheduler_params: dict,
+        **kwargs
+    ):
         self.block_size = block_size
 
         super().__init__(**kwargs)
@@ -42,14 +44,17 @@ class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
         )
 
         if self.subgraph_size_scheduler is not None:
-            self.prepare_module_to_smooth_learning(**kwargs)
+            self.prepare_module_to_smooth_learning(subgraph_scheduler_params, **kwargs)
 
     def prepare_module_to_smooth_learning(
-        self, subgraph_stride: float = 0.5, minimal_subgraph_size: int = 10, **kwargs
+        self,
+        scheduler_params: dict,
+        subgraph_stride: float,
+        minimal_subgraph_size: int,
+        **kwargs
     ):
         kwargs["data_module"] = self
-        self.subgraph_size_scheduler = self.subgraph_size_scheduler(**kwargs)
-        # self.collate_fn_train = self.collate_graph_batch_training
+        self.subgraph_size_scheduler = self.subgraph_size_scheduler(scheduler_params)
         self.subgraph_stride = max(min(1, subgraph_stride), 0)
         self.minimal_subgraph_size = minimal_subgraph_size
         self.current_metrics = {}
@@ -59,7 +64,9 @@ class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
 
     def init_scheduler(self):
         self.subgraph_size_scheduler.set_epoch_num_source(self.trainer)
-        max_num_nodes_in_train = max(self.train_dataset, key=itemgetter(2))[2]
+        max_num_nodes_in_train = self.get_max_num_nodes_in_dataset(
+            self.train_datasets[0]
+        )
         self.subgraph_size_monitor = SteppingGraphSizeMonitor(
             self.subgraph_size_scheduler.get_current_subgraph_size,
             max_num_nodes_in_train,
@@ -72,11 +79,18 @@ class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
         self.is_logging_initialized = True
         self.is_scheduling_initialized = True
 
+    def get_max_num_nodes_in_dataset(self, dataset):
+        return max(dataset, key=itemgetter(2))[2]
+
     def prepare_data(self, *args, **kwargs):
         super().prepare_data(*args, **kwargs)
         self.train_dataset = self.adjust_batch_representation(self.train_dataset)
-        self.val_dataset = self.adjust_batch_representation(self.val_dataset)
-        self.test_dataset = self.adjust_batch_representation(self.test_dataset)
+        self.val_datasets = [
+            self.adjust_batch_representation(d) for d in self.val_datasets
+        ]
+        self.test_datasets = [
+            self.adjust_batch_representation(d) for d in self.test_datasets
+        ]
 
     def adjust_batch_representation(
         self, batch: List[Tuple[torch.Tensor, int]]
@@ -88,7 +102,7 @@ class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
             matrix = graph_info[0]
             num_nodes = graph_info[1]
             diag_block_graph = adj_matrix_to_diagonal_block_representation(
-                matrix, num_nodes, self.block_size
+                matrix, num_nodes, self.block_size, pad_value=-1
             )
             adj_matrix_mask = torch.tril(
                 torch.ones((num_nodes, num_nodes)), diagonal=-1
@@ -194,8 +208,8 @@ class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
         return splitted_graphs, splitted_graph_masks, splitted_graphs_sizes
 
     def collate_graph_batch(self, batch):
-        # As part of the collation graph diag_repr are padded with 0.0 and the graph masks
-        # are padded with 1.0 to represent the end of the graphs.
+        # As part of the collation graph diag_repr and masks are padded. The graph masks 0.0 paddings
+        # represent the end of the graphs.
 
         graphs = torch.nn.utils.rnn.pad_sequence(
             [g[0][0] if self.use_labels else g[0] for g in batch],
@@ -211,21 +225,28 @@ class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
 
         if self.use_labels:
             labels = torch.LongTensor([g[1] for g in batch])
-            return graphs, graph_masks, num_nodes, labels
+            return (graphs, graph_masks, num_nodes, labels)
 
         else:
-            return graphs, graph_masks, num_nodes
+            return (graphs, graph_masks, num_nodes)
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser):
-        parser = AdjMatrixDataModule.add_model_specific_args(parent_parser)
-        parser = SubgraphSizeScheduler.add_model_specific_args(parser)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser):
+        parent_parser = AdjMatrixDataModule.add_model_specific_args(parent_parser)
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--subgraph_scheduler_name",
             dest="subgraph_scheduler_name",
             default="no_graph_scheduler",
             type=str,
             help="name of maximum subgraph size scheduler",
+        )
+        parser.add_argument(
+            "--subgraph_scheduler_params",
+            dest="subgraph_scheduler_params",
+            default={},
+            type=dict,
+            help="parameters for selected subgraph size scheduler",
         )
         parser.add_argument(
             "--subgraph_depth",
@@ -270,4 +291,4 @@ class DiagonalBlockRepresentationGraphDataModule(AdjMatrixDataModule):
         except ArgumentError:
             pass
 
-        return parser
+        return parent_parser

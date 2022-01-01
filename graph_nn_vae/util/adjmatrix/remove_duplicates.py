@@ -1,14 +1,20 @@
-import torch
 import numpy as np
-from tqdm import tqdm
+import torch
+from torch import Tensor
 
 
-def remove_duplicates(graphs: list, labels: list = None):
-    adjency_matrixes = [el[0] for el in graphs]
-    hashes = [hash(el.int().numpy().tostring()) for el in adjency_matrixes]
+def remove_duplicates(graphs: list):
+    indices = get_unique_indices(graphs)
+    return [graphs[i] for i in indices]
+
+
+def get_unique_indices(graphs: list) -> list[int]:
+    hashes = [hash_graph(g) for g in graphs]
     _, indices = np.unique(hashes, return_index=True)
+    return indices
 
-    if labels is None:
-        return [graphs[i] for i in indices], None
-    else:
-        return [graphs[i] for i in indices], [labels[i] for i in indices]
+
+def hash_graph(g):
+    if isinstance(g, Tensor):
+        g = g.numpy()
+    return hash(g.tobytes())

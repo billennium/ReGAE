@@ -22,12 +22,15 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         loss_weight: torch.Tensor,
         learning_rate: float,
         optimizer: str,
-        weight_decay: float,
         lr_scheduler_name: str,
         lr_scheduler_params: dict,
         lr_scheduler_metric: str,
         metrics: List[str],
         metric_update_interval: int = 1,
+        # these are used for initializing the apropriate number of metrics
+        num_train_dataloaders: int = 1,
+        num_val_dataloaders: int = 1,
+        num_test_dataloaders: int = 1,
         data_module=None,  # only for returning test_datamodule()
         **kwargs,
     ):
@@ -35,16 +38,41 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         self.loss_function = get_loss(loss_function, loss_weight)
         self.learning_rate = learning_rate
         self.optimizer = get_optimizer(optimizer)
-        self.weight_decay = weight_decay
         self.lr_scheduler_name = lr_scheduler_name
         self.lr_scheduler_params = lr_scheduler_params
         self.lr_scheduler_metric = lr_scheduler_metric
-        self.metrics_train = nn.ModuleList(get_metrics(metrics))
-        self.metrics_val = nn.ModuleList(get_metrics(metrics))
-        self.metrics_test = nn.ModuleList(get_metrics(metrics))
+        self.initialize_metrics(
+            metrics, num_train_dataloaders, num_val_dataloaders, num_test_dataloaders
+        )
         self.metric_update_interval = metric_update_interval
         self.metric_update_counter = 0
         self.data_module = data_module
+
+    def initialize_metrics(
+        self,
+        metric_names,
+        num_train_dataloaders,
+        num_val_dataloaders,
+        num_test_dataloaders,
+    ):
+        self.metrics_train = nn.ModuleList(
+            [
+                nn.ModuleList(get_metrics(metric_names))
+                for _ in range(num_train_dataloaders)
+            ]
+        )
+        self.metrics_val = nn.ModuleList(
+            [
+                nn.ModuleList(get_metrics(metric_names))
+                for _ in range(num_val_dataloaders)
+            ]
+        )
+        self.metrics_test = nn.ModuleList(
+            [
+                nn.ModuleList(get_metrics(metric_names))
+                for _ in range(num_test_dataloaders)
+            ]
+        )
 
     def forward(self, **kwargs) -> Tensor:
         raise NotImplementedError
@@ -66,42 +94,77 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
 
         return loss
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx, dataset_idx=0):
         should_update_metric = (
             self.metric_update_counter % self.metric_update_interval == 0
         )
         self.metric_update_counter += 1
-        metrics = self.metrics_train if should_update_metric else []
+        metrics = self.metrics_train[dataset_idx] if should_update_metric else []
 
         loss = self.step(batch, metrics)
+
+        metric_idx_str = self.get_metric_dataset_idx(dataset_idx)
         for metric in metrics:
             metric_name = (
                 metric.label if "label" in metric.__dir__() else type(metric).__name__
             )
 
-            self.log(f"{metric_name}/train_avg", metric, on_step=False, on_epoch=True)
-        self.log("loss/train_avg", loss, on_step=False, on_epoch=True)
+            self.log(
+                f"{metric_name}/train_avg{metric_idx_str}",
+                metric,
+                on_step=False,
+                on_epoch=True,
+                add_dataloader_idx=False,
+            )
+        self.log(
+            f"loss/train_avg{metric_idx_str}",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            add_dataloader_idx=False,
+        )
 
         return loss
 
-    def validation_step(self, batch, batch_idx):
-        loss = self.step(batch, self.metrics_val)
-        for metric in self.metrics_val:
+    def get_metric_dataset_idx(self, dataset_idx: int) -> str:
+        return "" if dataset_idx == 0 else f"_{dataset_idx}"
+
+    def validation_step(self, batch, batch_idx, dataset_idx=0):
+        metrics = self.metrics_val[dataset_idx]
+        loss = self.step(batch, metrics)
+
+        metric_idx_str = self.get_metric_dataset_idx(dataset_idx)
+        for metric in metrics:
             metric_name = (
                 metric.label if "label" in metric.__dir__() else type(metric).__name__
             )
-            self.log(f"{metric_name}/val", metric, prog_bar=True)
-        self.log("loss/val", loss, prog_bar=True)
+            self.log(
+                f"{metric_name}/val{metric_idx_str}",
+                metric,
+                prog_bar=True,
+                add_dataloader_idx=False,
+            )
+        self.log(
+            f"loss/val{metric_idx_str}", loss, prog_bar=True, add_dataloader_idx=False
+        )
         return loss
 
-    def test_step(self, batch, batch_idx):
-        loss = self.step(batch, self.metrics_test)
-        for metric in self.metrics_test:
+    def test_step(self, batch, batch_idx, dataset_idx=0):
+        metrics = self.metrics_test[dataset_idx]
+        loss = self.step(batch, metrics)
+
+        metric_idx_str = self.get_metric_dataset_idx(dataset_idx)
+        for metric in metrics:
             metric_name = (
                 metric.label if "label" in metric.__dir__() else type(metric).__name__
             )
-            self.log(f"{metric_name}/test", metric, prog_bar=True)
-        self.log("loss/test", loss)
+            self.log(
+                f"{metric_name}/test{metric_idx_str}",
+                metric,
+                prog_bar=True,
+                add_dataloader_idx=False,
+            )
+        self.log(f"loss/test{metric_idx_str}", loss, add_dataloader_idx=False)
         return loss
 
     def test_dataloader(self):
@@ -116,9 +179,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             self.logger.experiment.flush()
 
     def configure_optimizers(self):
-        optimizer = self.optimizer(
-            self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
-        )
+        optimizer = self.optimizer(self.parameters(), lr=self.learning_rate)
 
         scheduler = get_lr_scheduler(self.lr_scheduler_name)(
             optimizer=optimizer, **self.lr_scheduler_params
@@ -130,9 +191,9 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             "monitor": self.lr_scheduler_metric,
         }
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser):
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser):
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--loss-function",
             dest="loss_function",
@@ -157,14 +218,6 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             type=str,
             metavar="OPT",
             help="name of optimizer",
-        )
-        parser.add_argument(
-            "--weight-decay",
-            dest="weight_decay",
-            default=0.0,
-            type=float,
-            metavar="FLOAT",
-            help="weight decay",
         )
         parser.add_argument(
             "--metrics",
@@ -203,4 +256,4 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             type=str,
             help="metric to monitor for learning rate scheduler, only when lr_schduler is set",
         )
-        return parser
+        return parent_parser

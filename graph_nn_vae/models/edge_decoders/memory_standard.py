@@ -81,9 +81,9 @@ class MemoryEdgeDecoder(nn.Module):
 
         return decoded_edges_with_mask, new_embedding_l, new_embedding_r
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--decoder_hidden_layer_sizes",
             dest="decoder_hidden_layer_sizes",
@@ -100,7 +100,7 @@ class MemoryEdgeDecoder(nn.Module):
             metavar="ACTIVATION_F_NAME",
             help="name of the activation function of hidden layers",
         )
-        return parser
+        return parent_parser
 
 
 class ZeroFillingMemoryEdgeDecoder(MemoryEdgeDecoder):
@@ -137,10 +137,10 @@ class ZeroFillingMemoryEdgeDecoder(MemoryEdgeDecoder):
         )
         return weighted_average(new_embedding, other_embedding, weight)
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser = MemoryEdgeDecoder.add_model_specific_args(parser)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
+        parent_parser = MemoryEdgeDecoder.add_model_specific_args(parent_parser)
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--edge_decoder_filling_nn_layer_sizes",
             dest="edge_decoder_filling_nn_layer_sizes",
@@ -157,4 +157,4 @@ class ZeroFillingMemoryEdgeDecoder(MemoryEdgeDecoder):
             metavar="ACTIVATION_F_NAME",
             help="name of the activation function of the edge decoderr's input embedding filling nn",
         )
-        return parser
+        return parent_parser
