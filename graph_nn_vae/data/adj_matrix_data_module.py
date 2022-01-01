@@ -59,6 +59,9 @@ class AdjMatrixDataModule(BaseDataModule):
                 )
 
             graph_data = list(zip(graphs, graph_labels)) if self.use_labels else graphs
+            print_dataset_statistics(
+                graph_data, "Full original dataset", self.use_labels
+            )
 
             train_graphs, val_graphs, test_graphs = split_dataset_train_val_test(
                 graph_data, self.train_val_test_split
