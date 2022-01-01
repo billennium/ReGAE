@@ -31,7 +31,7 @@ class AdjMatrixDataModule(BaseDataModule):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.initialize_graphloader(**kwargs)
+        self.initialize_graphloader(use_labels=use_labels, **kwargs)
         self.num_dataset_graph_permutations = num_dataset_graph_permutations
         self.bfs = bfs
         self.deduplicate_train = deduplicate_train
