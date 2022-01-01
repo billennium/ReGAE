@@ -19,8 +19,6 @@ from graph_nn_vae.util.adjmatrix.diagonal_representation import (
 
 
 class GraphAutoencoder(BaseModel):
-    is_with_graph_mask = False
-
     def __init__(
         self,
         loss_function: str,

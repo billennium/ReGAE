@@ -18,12 +18,8 @@ class RecurrentGraphVAE(RecurrentGraphAutoencoder):
             self.encoder.embedding_size, self.encoder.embedding_size
         )
         self.kld_loss_weight = kld_loss_weight
-        # self.loss_kld_weight_step = 0.00001
 
     def step(self, batch, metrics: List[Callable] = []) -> Tensor:
-        if not self.is_with_graph_mask:
-            return super().step(batch, metrics)
-
         y_pred, mu, log_var, diagonal_embeddings_norm = self(batch)
         y_edge, y_mask, y_pred_edge, y_pred_mask = self.adjust_y_to_prediction(
             batch, y_pred
