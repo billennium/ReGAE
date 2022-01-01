@@ -167,7 +167,8 @@ class AdjMatrixDataModule(BaseDataModule):
         for index, adj_matrix in enumerate(
             tqdm(graphs, desc=f"preparing dataset {dataset_name} for autoencoder")
         ):
-            adj_matrix = adjmatrix.bfs_ordering(adj_matrix)
+            if self.bfs:
+                adj_matrix = adjmatrix.bfs_ordering(adj_matrix)
             adj_matrix = adjmatrix.minimize_adj_matrix(adj_matrix)
             adj_matrices.append((adj_matrix, adj_matrix.shape[0]))
             if labels is not None:
