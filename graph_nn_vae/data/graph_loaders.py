@@ -137,7 +137,7 @@ class RealGraphLoader(GraphLoaderBase):
         parser.add_argument(
             "--datasets_dir",
             dest="datasets_dir",
-            default="",
+            default="datasets",
             type=str,
             help="dir to folder of datasets (imdb, reddit, collab)",
         )

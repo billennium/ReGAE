@@ -68,7 +68,6 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             bfs=True,
             num_dataset_graph_permutations=5,
             train_val_test_permutation_split=[0.8, 0.2, 0.0],
-            datasets_dir="",
             dataset_name="IMDB-BINARY",
         )
         return parser

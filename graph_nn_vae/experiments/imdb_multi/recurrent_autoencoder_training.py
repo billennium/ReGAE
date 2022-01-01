@@ -68,7 +68,6 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
             early_stopping=False,
             bfs=True,
             num_dataset_graph_permutations=1,
-            datasets_dir="",
             dataset_name="IMDB-MULTI",
         )
         return parser
