@@ -5,15 +5,12 @@ from graph_nn_vae.data.synthetic_graphs_create import create_synthetic_graphs
 from argparse import ArgumentParser
 
 from graph_nn_vae.experiments.experiment import Experiment
-from graph_nn_vae.data import (
-    GraphLoaderBase,
-    DiagonalRepresentationGraphDataModule,
-    RealGraphLoader,
-)
+from graph_nn_vae.experiments.decorators import add_dataloader_args
+from graph_nn_vae.data import GraphLoaderBase, DiagonalRepresentationGraphDataModule
 from graph_nn_vae.models.classifier_base import RecurrentEncoderGraphClassifier
 
 
-class GraphClassifier(RecurrentEncoderGraphClassifier):
+class ExperimentModel(RecurrentEncoderGraphClassifier):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
         parser = RecurrentEncoderGraphClassifier.add_model_specific_args(parent_parser)
@@ -67,9 +64,10 @@ class GridBarabasiClassification(GraphLoaderBase):
         }
 
 
+@add_dataloader_args
+class ExperimentDataModule(DiagonalRepresentationGraphDataModule):
+    dataloader_class = GridBarabasiClassification
+
+
 if __name__ == "__main__":
-    Experiment(
-        GraphClassifier,
-        DiagonalRepresentationGraphDataModule,
-        GridBarabasiClassification,
-    ).run()
+    Experiment(ExperimentModel, ExperimentDataModule).run()

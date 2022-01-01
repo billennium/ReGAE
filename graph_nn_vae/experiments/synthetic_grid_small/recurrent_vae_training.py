@@ -1,42 +1,17 @@
 from argparse import ArgumentParser
 
 from graph_nn_vae.experiments.experiment import Experiment
+from graph_nn_vae.experiments.decorators import add_dataloader_args
 from graph_nn_vae.data import (
     DiagonalRepresentationGraphDataModule,
-    SmoothLearningStepGraphDataModule,
     SyntheticGraphLoader,
 )
-from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
 from graph_nn_vae.models.vae import RecurrentGraphVAE
-from graph_nn_vae.models.autoencoder_components import (
-    GraphDecoder,
-)
-from graph_nn_vae.models.edge_decoders.memory_standard import (
-    MemoryEdgeDecoder,
-    ZeroFillingMemoryEdgeDecoder,
-)
-from graph_nn_vae.models.edge_decoders.single_input_embedding import (
-    MeanSingleInputMemoryEdgeDecoder,
-    RandomSingleInputMemoryEdgeDecoder,
-    WeightingSingleInputMemoryEdgeDecoder,
-)
 
 
-class GraphAutoencoder(RecurrentGraphVAE):
+class ExperimentModel(RecurrentGraphVAE):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
-        # If using lr_schedulers that base their calculations on steps/epochs remember
-        # that the scheduling occurs at the frequency of the `check_val_every_n_epoch`
-        # interval. Thus, their calculations are skewed if it's higher than 1.
-        #
-        # To fix the intervals recalculate the values like this (MultiStepLR example):
-        # val_and_lr_update_interval = 20
-        # lr_milestones = [400, 800, 1200]
-        # lr_milestones = [v / val_and_lr_update_interval for v in lr_milestones]
-
-        RecurrentGraphAutoencoder.graph_decoder_class = GraphDecoder
-        RecurrentGraphAutoencoder.edge_decoder_class = MemoryEdgeDecoder
-
         parser = RecurrentGraphVAE.add_model_specific_args(parent_parser)
         parser.set_defaults(
             loss_function="BCEWithLogits",
@@ -71,14 +46,16 @@ class GraphAutoencoder(RecurrentGraphVAE):
             check_val_every_n_epoch=20,
             metric_update_interval=20,
             early_stopping=False,
-            bfs=True,
             num_dataset_graph_permutations=10,
             graph_type="grid_small",
         )
         return parser
 
 
+@add_dataloader_args
+class ExperimentDataModule(DiagonalRepresentationGraphDataModule):
+    dataloader_class = SyntheticGraphLoader
+
+
 if __name__ == "__main__":
-    Experiment(
-        GraphAutoencoder, DiagonalRepresentationGraphDataModule, SyntheticGraphLoader
-    ).run()
+    Experiment(ExperimentModel, ExperimentDataModule).run()

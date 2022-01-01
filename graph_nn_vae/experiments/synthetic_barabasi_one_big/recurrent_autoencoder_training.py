@@ -4,6 +4,7 @@ import networkx as nx
 import numpy as np
 
 from graph_nn_vae.experiments.experiment import Experiment
+from graph_nn_vae.experiments.decorators import add_dataloader_args
 from graph_nn_vae.data import (
     GraphLoaderBase,
     DiagonalRepresentationGraphDataModule,
@@ -11,7 +12,7 @@ from graph_nn_vae.data import (
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
 
 
-class GraphAutoencoder(RecurrentGraphAutoencoder):
+class ExperimentModel(RecurrentGraphAutoencoder):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
         parser = RecurrentGraphAutoencoder.add_model_specific_args(parent_parser)
@@ -88,9 +89,10 @@ class OneBigBarabasiGraphLoader(GraphLoaderBase):
         return parser
 
 
+@add_dataloader_args
+class ExperimentDataModule(DiagonalRepresentationGraphDataModule):
+    dataloader_class = OneBigBarabasiGraphLoader
+
+
 if __name__ == "__main__":
-    Experiment(
-        GraphAutoencoder,
-        DiagonalRepresentationGraphDataModule,
-        OneBigBarabasiGraphLoader,
-    ).run()
+    Experiment(ExperimentModel, ExperimentDataModule).run()

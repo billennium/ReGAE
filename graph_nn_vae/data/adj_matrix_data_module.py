@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict, Optional
+from typing import List, Tuple, Dict, Optional, Type
 from argparse import ArgumentParser
 import pickle
 import os
@@ -9,17 +9,16 @@ import torch
 
 from graph_nn_vae.data.data_module import BaseDataModule
 from graph_nn_vae.data.graph_loaders import GraphLoaderBase
-from graph_nn_vae.util import adjmatrix, split_dataset_train_val_test, flatten
+from graph_nn_vae.util import adjmatrix, split_dataset_train_val_test, flatten, errors
 from graph_nn_vae.util.convert_size import convert_size
 from graph_nn_vae.data.util.print_dataset_statistics import print_dataset_statistics
 
 
 class AdjMatrixDataModule(BaseDataModule):
-    data_name = "AdjMatrix"
+    dataloader_class: Type[GraphLoaderBase] = None  # override in experiment
 
     def __init__(
         self,
-        data_loader: GraphLoaderBase,
         num_dataset_graph_permutations: int,
         train_val_test_split: list,
         train_val_test_permutation_split: Optional[list],
@@ -32,18 +31,26 @@ class AdjMatrixDataModule(BaseDataModule):
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self.initialize_dataloader(**kwargs)
         self.num_dataset_graph_permutations = num_dataset_graph_permutations
         self.bfs = bfs
         self.deduplicate_train = deduplicate_train
         self.deduplicate_val_test = deduplicate_val_test
         self.train_val_test_split = train_val_test_split
         self.train_val_test_permutation_split = train_val_test_permutation_split
-        self.data_loader = data_loader
         self.use_labels = use_labels
         self.save_dataset_to_pickle = save_dataset_to_pickle
         self.pickled_dataset_path = pickled_dataset_path
 
         self.prepare_data()
+
+    def initialize_dataloader(self, **kwargs):
+        if self.dataloader_class is None:
+            raise errors.MisconfigurationException(
+                "the dataloader_class attribute of the DataModule was not specified"
+            )
+        self.dataloader: GraphLoaderBase = self.dataloader_class(**kwargs)
+        self.data_name = self.dataloader.data_name
 
     def prepare_data(self, *args, **kwargs):
         super().prepare_data(*args, **kwargs)
@@ -139,7 +146,7 @@ class AdjMatrixDataModule(BaseDataModule):
         ]
 
     def create_graphs(self) -> Dict:
-        data = self.data_loader.load_graphs()
+        data = self.dataloader.load_graphs()
         return data["graphs"], data.get("labels", None)
 
     def prepare_dataset_for_autoencoder(
@@ -198,8 +205,8 @@ class AdjMatrixDataModule(BaseDataModule):
             ]
             graph_permutations = adjmatrix.remove_duplicates(graph_permutations)
             if self.use_labels:
-                multiplied_labels = [labels[i] for _ in len(graph_permutations)]
-                permuted_graphs.append(list(zip(permuted_graphs, multiplied_labels)))
+                multiplied_labels = [labels[i] for _ in range(len(graph_permutations))]
+                permuted_graphs.append(list(zip(graph_permutations, multiplied_labels)))
             else:
                 permuted_graphs.append(graph_permutations)
 

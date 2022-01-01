@@ -34,12 +34,10 @@ class Experiment:
         self,
         model: Type[BaseModel],
         data_module: BaseDataModule,
-        data_loader: GraphLoaderBase,
         parser_default: dict = None,
     ):
         self.model = model
         self.data_module = data_module
-        self.data_loader = data_loader
         self.early_stopping = EarlyStopping
         self.parser_default = parser_default if parser_default is not None else {}
 
@@ -57,19 +55,15 @@ class Experiment:
         if args.batch_size_test is None:
             args.batch_size_test = args.batch_size
 
-        self.data_loader: GraphLoaderBase = self.data_loader(**vars(args))
-
-        data_module: BaseDataModule = self.data_module(
-            **vars(args), data_loader=self.data_loader
-        )
+        self.data_module: BaseDataModule = self.data_module(**vars(args))
 
         model = self.model(
             **vars(args),
-            loss_weight=data_module.loss_weight(),
-            data_module=data_module,
-            num_train_dataloaders=data_module.num_train_dataloaders(),
-            num_val_dataloaders=data_module.num_val_dataloaders(),
-            num_test_dataloaders=data_module.num_test_dataloaders(),
+            loss_weight=self.data_module.loss_weight(),
+            data_module=self.data_module,
+            num_train_dataloaders=self.data_module.num_train_dataloaders(),
+            num_val_dataloaders=self.data_module.num_val_dataloaders(),
+            num_test_dataloaders=self.data_module.num_test_dataloaders(),
         )
 
         logger = self.create_logger(logger_name=args.logger_name)
@@ -93,9 +87,9 @@ class Experiment:
             )
             trainer.callbacks.append(early_stopping)
 
-        args.train_dataset_length = len(data_module.train_dataset)
-        args.val_dataset_length = [len(d) for d in data_module.val_datasets]
-        args.test_dataset_length = [len(d) for d in data_module.test_datasets]
+        args.train_dataset_length = len(self.data_module.train_dataset)
+        args.val_dataset_length = [len(d) for d in self.data_module.val_datasets]
+        args.test_dataset_length = [len(d) for d in self.data_module.test_datasets]
 
         arg_dict = {
             k: v for (k, v) in vars(args).items() if not callable(v) and v is not None
@@ -103,17 +97,17 @@ class Experiment:
         trainer.logger.log_hyperparams(argparse.Namespace(**arg_dict))
 
         start = time.time()
-        trainer.fit(model, datamodule=data_module)
+        trainer.fit(model, datamodule=self.data_module)
         end = time.time()
 
         if not args.no_evaluate:
             if args.checkpoint_monitor:
                 trainer.test(
                     ckpt_path=checkpoint_callback.best_model_path,
-                    dataloaders=data_module,
+                    dataloaders=self.data_module,
                 )
             else:
-                trainer.test(ckpt_path="best", dataloaders=data_module)
+                trainer.test(ckpt_path="best", dataloaders=self.data_module)
 
         print("Elapsed time:", "%.2f" % (end - start))
 
@@ -121,7 +115,7 @@ class Experiment:
         if logger_name == "tb":
             return pl.loggers.TensorBoardLogger(
                 save_dir="tb_logs/" + self.model.model_name,
-                name=self.data_loader.data_name,
+                name=self.data_module.data_name,
             )
         else:
             raise RuntimeError(f"unknown logger name: {logger_name}")
@@ -130,7 +124,6 @@ class Experiment:
         parser = argparse.ArgumentParser(add_help=True)
         parser = self.add_trainer_parser(parser)
         parser = self.add_experiment_parser(parser)
-        parser = self.data_loader.add_model_specific_args(parser)
         parser = self.data_module.add_model_specific_args(parser)
         parser = self.model.add_model_specific_args(parser)
         # parser = self.early_stopping.add_callback_specific_args(parser)

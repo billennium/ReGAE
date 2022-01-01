@@ -1,6 +1,7 @@
 from argparse import ArgumentParser
 
 from graph_nn_vae.experiments.experiment import Experiment
+from graph_nn_vae.experiments.decorators import add_dataloader_args
 from graph_nn_vae.data import (
     DiagonalRepresentationGraphDataModule,
     SyntheticGraphLoader,
@@ -8,7 +9,7 @@ from graph_nn_vae.data import (
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
 
 
-class GraphAutoencoder(RecurrentGraphAutoencoder):
+class ExperimentModel(RecurrentGraphAutoencoder):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
         parser = RecurrentGraphAutoencoder.add_model_specific_args(parent_parser)
@@ -36,7 +37,7 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
                 "MaskRecall",
             ],
             max_number_of_nodes=21,
-            max_epochs=370,
+            max_epochs=30,
             check_val_every_n_epoch=2,
             metric_update_interval=2,
             early_stopping=False,
@@ -47,9 +48,10 @@ class GraphAutoencoder(RecurrentGraphAutoencoder):
         return parser
 
 
+@add_dataloader_args
+class ExperimentDataModule(DiagonalRepresentationGraphDataModule):
+    dataloader_class = SyntheticGraphLoader
+
+
 if __name__ == "__main__":
-    Experiment(
-        GraphAutoencoder,
-        DiagonalRepresentationGraphDataModule,
-        SyntheticGraphLoader,
-    ).run()
+    Experiment(ExperimentModel, ExperimentDataModule).run()
