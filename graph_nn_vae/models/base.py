@@ -22,7 +22,6 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         loss_weight: torch.Tensor,
         learning_rate: float,
         optimizer: str,
-        weight_decay: float,
         lr_scheduler_name: str,
         lr_scheduler_params: dict,
         lr_scheduler_metric: str,
@@ -39,7 +38,6 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         self.loss_function = get_loss(loss_function, loss_weight)
         self.learning_rate = learning_rate
         self.optimizer = get_optimizer(optimizer)
-        self.weight_decay = weight_decay
         self.lr_scheduler_name = lr_scheduler_name
         self.lr_scheduler_params = lr_scheduler_params
         self.lr_scheduler_metric = lr_scheduler_metric
@@ -181,9 +179,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             self.logger.experiment.flush()
 
     def configure_optimizers(self):
-        optimizer = self.optimizer(
-            self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay
-        )
+        optimizer = self.optimizer(self.parameters(), lr=self.learning_rate)
 
         scheduler = get_lr_scheduler(self.lr_scheduler_name)(
             optimizer=optimizer, **self.lr_scheduler_params
@@ -195,9 +191,9 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             "monitor": self.lr_scheduler_metric,
         }
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser):
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser):
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--loss-function",
             dest="loss_function",
@@ -222,14 +218,6 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             type=str,
             metavar="OPT",
             help="name of optimizer",
-        )
-        parser.add_argument(
-            "--weight-decay",
-            dest="weight_decay",
-            default=0.0,
-            type=float,
-            metavar="FLOAT",
-            help="weight decay",
         )
         parser.add_argument(
             "--metrics",
@@ -268,4 +256,4 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             type=str,
             help="metric to monitor for learning rate scheduler, only when lr_schduler is set",
         )
-        return parser
+        return parent_parser

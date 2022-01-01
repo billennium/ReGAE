@@ -63,9 +63,9 @@ class MemoryEdgeEncoder(nn.Module):
         )
         return new_embedding
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--encoder_hidden_layer_sizes",
             dest="encoder_hidden_layer_sizes",
@@ -82,4 +82,4 @@ class MemoryEdgeEncoder(nn.Module):
             metavar="ACTIVATION_F_NAME",
             help="name of the activation function of hidden layers",
         )
-        return parser
+        return parent_parser

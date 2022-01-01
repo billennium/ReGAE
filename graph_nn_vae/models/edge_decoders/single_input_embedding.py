@@ -85,9 +85,9 @@ class SingleInputMemoryEdgeDecoder(nn.Module):
     ) -> Tensor:
         raise NotImplementedError
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--decoder_hidden_layer_sizes",
             dest="decoder_hidden_layer_sizes",
@@ -104,7 +104,7 @@ class SingleInputMemoryEdgeDecoder(nn.Module):
             metavar="ACTIVATION_F_NAME",
             help="name of the activation function of hidden layers",
         )
-        return parser
+        return parent_parser
 
 
 class RandomSingleInputMemoryEdgeDecoder(SingleInputMemoryEdgeDecoder):
@@ -144,10 +144,12 @@ class WeightingSingleInputMemoryEdgeDecoder(SingleInputMemoryEdgeDecoder):
         weight = self.input_embedding_weighting_nn(cat_emb)
         return weighted_average(embedding_l, embedding_r, weight)
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser = SingleInputMemoryEdgeDecoder.add_model_specific_args(parser)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
+        parent_parser = SingleInputMemoryEdgeDecoder.add_model_specific_args(
+            parent_parser
+        )
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--edge_decoder_weighting_nn_layer_sizes",
             dest="edge_decoder_weighting_nn_layer_sizes",
@@ -164,4 +166,4 @@ class WeightingSingleInputMemoryEdgeDecoder(SingleInputMemoryEdgeDecoder):
             metavar="ACTIVATION_F_NAME",
             help="name of the activation function of the edge decoder hidden layers",
         )
-        return parser
+        return parent_parser

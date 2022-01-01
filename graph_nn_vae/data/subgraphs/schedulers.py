@@ -45,17 +45,6 @@ class SubgraphSizeScheduler:
     def get_current_subgraph_size(self):
         raise NotImplementedError
 
-    @staticmethod
-    def add_model_specific_args(parser: ArgumentParser):
-        parser.add_argument(
-            "--subgraph_scheduler_params",
-            dest="subgraph_scheduler_params",
-            default={},
-            type=dict,
-            help="parameters for selected subgraph size scheduler",
-        )
-        return parser
-
 
 class LinearSubgraphSizeScheduler(SubgraphSizeScheduler):
     """

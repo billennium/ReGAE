@@ -87,9 +87,9 @@ class BaseDataModule(pl.LightningDataModule):
     def num_test_dataloaders(self) -> int:
         return len(self.test_datasets)
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser):
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser):
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--batch_size",
             dest="batch_size",
@@ -116,10 +116,13 @@ class BaseDataModule(pl.LightningDataModule):
         )
         parser.add_argument(
             "--workers",
-            default=-1,
+            default=0,
             type=int,
             metavar="W",
-            help="number of data loading workers",
+            help="""Number of data loading workers. \
+                Depending on the OS and data module used, multiple workers may not work due to the way Pytorch \
+                handles some collate_fn dataloder output types used in this project. For graph data multiple workers \
+                are not needed and only slow down the training.""",
         )
         parser.add_argument(
             "--persistent_workers",
@@ -128,4 +131,4 @@ class BaseDataModule(pl.LightningDataModule):
             help="turn on pytorch's data loader persistent workers",
         )
 
-        return parser
+        return parent_parser

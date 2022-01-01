@@ -25,10 +25,9 @@ class GraphLoaderBase:
         """
         return NotImplementedError
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser):
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        return parser
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser):
+        return parent_parser
 
 
 class SyntheticGraphLoader(GraphLoaderBase):
@@ -47,9 +46,10 @@ class SyntheticGraphLoader(GraphLoaderBase):
             ]
         }
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser):
-        parser = GraphLoaderBase.add_model_specific_args(parent_parser)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser):
+        parent_parser = GraphLoaderBase.add_model_specific_args(parent_parser)
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--graph_type",
             dest="graph_type",
@@ -57,7 +57,7 @@ class SyntheticGraphLoader(GraphLoaderBase):
             type=str,
             help="Type of synthethic graphs",
         )
-        return parser
+        return parent_parser
 
 
 class RealGraphLoader(GraphLoaderBase):
@@ -125,9 +125,10 @@ class RealGraphLoader(GraphLoaderBase):
 
         return {"graphs": adj_matrices, "labels": graphs_labels}
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser):
-        parser = GraphLoaderBase.add_model_specific_args(parent_parser)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser):
+        parent_parser = GraphLoaderBase.add_model_specific_args(parent_parser)
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--max_graph_size",
             dest="max_graph_size",
@@ -148,4 +149,4 @@ class RealGraphLoader(GraphLoaderBase):
             type=str,
             help="name of dataset (IMDB_BINARY, IMDB_MULTI, COLLAB, REDDIT-BINARY, REDDIT-MULTI-5K, REDDIT-MULTI-12K)",
         )
-        return parser
+        return parent_parser

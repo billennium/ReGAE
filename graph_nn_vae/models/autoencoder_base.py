@@ -99,11 +99,10 @@ class GraphAutoencoder(BaseModel):
         loss_mask = self.mask_loss_function(y_pred_mask_l, y_mask_l)
         return loss_edge_1 + loss_edge_0 + loss_mask
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser):
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser = BaseModel.add_model_specific_args(parent_parser=parser)
-
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser):
+        parent_parser = BaseModel.add_model_specific_args(parent_parser=parent_parser)
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--edge_1_loss_weight",
             dest="edge_1_loss_weight",
@@ -144,7 +143,7 @@ class GraphAutoencoder(BaseModel):
             metavar="DIAGONAL_EMBEDDINGS_LOSS_WEIGHT",
             help="weight of loss function for the graph diagonal embeddings norm",
         )
-        return parser
+        return parent_parser
 
 
 class RecurrentGraphAutoencoder(GraphAutoencoder):
@@ -197,8 +196,7 @@ class RecurrentGraphAutoencoder(GraphAutoencoder):
 
     @classmethod
     def add_model_specific_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser = GraphAutoencoder.add_model_specific_args(parent_parser=parser)
+        parser = GraphAutoencoder.add_model_specific_args(parent_parser=parent_parser)
         parser = cls.graph_encoder_class.add_model_specific_args(parent_parser=parser)
         parser = cls.graph_decoder_class.add_model_specific_args(parent_parser=parser)
         parser = cls.edge_encoder_class.add_model_specific_args(parent_parser=parser)

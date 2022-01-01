@@ -148,7 +148,9 @@ class Experiment:
         )
         return parser
 
-    def add_experiment_parser(self, parser: argparse.ArgumentParser):
+    @classmethod
+    def add_experiment_parser(cls, parent_parser: argparse.ArgumentParser):
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--no-evaluate",
             dest="no_evaluate",
@@ -211,4 +213,4 @@ class Experiment:
             action="store_true",
             help="Enable learning rate monitor",
         )
-        return parser
+        return parent_parser

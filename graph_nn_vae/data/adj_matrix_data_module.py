@@ -272,9 +272,10 @@ class AdjMatrixDataModule(BaseDataModule):
         print("File path:", self.save_dataset_to_pickle)
         print("File size:", convert_size(os.path.getsize(self.save_dataset_to_pickle)))
 
-    @staticmethod
-    def add_model_specific_args(parent_parser: ArgumentParser):
-        parser = BaseDataModule.add_model_specific_args(parent_parser)
+    @classmethod
+    def add_model_specific_args(cls, parent_parser: ArgumentParser):
+        parent_parser = BaseDataModule.add_model_specific_args(parent_parser)
+        parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
             "--num_dataset_graph_permutations",
             dest="num_dataset_graph_permutations",
@@ -285,13 +286,14 @@ class AdjMatrixDataModule(BaseDataModule):
         parser.add_argument(
             "--bfs",
             dest="bfs",
-            action="store_true",
+            type=bool,
             help="reorder nodes in graphs by using BFS",
         )
         parser.add_argument(
             "--train_val_test_split",
             dest="train_val_test_split",
             default=[0.7, 0.15, 0.15],
+            metavar="JSON_LIST",
             type=json.loads,
             help="list of 3 floats specifying the dataset train/val/test split",
         )
@@ -299,6 +301,7 @@ class AdjMatrixDataModule(BaseDataModule):
             "--train_val_test_permutation_split",
             dest="train_val_test_permutation_split",
             default=[0.8, 0.2, 0.0],
+            metavar="JSON_LIST",
             type=json.loads,
             help="""
                 list of 3 floats specifying the train dataset permutation split. \
@@ -338,4 +341,4 @@ class AdjMatrixDataModule(BaseDataModule):
             type=str,
             help="save dataset to pickle files",
         )
-        return parser
+        return parent_parser

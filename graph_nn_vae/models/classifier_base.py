@@ -79,13 +79,19 @@ class RecurrentEncoderGraphClassifier(GraphClassifierBase):
 
     @classmethod
     def add_model_specific_args(cls, parent_parser: ArgumentParser) -> ArgumentParser:
-        parser = ArgumentParser(parents=[parent_parser], add_help=False)
-        parser = GraphClassifierBase.add_model_specific_args(parent_parser=parser)
-        parser = cls.classifier_network_class.add_model_specific_args(
-            parent_parser=parser
+        parent_parser = GraphClassifierBase.add_model_specific_args(
+            parent_parser=parent_parser
         )
-        parser = cls.graph_encoder_class.add_model_specific_args(parent_parser=parser)
-        parser = cls.edge_encoder_class.add_model_specific_args(parent_parser=parser)
+        parser = cls.classifier_network_class.add_model_specific_args(
+            parent_parser=parent_parser
+        )
+        parser = cls.graph_encoder_class.add_model_specific_args(
+            parent_parser=parent_parser
+        )
+        parser = cls.edge_encoder_class.add_model_specific_args(
+            parent_parser=parent_parser
+        )
+        parser = parent_parser.add_argument_group(cls.__name__)
 
         parser.add_argument(
             "--freeze_encoder",
@@ -100,4 +106,4 @@ class RecurrentEncoderGraphClassifier(GraphClassifierBase):
             type=str,
             help="path to encoder checkpoint",
         )
-        return parser
+        return parent_parser
