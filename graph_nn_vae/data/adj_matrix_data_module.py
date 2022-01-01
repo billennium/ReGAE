@@ -15,7 +15,7 @@ from graph_nn_vae.data.util.print_dataset_statistics import print_dataset_statis
 
 
 class AdjMatrixDataModule(BaseDataModule):
-    dataloader_class: Type[GraphLoaderBase] = None  # override in experiment
+    graphloader_class: Type[GraphLoaderBase] = None  # override in experiment
 
     def __init__(
         self,
@@ -31,7 +31,7 @@ class AdjMatrixDataModule(BaseDataModule):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.initialize_dataloader(**kwargs)
+        self.initialize_graphloader(**kwargs)
         self.num_dataset_graph_permutations = num_dataset_graph_permutations
         self.bfs = bfs
         self.deduplicate_train = deduplicate_train
@@ -44,13 +44,13 @@ class AdjMatrixDataModule(BaseDataModule):
 
         self.prepare_data()
 
-    def initialize_dataloader(self, **kwargs):
-        if self.dataloader_class is None:
+    def initialize_graphloader(self, **kwargs):
+        if self.graphloader_class is None:
             raise errors.MisconfigurationException(
-                "the dataloader_class attribute of the DataModule was not specified"
+                "the graphloader_class attribute of the DataModule was not specified"
             )
-        self.dataloader: GraphLoaderBase = self.dataloader_class(**kwargs)
-        self.data_name = self.dataloader.data_name
+        self.graphloader: GraphLoaderBase = self.graphloader_class(**kwargs)
+        self.data_name = self.graphloader.data_name
 
     def prepare_data(self, *args, **kwargs):
         super().prepare_data(*args, **kwargs)
@@ -146,7 +146,7 @@ class AdjMatrixDataModule(BaseDataModule):
         ]
 
     def create_graphs(self) -> Dict:
-        data = self.dataloader.load_graphs()
+        data = self.graphloader.load_graphs()
         return data["graphs"], data.get("labels", None)
 
     def prepare_dataset_for_autoencoder(

@@ -5,7 +5,7 @@ from graph_nn_vae.data.synthetic_graphs_create import create_synthetic_graphs
 from argparse import ArgumentParser
 
 from graph_nn_vae.experiments.experiment import Experiment
-from graph_nn_vae.experiments.decorators import add_dataloader_args
+from graph_nn_vae.experiments.decorators import add_graphloader_args
 from graph_nn_vae.data import GraphLoaderBase, DiagonalRepresentationGraphDataModule
 from graph_nn_vae.models.classifier_base import RecurrentEncoderGraphClassifier
 
@@ -64,9 +64,9 @@ class GridBarabasiClassification(GraphLoaderBase):
         }
 
 
-@add_dataloader_args
+@add_graphloader_args
 class ExperimentDataModule(DiagonalRepresentationGraphDataModule):
-    dataloader_class = GridBarabasiClassification
+    graphloader_class = GridBarabasiClassification
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ import networkx as nx
 import numpy as np
 
 from graph_nn_vae.experiments.experiment import Experiment
-from graph_nn_vae.experiments.decorators import add_dataloader_args
+from graph_nn_vae.experiments.decorators import add_graphloader_args
 from graph_nn_vae.data import (
     GraphLoaderBase,
     DiagonalRepresentationGraphDataModule,
@@ -89,9 +89,9 @@ class OneBigBarabasiGraphLoader(GraphLoaderBase):
         return parser
 
 
-@add_dataloader_args
+@add_graphloader_args
 class ExperimentDataModule(DiagonalRepresentationGraphDataModule):
-    dataloader_class = OneBigBarabasiGraphLoader
+    graphloader_class = OneBigBarabasiGraphLoader
 
 
 if __name__ == "__main__":
