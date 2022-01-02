@@ -46,8 +46,8 @@
                 - "graph_nn_vae/*"
             exclude:
                 - "**/__pycache__"
-    imbdb_binary:
-        main: 'graph_nn_vae.experiments.imbdb_binary.{{ name }}_training'
+    imdb_binary:
+        main: 'graph_nn_vae.experiments.imdb_binary.{{ name }}_training'
         flags:
             $include: generic-flags
         output-scalars: off
@@ -56,8 +56,8 @@
                 - "graph_nn_vae/*"
             exclude:
                 - "**/__pycache__"
-    imbdb_multi:
-        main: 'graph_nn_vae.experiments.imbdb_multi.{{ name }}_training'
+    imdb_multi:
+        main: 'graph_nn_vae.experiments.imdb_multi.{{ name }}_training'
         flags:
             $include: generic-flags
         output-scalars: off
