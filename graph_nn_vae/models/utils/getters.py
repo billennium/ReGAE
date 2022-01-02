@@ -12,6 +12,7 @@ from graph_nn_vae.metrics.losses import (
     MeanKLDLoss,
     MeanReconstructionLoss,
 )
+from graph_nn_vae.metrics.graph_drawer import GraphDrawer
 from graph_nn_vae.metrics.precision_recall import *
 
 
@@ -68,6 +69,7 @@ def get_metrics(metrics: List[str]):
         "MeanReconstructionLoss": MeanReconstructionLoss,
         "MeanEmbeddingsLoss": MeanEmbeddingsLoss,
         "MeanKLDLoss": MeanKLDLoss,
+        "GraphDrawer": GraphDrawer,
         "Accuracy": torchmetrics.Accuracy,
         "F1": torchmetrics.F1,
         "Precision": torchmetrics.Precision,

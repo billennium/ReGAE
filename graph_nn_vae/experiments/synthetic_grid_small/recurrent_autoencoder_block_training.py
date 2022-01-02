@@ -36,6 +36,7 @@ class ExperimentModel(RecurrentGraphAutoencoder):
                 "EdgeRecall",
                 "MaskPrecision",
                 "MaskRecall",
+                "GraphDrawer",
             ],
             max_number_of_nodes=16,
             max_epochs=10000,

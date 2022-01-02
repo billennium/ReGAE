@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from typing import Callable, List, Tuple
+import math
 
 import torch
 from torch import Tensor
@@ -9,13 +10,6 @@ from graph_nn_vae.models.autoencoder_components import GraphEncoder, GraphDecode
 from graph_nn_vae.models.edge_encoders.memory_standard import MemoryEdgeEncoder
 from graph_nn_vae.models.edge_decoders.memory_standard import MemoryEdgeDecoder
 from graph_nn_vae.models.utils.getters import get_loss
-
-from graph_nn_vae.util.adjmatrix.diagonal_block_representation import (
-    diagonal_block_to_adj_matrix_representation,
-)
-from graph_nn_vae.util.adjmatrix.diagonal_representation import (
-    adj_matrix_to_diagonal_representation,
-)
 
 
 class GraphAutoencoder(BaseModel):

@@ -45,7 +45,6 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             metrics, num_train_dataloaders, num_val_dataloaders, num_test_dataloaders
         )
         self.metric_update_interval = metric_update_interval
-        self.metric_update_counter = 0
         self.data_module = data_module
 
     def initialize_metrics(
@@ -95,16 +94,16 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         return loss
 
     def training_step(self, batch, batch_idx, dataset_idx=0):
-        should_update_metric = (
-            self.metric_update_counter % self.metric_update_interval == 0
-        )
-        self.metric_update_counter += 1
+        should_update_metric = self.current_epoch % self.metric_update_interval == 0
         metrics = self.metrics_train[dataset_idx] if should_update_metric else []
 
         loss = self.step(batch, metrics)
 
         metric_idx_str = self.get_metric_dataset_idx(dataset_idx)
         for metric in metrics:
+            if hasattr(metric, "alt_logging") and metric.alt_logging:
+                metric.alt_log(name=f"train{metric_idx_str}", epoch=self.current_epoch)
+                continue
             metric_name = (
                 metric.label if "label" in metric.__dir__() else type(metric).__name__
             )
@@ -135,6 +134,9 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
 
         metric_idx_str = self.get_metric_dataset_idx(dataset_idx)
         for metric in metrics:
+            if hasattr(metric, "alt_logging") and metric.alt_logging:
+                metric.alt_log(name=f"val{metric_idx_str}", epoch=self.current_epoch)
+                continue
             metric_name = (
                 metric.label if "label" in metric.__dir__() else type(metric).__name__
             )
@@ -155,6 +157,9 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
 
         metric_idx_str = self.get_metric_dataset_idx(dataset_idx)
         for metric in metrics:
+            if hasattr(metric, "alt_logging") and metric.alt_logging:
+                metric.alt_log(name=f"test{metric_idx_str}", epoch=self.current_epoch)
+                continue
             metric_name = (
                 metric.label if "label" in metric.__dir__() else type(metric).__name__
             )
