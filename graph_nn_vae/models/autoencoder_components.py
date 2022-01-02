@@ -245,7 +245,9 @@ class GraphDecoder(BaseModel):
             [1], device=graph_encoding_batch.device
         )
         mask_state = None
-        max_num_blocks = int(calculate_num_blocks(max_number_of_nodes, self.block_size))
+        max_num_blocks = int(
+            calculate_num_blocks(max_number_of_nodes + 1, self.block_size)
+        )
 
         for _ in range(max_num_blocks):
             (
