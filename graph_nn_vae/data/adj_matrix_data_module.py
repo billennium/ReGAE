@@ -31,7 +31,7 @@ class AdjMatrixDataModule(BaseDataModule):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.initialize_graphloader(**kwargs)
+        self.initialize_graphloader(use_labels=use_labels, **kwargs)
         self.num_dataset_graph_permutations = num_dataset_graph_permutations
         self.bfs = bfs
         self.deduplicate_train = deduplicate_train
@@ -167,7 +167,8 @@ class AdjMatrixDataModule(BaseDataModule):
         for index, adj_matrix in enumerate(
             tqdm(graphs, desc=f"preparing dataset {dataset_name} for autoencoder")
         ):
-            adj_matrix = adjmatrix.bfs_ordering(adj_matrix)
+            if self.bfs:
+                adj_matrix = adjmatrix.bfs_ordering(adj_matrix)
             adj_matrix = adjmatrix.minimize_adj_matrix(adj_matrix)
             adj_matrices.append((adj_matrix, adj_matrix.shape[0]))
             if labels is not None:
