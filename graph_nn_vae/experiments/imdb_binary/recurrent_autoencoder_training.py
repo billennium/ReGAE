@@ -25,7 +25,7 @@ class ExperimentModel(RecurrentGraphAutoencoder):
             learning_rate=0.001,
             gradient_clip_val=1.0,
             batch_size=1024,
-            embedding_size=256,
+            embedding_size=160,
             block_size=8,
             encoder_hidden_layer_sizes=[1024, 768],
             encoder_activation_function="ELU",
@@ -43,8 +43,8 @@ class ExperimentModel(RecurrentGraphAutoencoder):
             metric_update_interval=5,
             early_stopping=False,
             bfs=True,
-            num_dataset_graph_permutations=5,
-            train_val_test_permutation_split=[0.8, 0.2, 0.0],
+            num_dataset_graph_permutations=10,
+            train_val_test_permutation_split=[1.0, 0.0, 0.0],
             dataset_name="IMDB-BINARY",
         )
         return parser
