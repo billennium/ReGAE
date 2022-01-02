@@ -155,7 +155,7 @@ class GraphEncoder(BaseModel):
         try:  # these may collide with an encoder module, but that's fine
             parser = BaseModel.add_model_specific_args(parent_parser=parser)
             parser.add_argument(
-                "--embedding-size",
+                "--embedding_size",
                 dest="embedding_size",
                 default=32,
                 type=int,
@@ -163,7 +163,7 @@ class GraphEncoder(BaseModel):
                 help="size of the encoder output graph embedding",
             )
             parser.add_argument(
-                "--edge-size",
+                "--edge_size",
                 dest="edge_size",
                 default=1,
                 type=int,
@@ -453,7 +453,7 @@ class GraphDecoder(BaseModel):
         parser = parent_parser.add_argument_group(cls.__name__)
         try:  # these may collide with an encoder module, but that's fine
             parser.add_argument(
-                "--embedding-size",
+                "--embedding_size",
                 dest="embedding_size",
                 default=32,
                 type=int,
@@ -461,7 +461,7 @@ class GraphDecoder(BaseModel):
                 help="size of the encoder output graph embedding",
             )
             parser.add_argument(
-                "--edge-size",
+                "--edge_size",
                 dest="edge_size",
                 default=1,
                 type=int,
