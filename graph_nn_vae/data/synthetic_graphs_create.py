@@ -12,6 +12,7 @@ def create_synthetic_graphs(graph_type: str) -> list[nx.Graph]:
         "community": community_graphs,
         "grid": grid_graphs,
         "grid_small": grid_small_graphs,
+        "grid_medium": grid_medium_graphs,
         "grid_big": grid_big_graphs,
         "barabasi": barabasi_graphs,
         "barabasi_small": barabasi_small_graphs,
@@ -81,6 +82,14 @@ def grid_big_graphs() -> list[nx.Graph]:
     graphs = []
     for i in range(36, 46):
         for j in range(36, 46):
+            graphs.append(nx.grid_2d_graph(i, j))
+    return graphs
+
+
+def grid_medium_graphs() -> list[nx.Graph]:
+    graphs = []
+    for i in range(2, 9):
+        for j in range(2, 9):
             graphs.append(nx.grid_2d_graph(i, j))
     return graphs
 
