@@ -33,6 +33,6 @@ def draw_graph(G: nx.Graph, name: str):
     G_deg = nx.degree_histogram(G)
     G_deg = np.array(G_deg)
     # plt.plot(range(len(G_deg)), G_deg, 'r', linewidth = 2)
-    plt.loglog(np.arange(len(G_deg))[G_deg > 0], G_deg[G_deg > 0], "r", linewidth=2)
+    plt.bar(np.arange(len(G_deg))[G_deg > 0], G_deg[G_deg > 0])
     plt.savefig("figures/degree_view_" + name + ".png", dpi=200)
     plt.close()
