@@ -21,7 +21,7 @@ class GraphClassifierBase(BaseModel):
 
     def step(self, batch, metrics: List[Callable] = []) -> Tensor:
         y_pred = self(batch[:-1])
-        labels = batch[-1]
+        labels = batch[-1] - 1
 
         if self.class_count == 2:
             loss = self.loss_function(y_pred[:, 0], labels.float())
