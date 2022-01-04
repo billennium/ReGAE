@@ -26,8 +26,8 @@ class GraphAutoencoder(BaseModel):
     ):
         super(GraphAutoencoder, self).__init__(loss_function=loss_function, **kwargs)
         self.mask_loss_function = get_loss(mask_loss_function, mask_loss_weight)
-        self.edge_1_loss_function = get_loss(loss_function, edge_1_loss_weight * 0.5)
-        self.edge_0_loss_function = get_loss(loss_function, edge_0_loss_weight * 0.5)
+        self.edge_1_loss_function = get_loss(loss_function, edge_1_loss_weight)
+        self.edge_0_loss_function = get_loss(loss_function, edge_0_loss_weight)
         self.diagonal_embeddings_loss_weight = diagonal_embeddings_loss_weight
         self.weight_loss_positive_edges = weight_loss_positive_edges
 
@@ -84,7 +84,7 @@ class GraphAutoencoder(BaseModel):
             else 0.0
         )
         loss_edge_0 = (
-            self.edge_1_loss_function(y_pred_edge_l_0, y_edge_l_0)
+            self.edge_0_loss_function(y_pred_edge_l_0, y_edge_l_0)
             if len(y_edge_l_0 > 0)
             else 0.0
         )
@@ -98,7 +98,7 @@ class GraphAutoencoder(BaseModel):
         parser.add_argument(
             "--edge_1_loss_weight",
             dest="edge_1_loss_weight",
-            default=1.0,
+            default=0.5,
             type=float,
             metavar="MASK_LOSS_WEIGHT",
             help="weight of loss function for the graph's adjacency matrix 1s",
@@ -106,7 +106,7 @@ class GraphAutoencoder(BaseModel):
         parser.add_argument(
             "--edge_0_loss_weight",
             dest="edge_0_loss_weight",
-            default=1.0,
+            default=0.5,
             type=float,
             metavar="MASK_LOSS_WEIGHT",
             help="weight of loss function for the graph's adjacency matrix 0s",
