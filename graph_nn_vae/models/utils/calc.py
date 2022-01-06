@@ -12,3 +12,14 @@ def weighted_average(v1: Tensor, v2: Tensor, weight: Tensor) -> Tensor:
     weight = torch.sigmoid(weight)
     # ones = torch.ones(v1.shape, device=v1.device, requires_grad=v1.requires_grad)
     return v1 * weight + (1 - weight) * v2
+
+
+def torch_bincount(t: Tensor) -> Tensor:
+    """
+    torch.bincount() when used on CUDA may lead to nondeterministic gradients. From testing, this isn't an issue in our use case.
+    """
+    was_deterministic = torch.are_deterministic_algorithms_enabled()
+    torch.use_deterministic_algorithms(False)
+    t = torch.bincount(t)
+    torch.use_deterministic_algorithms(was_deterministic)
+    return t

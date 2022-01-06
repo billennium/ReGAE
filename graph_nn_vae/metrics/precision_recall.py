@@ -4,17 +4,7 @@ import torchmetrics
 from graph_nn_vae.util.adjmatrix.diagonal_block_representation import (
     calculate_num_blocks,
 )
-
-
-def torch_bincount(t):
-    """
-    torch.bincount() when used on CUDA may lead to nondeterministic gradients. From testing, this isn't an issue in our use case.
-    """
-    was_deterministic = torch.are_deterministic_algorithms_enabled()
-    torch.use_deterministic_algorithms(False)
-    t = torch.bincount(t)
-    torch.use_deterministic_algorithms(was_deterministic)
-    return t
+from graph_nn_vae.models.utils.calc import torch_bincount
 
 
 class EdgeMetric(torchmetrics.Metric):
@@ -24,8 +14,6 @@ class EdgeMetric(torchmetrics.Metric):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # self.graphs_metrics = {}
-        # self.num_graphs = {}
         self.metric = self.metric_class(num_classes=2, average=None, **kwargs)
         self.metrics = []
         self.weights = []
@@ -37,12 +25,16 @@ class EdgeMetric(torchmetrics.Metric):
         num_nodes: torch.Tensor,
         **kwargs,
     ):
-        block_size = edges_predicted.shape[2]
 
         edges_predicted = torch.sigmoid(edges_predicted).round().int()
         edges_target = torch.clamp(edges_target.int(), min=0)
 
-        num_blocks = calculate_num_blocks(num_nodes, block_size)
+        block_size = edges_predicted.shape[2] if len(edges_predicted.shape) == 5 else 1
+        if block_size != 1:
+            num_blocks = calculate_num_blocks(num_nodes, block_size)
+        else:
+            num_blocks = num_nodes
+
         graph_counts_per_size = torch_bincount(num_blocks)
 
         for index, count in enumerate(graph_counts_per_size):
