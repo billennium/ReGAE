@@ -145,9 +145,9 @@ class GraphAutoencoder(BaseModel):
             losses_mask += loss_mask_per_size * weight_mask
 
         return (
-            losses_edge_0 / weights_edge_0
-            + losses_edge_1 / weights_edge_1
-            + losses_mask / weights_mask
+            ((losses_edge_0 / weights_edge_0) if weight_edge_0 else 0)
+            + ((losses_edge_1 / weights_edge_1) if weights_edge_1 else 0)
+            + ((losses_mask / weights_mask) if weights_mask else 0)
         )
 
     @classmethod
