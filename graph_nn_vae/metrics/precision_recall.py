@@ -26,7 +26,6 @@ class EdgeMetric(torchmetrics.Metric):
         num_nodes: torch.Tensor,
         **kwargs,
     ):
-
         edges_predicted = torch.sigmoid(edges_predicted).round().int()
         edges_target = torch.clamp(edges_target.int(), min=0)
 
@@ -45,17 +44,20 @@ class EdgeMetric(torchmetrics.Metric):
                 target = edges_target[mask].flatten()
 
                 current_metric = self.metric(predicted, target)[1]
+                self.metric.reset()
                 if current_metric != current_metric:
                     current_metric = torch.zeros(1, device=predicted.device)[0]
 
                 self.metrics.append(current_metric)
 
-                self.weights.append(count / pow(index * block_size, self.weight_power))
+                self.weights.append(
+                    torch.tensor(predicted.shape[0], device=predicted.device)
+                    / pow(index * block_size, self.weight_power)
+                )
 
     def compute(self) -> torch.Tensor:
         metrics = torch.stack(self.metrics)
         weights = torch.stack(self.weights)
-
         return (metrics * weights).sum() / weights.sum()
 
 

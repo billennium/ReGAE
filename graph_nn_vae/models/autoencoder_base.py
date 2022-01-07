@@ -54,7 +54,7 @@ class GraphAutoencoder(BaseModel):
         loss = loss_reconstruction + loss_embeddings
 
         for metric in metrics:
-            metric(
+            metric.update(
                 edges_predicted=y_pred_edge,
                 edges_target=y_edge,
                 mask_predicted=y_pred_mask,
