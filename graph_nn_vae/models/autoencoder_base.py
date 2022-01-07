@@ -128,7 +128,7 @@ class GraphAutoencoder(BaseModel):
                 y_pred_mask_l_per_size, y_mask_l_per_size
             )
 
-            weight = count / pow(size * block_size, weight_power_level)
+            weight = pow(size * block_size, 2 - self.weight_power_level) * count
             weights += weight
             losses_edge_0 += loss_edge_0_per_size * weight
             losses_edge_1 += loss_edge_1_per_size * weight
