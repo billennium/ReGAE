@@ -16,20 +16,22 @@ class GraphAutoencoder(BaseModel):
     def __init__(
         self,
         loss_function: str,
-        edge_1_loss_weight: float,
-        edge_0_loss_weight: float,
+        recall_to_precision_bias: float,
         mask_loss_function: str = None,
         mask_loss_weight=None,
         diagonal_embeddings_loss_weight: int = 0,
-        weight_loss_positive_edges: float = 1.0,
         **kwargs,
     ):
         super(GraphAutoencoder, self).__init__(loss_function=loss_function, **kwargs)
         self.mask_loss_function = get_loss(mask_loss_function, mask_loss_weight)
-        self.edge_1_loss_function = get_loss(loss_function, edge_1_loss_weight)
-        self.edge_0_loss_function = get_loss(loss_function, edge_0_loss_weight)
+
+        self.edge_1_loss_function = get_loss(
+            loss_function, recall_to_precision_bias * 0.5
+        )
+        self.edge_0_loss_function = get_loss(
+            loss_function, (1 - recall_to_precision_bias) * 0.5
+        )
         self.diagonal_embeddings_loss_weight = diagonal_embeddings_loss_weight
-        self.weight_loss_positive_edges = weight_loss_positive_edges
 
     def step(self, batch, metrics: List[Callable] = []) -> Tensor:
         y_pred, diagonal_embeddings_norm = self(batch)
@@ -72,6 +74,8 @@ class GraphAutoencoder(BaseModel):
         y_edge_l = torch.clamp(y_edge_l, min=0)
         y_mask_l = torch.clamp(y_mask_l, min=0)
 
+        # loss_edge = self.edge_loss_function(y_pred_edge_l, y_edge_l)
+
         y_edge_1_mask = y_edge_l.data == 1
         y_edge_l_1 = y_edge_l[y_edge_1_mask]
         y_edge_l_0 = y_edge_l[~y_edge_1_mask]
@@ -96,20 +100,16 @@ class GraphAutoencoder(BaseModel):
         parent_parser = BaseModel.add_model_specific_args(parent_parser=parent_parser)
         parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
-            "--edge_1_loss_weight",
-            dest="edge_1_loss_weight",
+            "--recall_to_precision_bias",
+            dest="recall_to_precision_bias",
             default=0.5,
             type=float,
-            metavar="MASK_LOSS_WEIGHT",
-            help="weight of loss function for the graph's adjacency matrix 1s",
-        )
-        parser.add_argument(
-            "--edge_0_loss_weight",
-            dest="edge_0_loss_weight",
-            default=0.5,
-            type=float,
-            metavar="MASK_LOSS_WEIGHT",
-            help="weight of loss function for the graph's adjacency matrix 0s",
+            metavar="BIAS_VALUE",
+            help="""
+                Weight of loss function for the graph's adjacency matrix 0s in proportion to the weight for 1s.
+                Affects the precision to recall balance, with higher values favoring better recall at the
+                cost of worse precision. [0.0 - 1.0]
+                """,
         )
         parser.add_argument(
             "--mask_loss_function",
