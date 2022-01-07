@@ -131,10 +131,18 @@ class GraphAutoencoder(BaseModel):
             )
 
             wieght = pow(size * block_size, 2 - self.weight_power_level) * count
-            weight_edge_0 = wieght * (len(y_edge_l_0_per_size) / len(y_edge_l_per_size))
-            weight_edge_1 = wieght * (
-                1 - len(y_edge_l_0_per_size) / len(y_edge_l_per_size)
-            )
+            if len(y_edge_l_per_size):
+                weight_edge_0 = wieght * (
+                    len(y_edge_l_0_per_size) / len(y_edge_l_per_size)
+                )
+                weight_edge_1 = wieght * (
+                    1 - len(y_edge_l_0_per_size) / len(y_edge_l_per_size)
+                )
+            else:
+                print("Warning ,,y_edge_l_per_size`` has len 0")
+                weight_edge_0 = 0
+                weight_edge_1 = 0
+
             weight_mask = wieght
 
             weights_edge_0 += weight_edge_0
