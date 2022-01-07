@@ -46,7 +46,7 @@ class GraphAutoencoder(BaseModel):
         )
 
         loss_reconstruction = self.calc_reconstruction_loss(
-            y_edge, y_mask, y_pred_edge, y_pred_mask, batch[2], self.weight_power_level
+            y_edge, y_mask, y_pred_edge, y_pred_mask, batch[2]
         )
         loss_embeddings = (
             diagonal_embeddings_norm * self.diagonal_embeddings_loss_weight
@@ -67,7 +67,7 @@ class GraphAutoencoder(BaseModel):
         return loss
 
     def calc_reconstruction_loss(
-        self, y_edge, y_mask, y_pred_edge, y_pred_mask, num_nodes, weight_power_level
+        self, y_edge, y_mask, y_pred_edge, y_pred_mask, num_nodes
     ) -> Tensor:
         block_size = y_edge.shape[2] if len(y_edge.shape) == 5 else 1
         if block_size != 1:
@@ -77,10 +77,12 @@ class GraphAutoencoder(BaseModel):
 
         graph_counts_per_size = torch_bincount(num_blocks)
 
-        losses_edge_1 = 0
-        losses_edge_0 = 0
-        losses_mask = 0
-        weights = 0
+        losses_edge_1 = torch.zeros(1, device=y_edge.device)
+        losses_edge_0 = torch.zeros(1, device=y_edge.device)
+        losses_mask = torch.zeros(1, device=y_edge.device)
+        weights_edge_0 = torch.zeros(1, device=y_edge.device)
+        weights_edge_1 = torch.zeros(1, device=y_edge.device)
+        weights_mask = torch.zeros(1, device=y_edge.device)
 
         for size, count in enumerate(graph_counts_per_size):
             if not count:
@@ -128,13 +130,25 @@ class GraphAutoencoder(BaseModel):
                 y_pred_mask_l_per_size, y_mask_l_per_size
             )
 
-            weight = pow(size * block_size, 2 - self.weight_power_level) * count
-            weights += weight
-            losses_edge_0 += loss_edge_0_per_size * weight
-            losses_edge_1 += loss_edge_1_per_size * weight
-            losses_mask += loss_mask_per_size * weight
+            wieght = pow(size * block_size, 2 - self.weight_power_level) * count
+            weight_edge_0 = wieght * (len(y_edge_l_0_per_size) / len(y_edge_l_per_size))
+            weight_edge_1 = wieght * (
+                1 - len(y_edge_l_0_per_size) / len(y_edge_l_per_size)
+            )
+            weight_mask = wieght
 
-        return (losses_edge_0 + losses_edge_1 + losses_mask) / weights
+            weights_edge_0 += weight_edge_0
+            weights_edge_1 += weight_edge_1
+            weights_mask += wieght
+            losses_edge_0 += loss_edge_0_per_size * weight_edge_0
+            losses_edge_1 += loss_edge_1_per_size * weight_edge_1
+            losses_mask += loss_mask_per_size * weight_mask
+
+        return (
+            losses_edge_0 / weights_edge_0
+            + losses_edge_1 / weights_edge_1
+            + losses_mask / weights_mask
+        )
 
     @classmethod
     def add_model_specific_args(cls, parent_parser: ArgumentParser):
