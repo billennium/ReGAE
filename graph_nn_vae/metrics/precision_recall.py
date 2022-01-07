@@ -16,8 +16,8 @@ class EdgeMetric(torchmetrics.Metric):
         super().__init__(**kwargs)
         self.metric = self.metric_class(num_classes=2, average=None, **kwargs)
 
-        self.add_state("metrics", default=[], dist_reduce_fx="cat")
-        self.add_state("weights", default=[], dist_reduce_fx="cat")
+        self.add_state("metrics", default=torch.empty([0]), dist_reduce_fx="cat")
+        self.add_state("weights", default=torch.empty([0]), dist_reduce_fx="cat")
 
     def update(
         self,
@@ -48,16 +48,17 @@ class EdgeMetric(torchmetrics.Metric):
                 if current_metric != current_metric:
                     current_metric = torch.zeros(1, device=predicted.device)[0]
 
-                self.metrics.append(current_metric)
+                self.metrics = torch.cat([self.metrics, current_metric[None]])
 
-                self.weights.append(
-                    pow(index * block_size, 2 - self.weight_power) * count
+                self.weights = torch.cat(
+                    [
+                        self.weights,
+                        (pow(index * block_size, 2 - self.weight_power) * count)[None],
+                    ]
                 )
 
     def compute(self) -> torch.Tensor:
-        metrics = torch.stack(self.metrics)
-        weights = torch.stack(self.weights)
-        return (metrics * weights).sum() / weights.sum()
+        return (self.metrics * self.weights).sum() / self.weights.sum()
 
 
 class EdgePrecision(EdgeMetric):
