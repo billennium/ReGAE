@@ -51,8 +51,7 @@ class EdgeMetric(torchmetrics.Metric):
                 self.metrics.append(current_metric)
 
                 self.weights.append(
-                    torch.tensor(predicted.shape[0], device=predicted.device)
-                    / pow(index * block_size, self.weight_power)
+                    pow(index * block_size, 2 - self.weight_power) * count
                 )
 
     def compute(self) -> torch.Tensor:
