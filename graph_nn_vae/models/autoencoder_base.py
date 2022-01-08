@@ -11,6 +11,11 @@ from graph_nn_vae.models.edge_encoders.memory_standard import MemoryEdgeEncoder
 from graph_nn_vae.models.edge_decoders.memory_standard import MemoryEdgeDecoder
 from graph_nn_vae.models.utils.getters import get_loss
 
+from graph_nn_vae.util.adjmatrix.diagonal_block_representation import (
+    calculate_num_blocks,
+)
+from graph_nn_vae.models.utils.calc import torch_bincount
+
 
 class GraphAutoencoder(BaseModel):
     def __init__(
@@ -20,6 +25,7 @@ class GraphAutoencoder(BaseModel):
         mask_loss_function: str = None,
         mask_loss_weight=None,
         diagonal_embeddings_loss_weight: int = 0,
+        weight_power_level: float = 1,
         **kwargs,
     ):
         super(GraphAutoencoder, self).__init__(loss_function=loss_function, **kwargs)
@@ -32,6 +38,7 @@ class GraphAutoencoder(BaseModel):
             loss_function, (1 - recall_to_precision_bias) * 0.5
         )
         self.diagonal_embeddings_loss_weight = diagonal_embeddings_loss_weight
+        self.weight_power_level = weight_power_level
 
     def step(self, batch, metrics: List[Callable] = []) -> Tensor:
         y_pred, diagonal_embeddings_norm = self(batch)
@@ -41,7 +48,7 @@ class GraphAutoencoder(BaseModel):
         )
 
         loss_reconstruction = self.calc_reconstruction_loss(
-            y_edge, y_mask, y_pred_edge, y_pred_mask
+            y_edge, y_mask, y_pred_edge, y_pred_mask, batch[2]
         )
         loss_embeddings = (
             diagonal_embeddings_norm * self.diagonal_embeddings_loss_weight
@@ -49,7 +56,7 @@ class GraphAutoencoder(BaseModel):
         loss = loss_reconstruction + loss_embeddings
 
         for metric in metrics:
-            metric(
+            metric.update(
                 edges_predicted=y_pred_edge,
                 edges_target=y_edge,
                 mask_predicted=y_pred_mask,
@@ -62,38 +69,96 @@ class GraphAutoencoder(BaseModel):
         return loss
 
     def calc_reconstruction_loss(
-        self, y_edge, y_mask, y_pred_edge, y_pred_mask
+        self, y_edge, y_mask, y_pred_edge, y_pred_mask, num_nodes
     ) -> Tensor:
-        mask = y_pred_mask > float("-inf")
-        y_pred_edge_l, y_pred_mask_l, y_edge_l, y_mask_l = (
-            y_pred_edge[mask],
-            y_pred_mask[mask],
-            y_edge[mask],
-            y_mask[mask],
-        )
-        y_edge_l = torch.clamp(y_edge_l, min=0)
-        y_mask_l = torch.clamp(y_mask_l, min=0)
+        block_size = y_edge.shape[2] if len(y_edge.shape) == 5 else 1
+        if block_size != 1:
+            num_blocks = calculate_num_blocks(num_nodes, block_size)
+        else:
+            num_blocks = num_nodes
 
-        # loss_edge = self.edge_loss_function(y_pred_edge_l, y_edge_l)
+        graph_counts_per_size = torch_bincount(num_blocks)
 
-        y_edge_1_mask = y_edge_l.data == 1
-        y_edge_l_1 = y_edge_l[y_edge_1_mask]
-        y_edge_l_0 = y_edge_l[~y_edge_1_mask]
-        y_pred_edge_l_1 = y_pred_edge_l[y_edge_1_mask]
-        y_pred_edge_l_0 = y_pred_edge_l[~y_edge_1_mask]
+        losses_edge_1 = torch.zeros(1, device=y_edge.device)
+        losses_edge_0 = torch.zeros(1, device=y_edge.device)
+        losses_mask = torch.zeros(1, device=y_edge.device)
+        weights_edge_0 = torch.zeros(1, device=y_edge.device)
+        weights_edge_1 = torch.zeros(1, device=y_edge.device)
+        weights_mask = torch.zeros(1, device=y_edge.device)
 
-        loss_edge_1 = (
-            self.edge_1_loss_function(y_pred_edge_l_1, y_edge_l_1)
-            if len(y_edge_l_1 > 0)
-            else 0.0
+        for size, count in enumerate(graph_counts_per_size):
+            if not count:
+                continue
+
+            size_mask = num_blocks == size
+            y_pred_edge_per_size = y_pred_edge[size_mask]
+            y_pred_mask_per_size = y_pred_mask[size_mask]
+            y_edge_per_size = y_edge[size_mask]
+            y_mask_per_size = y_mask[size_mask]
+
+            mask = y_pred_mask_per_size > float("-inf")
+            (
+                y_pred_edge_l_per_size,
+                y_pred_mask_l_per_size,
+                y_edge_l_per_size,
+                y_mask_l_per_size,
+            ) = (
+                y_pred_edge_per_size[mask],
+                y_pred_mask_per_size[mask],
+                y_edge_per_size[mask],
+                y_mask_per_size[mask],
+            )
+            y_edge_l_per_size = torch.clamp(y_edge_l_per_size, min=0)
+            y_mask_l_per_size = torch.clamp(y_mask_l_per_size, min=0)
+
+            y_edge_1_mask_per_size = y_edge_l_per_size.data == 1
+            y_edge_l_1_per_size = y_edge_l_per_size[y_edge_1_mask_per_size]
+            y_edge_l_0_per_size = y_edge_l_per_size[~y_edge_1_mask_per_size]
+            y_pred_edge_l_1_per_size = y_pred_edge_l_per_size[y_edge_1_mask_per_size]
+            y_pred_edge_l_0_per_size = y_pred_edge_l_per_size[~y_edge_1_mask_per_size]
+
+            loss_edge_1_per_size = (
+                self.edge_1_loss_function(y_pred_edge_l_1_per_size, y_edge_l_1_per_size)
+                if len(y_edge_l_1_per_size > 0)
+                else 0.0
+            )
+            loss_edge_0_per_size = (
+                self.edge_0_loss_function(y_pred_edge_l_0_per_size, y_edge_l_0_per_size)
+                if len(y_edge_l_0_per_size > 0)
+                else 0.0
+            )
+
+            loss_mask_per_size = self.mask_loss_function(
+                y_pred_mask_l_per_size, y_mask_l_per_size
+            )
+
+            wieght = pow(size * block_size, 2 - self.weight_power_level) * count
+            if len(y_edge_l_per_size):
+                weight_edge_0 = wieght * (
+                    len(y_edge_l_0_per_size) / len(y_edge_l_per_size)
+                )
+                weight_edge_1 = wieght * (
+                    1 - len(y_edge_l_0_per_size) / len(y_edge_l_per_size)
+                )
+            else:
+                print("Warning ,,y_edge_l_per_size`` has len 0")
+                weight_edge_0 = 0
+                weight_edge_1 = 0
+
+            weight_mask = wieght
+
+            weights_edge_0 += weight_edge_0
+            weights_edge_1 += weight_edge_1
+            weights_mask += wieght
+            losses_edge_0 += loss_edge_0_per_size * weight_edge_0
+            losses_edge_1 += loss_edge_1_per_size * weight_edge_1
+            losses_mask += loss_mask_per_size * weight_mask
+
+        return (
+            ((losses_edge_0 / weights_edge_0) if weight_edge_0 else 0)
+            + ((losses_edge_1 / weights_edge_1) if weights_edge_1 else 0)
+            + ((losses_mask / weights_mask) if weights_mask else 0)
         )
-        loss_edge_0 = (
-            self.edge_0_loss_function(y_pred_edge_l_0, y_edge_l_0)
-            if len(y_edge_l_0 > 0)
-            else 0.0
-        )
-        loss_mask = self.mask_loss_function(y_pred_mask_l, y_mask_l)
-        return loss_edge_1 + loss_edge_0 + loss_mask
 
     @classmethod
     def add_model_specific_args(cls, parent_parser: ArgumentParser):
@@ -110,6 +175,14 @@ class GraphAutoencoder(BaseModel):
                 Affects the precision to recall balance, with higher values favoring better recall at the
                 cost of worse precision. [0.0 - 1.0]
                 """,
+        )
+        parser.add_argument(
+            "--weight_power_level",
+            dest="weight_power_level",
+            default=1,
+            type=float,
+            metavar="WEIGHT_POWER_LEVEL",
+            help="normalization weight per edge, level of power (0 each edges has the same weight, 1 proprtional to 1/N, 2, proportional to 1/(N^2))",
         )
         parser.add_argument(
             "--mask_loss_function",
