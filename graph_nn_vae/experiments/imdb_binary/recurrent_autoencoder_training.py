@@ -44,6 +44,7 @@ class ExperimentModel(RecurrentGraphAutoencoder):
                 "EdgeRecallNonWeighted",
                 "EdgePrecisionSquareWeighted",
                 "EdgeRecallSquareWeighted",
+                "EdgeF1",
             ],
             max_epochs=10000,
             check_val_every_n_epoch=5,
