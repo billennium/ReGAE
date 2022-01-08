@@ -2,7 +2,7 @@
   flags:
     gpus: "1"
     workers: "0"
-    checkpoint-monitor: "loss/train_avg"
+    checkpoint-monitor: "loss/val"
     lr:
       type: float
     batch_size: 
@@ -96,3 +96,8 @@
   extends: model-partial
   params:
     name: encoder_num_edges
+
+- model: recurrent_classifier
+  extends: model-base
+  params:
+    name: classifier
