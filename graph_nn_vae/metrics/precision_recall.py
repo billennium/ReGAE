@@ -1,3 +1,4 @@
+from typing import List
 import torch
 import torchmetrics
 
@@ -18,14 +19,33 @@ class EdgeMetric(torchmetrics.Metric):
 
         self.add_state("metrics", default=[], dist_reduce_fx="cat")
         self.add_state("weights", default=[], dist_reduce_fx="cat")
+        self.metric_type_label = self.get_generic_metric_label()
+
+    def get_generic_metric_label(self) -> str:
+        """
+        Returns a label with just the type of metric.
+        ex. edge_torchmetrics.Precision
+        """
+        return "edge_" + self.metric_class.__name__
 
     def update(
         self,
         edges_predicted: torch.Tensor,
         edges_target: torch.Tensor,
         num_nodes: torch.Tensor,
+        shared_metric_state: dict = None,
         **kwargs,
     ):
+        if (
+            isinstance(shared_metric_state, dict)
+            and self.metric_type_label in shared_metric_state
+        ):
+            self.metric.reset()
+            self.metrics = shared_metric_state[self.metric_type_label]
+            self.calc_weights_only(edges_predicted, num_nodes)
+            shared_metric_state[self.label + "_weights"] = self.weights
+            return
+
         edges_predicted = torch.sigmoid(edges_predicted).round().int()
         edges_target = torch.clamp(edges_target.int(), min=0)
 
@@ -38,7 +58,7 @@ class EdgeMetric(torchmetrics.Metric):
         graph_counts_per_size = torch_bincount(num_blocks)
 
         for index, count in enumerate(graph_counts_per_size):
-            if count:
+            if count != 0:
                 mask = num_blocks == index
                 predicted = edges_predicted[mask].flatten()
                 target = edges_target[mask].flatten()
@@ -50,6 +70,27 @@ class EdgeMetric(torchmetrics.Metric):
 
                 self.metrics.append(current_metric)
 
+                self.weights.append(
+                    pow(index * block_size, 2 - self.weight_power) * count
+                )
+
+        if isinstance(shared_metric_state, dict):
+            shared_metric_state[self.metric_type_label] = self.metrics
+            shared_metric_state[self.label + "_weights"] = self.weights
+
+    def calc_weights_only(self, edges_predicted, num_nodes):
+        edges_predicted = torch.sigmoid(edges_predicted).round().int()
+
+        block_size = edges_predicted.shape[2] if len(edges_predicted.shape) == 5 else 1
+        if block_size != 1:
+            num_blocks = calculate_num_blocks(num_nodes, block_size)
+        else:
+            num_blocks = num_nodes
+
+        graph_counts_per_size = torch_bincount(num_blocks)
+
+        for index, count in enumerate(graph_counts_per_size):
+            if count != 0:
                 self.weights.append(
                     pow(index * block_size, 2 - self.weight_power) * count
                 )
