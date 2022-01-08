@@ -50,6 +50,26 @@ class MLPClassifier(BaseModel):
         except ArgumentError:
             pass
         parser = parent_parser.add_argument_group(cls.__name__)
+        try:  # these may collide with an encoder module, but that's fine
+            parser = BaseModel.add_model_specific_args(parent_parser=parser)
+            parser.add_argument(
+                "--embedding_size",
+                dest="embedding_size",
+                default=32,
+                type=int,
+                metavar="EMB_SIZE",
+                help="size of the encoder output graph embedding",
+            )
+            parser.add_argument(
+                "--edge_size",
+                dest="edge_size",
+                default=1,
+                type=int,
+                metavar="EDGE_SIZE",
+                help="number of dimensions of a graph's edge",
+            )
+        except ArgumentError:
+            pass
         parser.add_argument(
             "--classifier_hidden_layer_sizes",
             dest="classifier_hidden_layer_sizes",
