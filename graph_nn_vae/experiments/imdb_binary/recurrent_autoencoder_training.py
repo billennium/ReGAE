@@ -7,6 +7,7 @@ from graph_nn_vae.data import (
     RealGraphLoader,
 )
 from graph_nn_vae.models.autoencoder_base import RecurrentGraphAutoencoder
+from graph_nn_vae.util.early_stopping import TimeBasedEarlyStopping
 
 
 class ExperimentModel(RecurrentGraphAutoencoder):
@@ -47,9 +48,9 @@ class ExperimentModel(RecurrentGraphAutoencoder):
                 "EdgeF1",
             ],
             max_epochs=10000,
-            check_val_every_n_epoch=5,
-            metric_update_interval=5,
-            early_stopping=False,
+            check_val_every_n_epoch=3,
+            metric_update_interval=3,
+            early_stopping=True,
             bfs=True,
             num_dataset_graph_permutations=10,
             train_val_test_permutation_split=[1.0, 0.0, 0.0],

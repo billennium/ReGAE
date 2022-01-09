@@ -5,13 +5,18 @@ import warnings
 from typing import Type
 
 import torch
-import pytorch_lightning as pl
-from pytorch_lightning.callbacks import EarlyStopping
 import torch.multiprocessing
-from graph_nn_vae.data import BaseDataModule
-from graph_nn_vae.models.base import BaseModel
-
+import pytorch_lightning as pl
 from pytorch_lightning.callbacks import LearningRateMonitor
+
+from graph_nn_vae.data import BaseDataModule, data_module
+from graph_nn_vae.models.base import BaseModel
+from graph_nn_vae import util
+from graph_nn_vae.util.early_stopping import (
+    EarlyStoppingBase,
+    ProgressiveSubgraphTrainingEarlyStopping,
+)
+
 
 warnings.filterwarnings(
     "ignore",
@@ -33,11 +38,12 @@ class Experiment:
         self,
         model: Type[BaseModel],
         data_module: BaseDataModule,
+        early_stopping: EarlyStoppingBase = ProgressiveSubgraphTrainingEarlyStopping,
         parser_default: dict = None,
     ):
         self.model = model
         self.data_module = data_module
-        self.early_stopping = EarlyStopping
+        self.early_stopping = early_stopping
         self.parser_default = parser_default if parser_default is not None else {}
 
     def run(self):
@@ -80,9 +86,21 @@ class Experiment:
             lr_monitor = LearningRateMonitor(logging_interval="step")
             trainer.callbacks.append(lr_monitor)
 
+        steps_per_epoch = util.divide_int_round_up(
+            len(self.data_module.train_dataset), self.data_module.batch_size
+        )
+
         if args.early_stopping:
+            preogressive_subgraph_training_enabled = False
+            if (
+                "subgraph_scheduler_name" in args
+                and args.subgraph_scheduler_name not in (None, "none")
+            ):
+                preogressive_subgraph_training_enabled = True
             early_stopping = self.early_stopping(
-                monitor="loss/val", patience=args.early_stopping_patience
+                steps_per_epoch=steps_per_epoch,
+                preogressive_subgraph_training_enabled=preogressive_subgraph_training_enabled,
+                **vars(args),
             )
             trainer.callbacks.append(early_stopping)
 
@@ -124,8 +142,8 @@ class Experiment:
         parser = self.add_trainer_parser(parser)
         parser = self.add_experiment_parser(parser)
         parser = self.data_module.add_model_specific_args(parser)
+        parser = self.early_stopping.add_callback_specific_args(parser)
         parser = self.model.add_model_specific_args(parser)
-        # parser = self.early_stopping.add_callback_specific_args(parser)
         parser.set_defaults(
             **self.parser_default,
         )
@@ -191,13 +209,6 @@ class Experiment:
             dest="early_stopping",
             action="store_true",
             help="Enable early stopping",
-        )
-        parser.add_argument(
-            "--early_stopping_patience",
-            dest="early_stopping_patience",
-            type=int,
-            default=3,
-            help="Patience for early stopping",
         )
         parser.add_argument(
             "--lr_monitor",
