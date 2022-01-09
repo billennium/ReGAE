@@ -114,7 +114,7 @@ class EdgeMetricsBasedSubgraphSizeScheduler(SubgraphSizeScheduler):
 
         if (
             self.last_epoch_changed + self.metric_update_interval
-            < self.data_module.trainer.current_epoch
+            <= self.data_module.trainer.current_epoch
             and (
                 self.data_module.current_metrics.get("edge_recall/train_avg", 0)
                 > self.params["metrics_treshold"]
