@@ -1,8 +1,7 @@
 - config: generic-flags
   flags:
-    gpus: "1"
     workers: "0"
-    checkpoint-monitor: "loss/val"
+    checkpoint_monitor: "loss/val"
     lr:
       type: float
     batch_size: 

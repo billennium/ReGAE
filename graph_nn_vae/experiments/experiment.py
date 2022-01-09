@@ -164,7 +164,8 @@ class Experiment:
         parser.add_argument(
             "--no_evaluate",
             dest="no_evaluate",
-            action="store_true",
+            type=bool,
+            default=False,
             help="do not evaluate model on validation set",
         )
         parser.add_argument(
@@ -207,13 +208,15 @@ class Experiment:
         parser.add_argument(
             "--early_stopping",
             dest="early_stopping",
-            action="store_true",
+            type=bool,
+            default=False,
             help="Enable early stopping",
         )
         parser.add_argument(
             "--lr_monitor",
             dest="lr_monitor",
-            action="store_true",
+            type=bool,
+            default=False,
             help="Enable learning rate monitor",
         )
         return parent_parser
