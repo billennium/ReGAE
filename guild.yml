@@ -26,6 +26,16 @@
                 - "graph_nn_vae/*"
             exclude:
                 - "**/__pycache__"
+    synthetic_grid_medium:
+        main: 'graph_nn_vae.experiments.synthetic_grid_medium.{{ name }}_training'
+        flags:
+            $include: generic-flags
+        output-scalars: off
+        sourcecode:
+            select:
+                - "graph_nn_vae/*"
+            exclude:
+                - "**/__pycache__"
     synthetic_barabasi_small:
         main: 'graph_nn_vae.experiments.synthetic_barabasi_small.{{ name }}_training'
         flags:
