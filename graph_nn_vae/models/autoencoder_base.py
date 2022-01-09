@@ -31,11 +31,9 @@ class GraphAutoencoder(BaseModel):
         super(GraphAutoencoder, self).__init__(loss_function=loss_function, **kwargs)
         self.mask_loss_function = get_loss(mask_loss_function, mask_loss_weight)
 
-        self.edge_1_loss_function = get_loss(
-            loss_function, recall_to_precision_bias * 0.5
-        )
+        self.edge_1_loss_function = get_loss(loss_function, recall_to_precision_bias)
         self.edge_0_loss_function = get_loss(
-            loss_function, (1 - recall_to_precision_bias) * 0.5
+            loss_function, (1 - recall_to_precision_bias)
         )
         self.diagonal_embeddings_loss_weight = diagonal_embeddings_loss_weight
         self.weight_power_level = weight_power_level
