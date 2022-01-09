@@ -258,6 +258,8 @@ class EdgeF1(torchmetrics.Metric):
     def compute(self) -> torch.Tensor:
         precision = self._compute_metric(self.precision_metrics, self.precision_weights)
         recall = self._compute_metric(self.recall_metrics, self.recall_weights)
+        if precision <= 0 or recall <= 0:
+            return torch.tensor([0.0], device=self.device)
         return 2 / (1 / precision + 1 / recall)
 
     def _compute_metric(self, metrics: list, weights: list) -> Tensor:
