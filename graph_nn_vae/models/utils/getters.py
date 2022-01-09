@@ -67,6 +67,7 @@ def get_metrics(metrics: List[str]):
         "EdgeRecallNonWeighted": EdgeRecallNonWeighted,
         "EdgePrecisionSquareWeighted": EdgePrecisionSquareWeighted,
         "EdgeRecallSquareWeighted": EdgeRecallSquareWeighted,
+        "EdgeF1": EdgeF1,
         "MaskPrecision": MaskPrecision,
         "MaskRecall": MaskRecall,
         "MaxGraphSize": MaxGraphSize,

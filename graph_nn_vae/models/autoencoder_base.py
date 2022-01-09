@@ -53,6 +53,7 @@ class GraphAutoencoder(BaseModel):
         )
         loss = loss_reconstruction + loss_embeddings
 
+        shared_metric_state = {}
         for metric in metrics:
             metric.update(
                 edges_predicted=y_pred_edge,
@@ -62,6 +63,7 @@ class GraphAutoencoder(BaseModel):
                 num_nodes=batch[2],
                 loss_reconstruction=loss_reconstruction,
                 loss_embeddings=loss_embeddings,
+                shared_metric_state=shared_metric_state,
             )
 
         return loss
