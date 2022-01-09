@@ -35,14 +35,7 @@ class ExperimentModel(RecurrentGraphAutoencoder):
             encoder_activation_function="ELU",
             decoder_hidden_layer_sizes=[2048],
             decoder_activation_function="ELU",
-            subgraph_scheduler_name="no_graph_scheduler",
-            # subgraph_stride=0.5,
-            # minimal_subgraph_size=10,
-            # subgraph_scheduler_params={
-            #     "subgraph_size_initial": 0.005,
-            #     "metrics_treshold": 0.6,
-            #     "step": 0.05,
-            # },
+            subgraph_scheduler_name="none",
             metrics=[
                 "EdgePrecision",
                 "EdgeRecall",

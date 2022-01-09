@@ -5,11 +5,13 @@ import pytorch_lightning as pl
 
 
 def get_subgraph_size_scheduler(name: str):
+    if name is None:
+        return None
     return {
         "linear": LinearSubgraphSizeScheduler,
         "step": StepSubgraphSizeScheduler,
         "edge_metrics_based": EdgeMetricsBasedSubgraphSizeScheduler,
-        "no_graph_scheduler": None,
+        "none": None,
     }[name]
 
 

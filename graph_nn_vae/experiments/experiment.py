@@ -144,7 +144,7 @@ class Experiment:
     def add_experiment_parser(cls, parent_parser: argparse.ArgumentParser):
         parser = parent_parser.add_argument_group(cls.__name__)
         parser.add_argument(
-            "--no-evaluate",
+            "--no_evaluate",
             dest="no_evaluate",
             action="store_true",
             help="do not evaluate model on validation set",
@@ -157,7 +157,7 @@ class Experiment:
             help="seed for model training.",
         )
         parser.add_argument(
-            "--logger-name",
+            "--logger_name",
             dest="logger_name",
             type=str,
             choices=["tb", "mlf"],
@@ -165,21 +165,21 @@ class Experiment:
             help="Logger name.",
         )
         parser.add_argument(
-            "--checkpoint-monitor",
+            "--checkpoint_monitor",
             dest="checkpoint_monitor",
             type=str,
             default="loss/val",
             help="Metric used for checkpointing",
         )
         parser.add_argument(
-            "--checkpoint-top-k",
+            "--checkpoint_top_k",
             dest="checkpoint_top_k",
             type=int,
             default=1,
             help="Save top k models",
         )
         parser.add_argument(
-            "--checkpoint-mode",
+            "--checkpoint_mode",
             dest="checkpoint_mode",
             type=str,
             choices=["min", "max"],

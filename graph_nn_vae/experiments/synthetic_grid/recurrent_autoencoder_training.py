@@ -46,7 +46,7 @@ class ExperimentModel(RecurrentGraphAutoencoder):
             num_dataset_graph_permutations=10,
             minimal_subgraph_size=10,
             subgraph_stride=0.5,
-            subgraph_scheduler_name="no_graph_scheduler",
+            subgraph_scheduler_name="none",
             # subgraph_scheduler_params={
             #     "subgraph_size_initial": 0.025,
             #     "metrics_treshold": 0.6,

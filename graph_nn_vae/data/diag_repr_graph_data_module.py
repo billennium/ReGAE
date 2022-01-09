@@ -236,7 +236,7 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
         parser.add_argument(
             "--subgraph_scheduler_name",
             dest="subgraph_scheduler_name",
-            default="no_graph_scheduler",
+            default=None,
             type=str,
             help="name of maximum subgraph size scheduler",
         )
