@@ -26,7 +26,7 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
     def __init__(
         self,
         block_size: int,
-        subgraph_scheduler_name: str = "",
+        subgraph_scheduler_name: str = None,
         subgraph_scheduler_params: dict = None,
         **kwargs
     ):
