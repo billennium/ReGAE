@@ -21,7 +21,7 @@ class GraphAutoencoder(BaseModel):
     def __init__(
         self,
         loss_function: str,
-        recall_to_precision_bias: float,
+        recall_to_precision_bias: float = 0.5,
         mask_loss_function: str = None,
         mask_loss_weight=None,
         diagonal_embeddings_loss_weight: int = 0,
