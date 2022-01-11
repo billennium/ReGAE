@@ -312,7 +312,7 @@ class AdjMatrixDataModule(BaseDataModule):
         parser.add_argument(
             "--train_val_test_permutation_split",
             dest="train_val_test_permutation_split",
-            default=[0.8, 0.2, 0.0],
+            default=[1.0, 0.0, 0.0],
             metavar="JSON_LIST",
             type=json.loads,
             help="""
