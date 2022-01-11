@@ -344,13 +344,13 @@ class AdjMatrixDataModule(BaseDataModule):
             dest="save_dataset_to_pickle",
             default=None,
             type=str,
-            help="save dataset to pickle files",
+            help="Save dataset to pickle at the specified path.",
         )
         parser.add_argument(
             "--pickled_dataset_path",
             dest="pickled_dataset_path",
             default=None,
             type=str,
-            help="save dataset to pickle files",
+            help="Load dataset from the specified pickle file.",
         )
         return parent_parser
