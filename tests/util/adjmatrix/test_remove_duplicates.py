@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 import torch
 
-# from graph_nn_vae.util.adjmatrix.remove_duplicates import remove_duplicates
+# from rga.util.adjmatrix.remove_duplicates import remove_duplicates
 
 
 # @pytest.mark.parametrize(

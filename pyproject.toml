@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "graph_nn_vae"
+name = "rga"
 version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]

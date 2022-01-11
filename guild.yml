@@ -16,116 +16,116 @@
 - config: model-base
   operations:
     synthetic_grid_small:
-        main: 'graph_nn_vae.experiments.synthetic_grid_small.{{ name }}_training'
+        main: 'rga.experiments.synthetic_grid_small.{{ name }}_training'
         flags:
             $include: generic-flags
         output-scalars: off
         sourcecode:
             select:
-                - "graph_nn_vae/*"
+                - "rga/*"
             exclude:
                 - "**/__pycache__"
     synthetic_grid_medium:
-        main: 'graph_nn_vae.experiments.synthetic_grid_medium.{{ name }}_training'
+        main: 'rga.experiments.synthetic_grid_medium.{{ name }}_training'
         flags:
             $include: generic-flags
         output-scalars: off
         sourcecode:
             select:
-                - "graph_nn_vae/*"
+                - "rga/*"
             exclude:
                 - "**/__pycache__"
     synthetic_barabasi_small:
-        main: 'graph_nn_vae.experiments.synthetic_barabasi_small.{{ name }}_training'
+        main: 'rga.experiments.synthetic_barabasi_small.{{ name }}_training'
         flags:
             $include: generic-flags
         output-scalars: off
         sourcecode:
             select:
-                - "graph_nn_vae/*"
+                - "rga/*"
             exclude:
                 - "**/__pycache__"
     synthetic_barabasi_one_100:
-        main: 'graph_nn_vae.experiments.synthetic_barabasi_one_100.{{ name }}_training'
+        main: 'rga.experiments.synthetic_barabasi_one_100.{{ name }}_training'
         flags:
             $include: generic-flags
         output-scalars: off
         sourcecode:
             select:
-                - "graph_nn_vae/*"
+                - "rga/*"
             exclude:
                 - "**/__pycache__"
     imdb_binary:
-        main: 'graph_nn_vae.experiments.imdb_binary.{{ name }}_training'
+        main: 'rga.experiments.imdb_binary.{{ name }}_training'
         flags:
             $include: generic-flags
         output-scalars: off
         sourcecode:
             select:
-                - "graph_nn_vae/*"
+                - "rga/*"
             exclude:
                 - "**/__pycache__"
     imdb_multi:
-        main: 'graph_nn_vae.experiments.imdb_multi.{{ name }}_training'
+        main: 'rga.experiments.imdb_multi.{{ name }}_training'
         flags:
             $include: generic-flags
         output-scalars: off
         sourcecode:
             select:
-                - "graph_nn_vae/*"
+                - "rga/*"
             exclude:
                 - "**/__pycache__"
     reddit_binary:
-        main: 'graph_nn_vae.experiments.reddit_binary.{{ name }}_training'
+        main: 'rga.experiments.reddit_binary.{{ name }}_training'
         flags:
             $include: generic-flags
         output-scalars: off
         sourcecode:
             select:
-                - "graph_nn_vae/*"
+                - "rga/*"
             exclude:
                 - "**/__pycache__"
     collab:
-        main: 'graph_nn_vae.experiments.collab.{{ name }}_training'
+        main: 'rga.experiments.collab.{{ name }}_training'
         flags:
             $include: generic-flags
         output-scalars: off
         sourcecode:
             select:
-                - "graph_nn_vae/*"
+                - "rga/*"
             exclude:
                 - "**/__pycache__"
                 
 - config: model-partial
   operations:
     sanity_checks:
-        main: 'graph_nn_vae.experiments.sanity_checks.{{ name }}_training'
+        main: 'rga.experiments.sanity_checks.{{ name }}_training'
         flags:
             $include: generic-flags
         output-scalars: off
         sourcecode:
             select:
-                - "graph_nn_vae/*"
+                - "rga/*"
             exclude:
                 - "**/__pycache__"
 
 
-- model: recurrent_autoencoder
+- model: recursive_autoencoder
   extends: model-base
   params:
-    name: recurrent_autoencoder
+    name: recursive_autoencoder
 
-- model: recurrent_vae
+- model: recursive_vae
   extends: model-base
   params:
-    name: recurrent_vae
+    name: recursive_vae
 
 - model: encoder_num_edges
   extends: model-partial
   params:
     name: encoder_num_edges
 
-- model: recurrent_classifier
+- model: recursive_classifier
   extends: model-base
   params:
     name: classifier

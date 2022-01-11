@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 import torch
 
-from graph_nn_vae.util.adjmatrix.pad import minimize_and_pad
+from rga.util.adjmatrix.pad import minimize_and_pad
 
 
 @pytest.mark.parametrize(

@@ -2,7 +2,7 @@ import pytest
 
 import numpy as np
 import torch
-from graph_nn_vae.data.subgraphs import (
+from rga.data.subgraphs import (
     generate_subgraphs,
 )
 

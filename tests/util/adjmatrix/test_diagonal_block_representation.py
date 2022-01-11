@@ -1,7 +1,7 @@
 import pytest
 
 import torch
-from graph_nn_vae.util.adjmatrix.diagonal_block_representation import (
+from rga.util.adjmatrix.diagonal_block_representation import (
     adj_matrix_to_diagonal_block_representation,
     diagonal_block_to_adj_matrix_representation,
 )
@@ -279,6 +279,35 @@ def test_adj_matrix_to_diagonal_block_representation(
              [1, 0, 0, 0, 0],
              [1, 0, 0, 0, 0],
              [0, 1, 1, 1, 0]],
+        ),
+        (
+            [[[1, 0, 0],
+              [1, 0, 0],
+              [0, 1, 1]],
+             [[0, 0, 0],
+              [0, 0, 0],
+              [1, 0, 0]],
+             [[0, 0, 0],
+              [0, 0, 0],
+              [1, 0, 1]],
+             [[0, 0, 0],
+              [0, 0, 0],
+              [1, 0, 0]],
+             [[0, 0, 0],
+              [0, 0, 0],
+              [1, 0, 0]],
+             [[0, 0, 0],
+              [0, 0, 0],
+              [1, 0, 0]]],
+            8,
+            [[0, 0, 0, 0, 0, 0, 0, 0],
+             [1, 0, 0, 0, 0, 0, 0, 0],
+             [0, 0, 0, 0, 0, 0, 0, 0],
+             [0, 0, 0, 0, 0, 0, 0, 0],
+             [1, 0, 0, 1, 0, 0, 0, 0],
+             [1, 0, 0, 0, 0, 0, 0, 0],
+             [1, 0, 0, 0, 0, 0, 0, 0],
+             [0, 1, 1, 1, 0, 1, 1, 0]],
         ),
         # fmt: on
     ],

@@ -2,11 +2,11 @@ import pytest
 
 import numpy as np
 import torch
-from graph_nn_vae.util.adjmatrix.diagonal_representation import (
+from rga.util.adjmatrix.diagonal_representation import (
     adj_matrix_to_diagonal_representation,
 )
 
-from graph_nn_vae.util.adjmatrix.pad import minimize_and_pad
+from rga.util.adjmatrix.pad import minimize_and_pad
 
 
 @pytest.mark.parametrize(

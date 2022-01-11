@@ -1,4 +1,4 @@
-# Recurrent Graph Autoencoder
+# Recursive Graph Autoencoder
 
 ## Environment installation
 **Note : Use Python 3.7 or newer**
@@ -8,4 +8,4 @@
 
 ## Running experiments with guild
 1. Activate the environment by `poetry shell`
-2. Run the experiment, for example: `guild run recurrent_autoencoder:synthetic` or `guild run encoder_num_edges:sanity_checks`
+2. Run the experiment, for example: `guild run recursive_autoencoder:synthetic` or `guild run encoder_num_edges:sanity_checks`
