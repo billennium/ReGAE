@@ -79,7 +79,6 @@ class Experiment:
                 monitor=args.checkpoint_monitor,
                 save_top_k=args.checkpoint_top_k,
                 mode=args.checkpoint_mode,
-                filename="{step:06d}-{" + args.checkpoint_monitor + ":.4f}",
             )
             trainer.callbacks.append(checkpoint_callback)
 
