@@ -18,8 +18,8 @@ for dataset in "${DATASET_NAMES[@]}"; do
       --gpus "${GPU}," \
       --pickled_dataset_path="${DATASET_PATH}/${dataset}" \
       --early_stopping=True \
+      --es_patience=20 \
       --seed=${current_seed} \
-      --es_patience=1 \
       | tail -10 \
     )
 
