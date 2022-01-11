@@ -46,9 +46,13 @@ def AdamWAMSGrad(*args, **kwargs):
 
 
 def get_lr_scheduler(name: str):
+    if name is None:
+        return lr_schedulers.NoSched
     optimizers = {
+        "none": lr_schedulers.NoSched,
         "NoSched": lr_schedulers.NoSched,
         "FactorDecreasingOnMetricChange": lr_schedulers.FactorDecreasingOnMetricChange,
+        "factor_decreasing_on_metric_change": lr_schedulers.FactorDecreasingOnMetricChange,
         "SingleTimeChangeOnMetricTreshold": lr_schedulers.SingleTimeChangeOnMetricTreshold,
         "StepLR": torch.optim.lr_scheduler.StepLR,
         "MultiStepLR": torch.optim.lr_scheduler.MultiStepLR,

@@ -22,7 +22,7 @@ class ExperimentModel(RecurrentGraphAutoencoder):
             recall_to_precision_bias=0.4,
             optimizer="AdamWAMSGrad",
             lr_monitor=True,
-            lr_scheduler_name="NoSched",
+            lr_scheduler_name="none",
             lr_scheduler_metric="loss/train_avg",
             learning_rate=0.001,
             gradient_clip_val=1.0,
