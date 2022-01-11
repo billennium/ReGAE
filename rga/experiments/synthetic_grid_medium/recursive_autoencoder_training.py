@@ -18,7 +18,7 @@ class ExperimentModel(RecursiveGraphAutoencoder):
             mask_loss_function="BCEWithLogits",
             mask_loss_weight=0.5,
             diagonal_embeddings_loss_weight=0.19,
-            diagonal_embeddings_loss_weight=0.30,
+            recall_to_precision_bias=0.30,
             optimizer="AdamWAMSGrad",
             lr_monitor=True,
             lr_scheduler_name="NoSched",
