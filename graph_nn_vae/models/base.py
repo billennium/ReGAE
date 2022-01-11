@@ -19,13 +19,13 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
     def __init__(
         self,
         loss_function: str,
-        loss_weight: torch.Tensor,
         learning_rate: float,
         optimizer: str,
         lr_scheduler_name: str,
         lr_scheduler_params: dict,
         lr_scheduler_metric: str,
         metrics: List[str],
+        loss_weight: torch.Tensor = None,
         metric_update_interval: int = 1,
         # these are used for initializing the apropriate number of metrics
         num_train_dataloaders: int = 1,

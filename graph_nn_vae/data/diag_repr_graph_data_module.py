@@ -26,8 +26,8 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
     def __init__(
         self,
         block_size: int,
-        subgraph_scheduler_name: str,
-        subgraph_scheduler_params: dict,
+        subgraph_scheduler_name: str = None,
+        subgraph_scheduler_params: dict = None,
         **kwargs
     ):
         self.block_size = block_size
@@ -43,6 +43,9 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
         )
 
         if self.subgraph_size_scheduler is not None:
+            if subgraph_scheduler_params is None:
+                subgraph_scheduler_params = {}
+
             self.prepare_module_to_smooth_learning(subgraph_scheduler_params, **kwargs)
 
     def prepare_module_to_smooth_learning(

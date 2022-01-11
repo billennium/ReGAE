@@ -19,9 +19,9 @@ class AdjMatrixDataModule(BaseDataModule):
 
     def __init__(
         self,
-        num_dataset_graph_permutations: int,
-        train_val_test_split: list,
-        train_val_test_permutation_split: Optional[list],
+        num_dataset_graph_permutations: int = 1,
+        train_val_test_split: list = None,
+        train_val_test_permutation_split: Optional[list] = None,
         bfs: bool = False,
         deduplicate_train: bool = False,
         deduplicate_val_test: bool = False,
@@ -31,17 +31,18 @@ class AdjMatrixDataModule(BaseDataModule):
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.initialize_graphloader(use_labels=use_labels, **kwargs)
-        self.num_dataset_graph_permutations = num_dataset_graph_permutations
+        self.pickled_dataset_path = pickled_dataset_path
+        if self.pickled_dataset_path is None:
+            self.initialize_graphloader(use_labels=use_labels, **kwargs)
+            self.num_dataset_graph_permutations = num_dataset_graph_permutations
+            self.train_val_test_split = train_val_test_split
+            self.train_val_test_permutation_split = train_val_test_permutation_split
+            self.save_dataset_to_pickle = save_dataset_to_pickle
+
         self.bfs = bfs
         self.deduplicate_train = deduplicate_train
         self.deduplicate_val_test = deduplicate_val_test
-        self.train_val_test_split = train_val_test_split
-        self.train_val_test_permutation_split = train_val_test_permutation_split
         self.use_labels = use_labels
-        self.save_dataset_to_pickle = save_dataset_to_pickle
-        self.pickled_dataset_path = pickled_dataset_path
-
         self.prepare_data()
 
     def initialize_graphloader(self, **kwargs):
