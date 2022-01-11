@@ -119,15 +119,18 @@ class Experiment:
 
         if not args.no_evaluate:
             if args.checkpoint_monitor:
-                trainer.test(
-                    ckpt_path=checkpoint_callback.best_model_path,
-                    dataloaders=self.data_module,
-                )
+                if checkpoint_callback.best_model_path == '':
+                    print(f"No checkpoints saved; skipping test")
+                else:
+                    trainer.test(
+                        ckpt_path=checkpoint_callback.best_model_path,
+                        dataloaders=self.data_module,
+                    )
             else:
                 trainer.test(ckpt_path="best", dataloaders=self.data_module)
 
         if args.checkpoint_monitor:
-            print(f"best model path: {checkpoint_callback.best_model_path}")
+            print(f"Best model path: {checkpoint_callback.best_model_path}")
 
         print("Elapsed time:", "%.2f" % (end - start))
 
