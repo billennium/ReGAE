@@ -23,7 +23,6 @@ def metric(
         predicted_graph = predicted_graph.flatten()
 
         if target_graph.shape[0] != predicted_graph.shape[0]:
-            # continue
             new_size = max([target_graph.shape[0], predicted_graph.shape[0]])
             target_graph = torch.nn.functional.pad(
                 target_graph, [0, new_size - target_graph.shape[0]]
