@@ -25,7 +25,8 @@ def adj_matrix_to_diagonal_representation(
         diagonal = torch.diagonal(
             adj_matrix,
             offset=diagonal_offset - adj_matrix.shape[0],
-        ).transpose(1, 0)
+        )
+        diagonal = diagonal.transpose(1, 0)
         diagonals.append(diagonal)
     # concat over the not-edge-shape dimension, that is, the second highest
     diagonal_dimension = len(diagonals[0].shape) - 2

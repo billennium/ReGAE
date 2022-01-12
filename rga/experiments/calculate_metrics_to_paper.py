@@ -11,7 +11,7 @@ from rga.data.diag_repr_graph_data_module import (
 )
 import math
 
-from rga.util.load_model import load_hparams, load_model
+from rga.models.utils.load import load_hparams, load_model
 from rga.models.autoencoder_base import RecursiveGraphAutoencoder
 from rga.util.adjmatrix.diagonal_block_representation import (
     diagonal_block_to_adj_matrix_representation,

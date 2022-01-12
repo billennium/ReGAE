@@ -1,39 +1,44 @@
 import torch
 import torchmetrics
 
+from rga.util import adjmatrix
+
 
 def metric(
     target,
     predicted,
     func,
-    d=1,
+    power=1,
 ):
     metric_func = func(num_classes=2, average=None)
 
     metrics = []
     weights = []
-    for target_graph, predictied_graph in zip(target, predicted):
-        target_graph_size = target_graph.shape[0]
+    for target_graph, predicted_graph in zip(target, predicted):
+        target_graph_size = adjmatrix.block_count_to_num_block_diagonals(
+            target_graph.shape[0]
+        )
 
         target_graph = target_graph.flatten()
-        predictied_graph = predictied_graph.flatten()
+        predicted_graph = predicted_graph.flatten()
 
-        if target_graph.shape[0] != predictied_graph.shape[0]:
-            new_size = max([target_graph.shape[0], predictied_graph.shape[0]])
+        if target_graph.shape[0] != predicted_graph.shape[0]:
+            # continue
+            new_size = max([target_graph.shape[0], predicted_graph.shape[0]])
             target_graph = torch.nn.functional.pad(
                 target_graph, [0, new_size - target_graph.shape[0]]
             )
-            predictied_graph = torch.nn.functional.pad(
-                predictied_graph, [0, new_size - predictied_graph.shape[0]]
+            predicted_graph = torch.nn.functional.pad(
+                predicted_graph, [0, new_size - predicted_graph.shape[0]]
             )
 
-        precision_value = metric_func(target_graph, predictied_graph)[1]
+        precision_value = metric_func(predicted_graph, target_graph)[1]
         if precision_value != precision_value:
             precision_value = 0
 
         metrics.append(precision_value)
 
-        weights.append(torch.tensor(pow(target_graph_size, 2 - d)))
+        weights.append(torch.tensor(pow(target_graph_size, 2 - power)))
 
     metrics = torch.stack(metrics)
     weights = torch.stack(weights)
@@ -55,11 +60,13 @@ def average_num_node_mistake(target, predicted):
 def calculate_metrics(target, predictions):
     precision_values = []
     recall_values = []
-    for d in [0, 1, 2]:
+    for power in [0, 1, 2]:
         precision_values.append(
-            metric(target, predictions, torchmetrics.Precision, d=d)
+            metric(target, predictions, torchmetrics.Precision, power=power)
         )
-        recall_values.append(metric(target, predictions, torchmetrics.Recall, d=1))
+        recall_values.append(
+            metric(target, predictions, torchmetrics.Recall, power=power)
+        )
 
     return {
         "precision_d0": precision_values[0],
