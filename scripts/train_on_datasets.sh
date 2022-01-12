@@ -28,10 +28,16 @@ for dataset in "${DATASET_NAMES[@]}"; do
     best_checkpoint_paths+=(${best_checkpoint})
 
     mkdir -p "${TARGET_CHECKPOINT_DIR}"
-    target_path="${TARGET_CHECKPOINT_DIR}/${dataset%.*}.ckpt"
-    mv "${best_checkpoint}" "${target_path}"
+    target_ckpt_path="${TARGET_CHECKPOINT_DIR}/${dataset%.*}.ckpt"
+    mv "${best_checkpoint}" "${target_ckpt_path}"
 
-    echo "Moved the checkpoint to ${target_path}"
+    checkpoints_dir="$(dirname "${best_checkpoint}")"
+    logs_dir="$(dirname "${checkpoints_dir}")"
+    hparams_file_path="${logs_dir}/hparams.yaml"
+    target_hparams_path="${TARGET_CHECKPOINT_DIR}/${dataset%.*}_hparams.yaml"
+    cp "${hparams_file_path}" "${target_hparams_path}"
+
+    echo "Moved the checkpoint to ${target_ckpt_path}"
 
     ((current_seed++))
 done
