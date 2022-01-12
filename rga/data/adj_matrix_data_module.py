@@ -20,6 +20,8 @@ class AdjMatrixDataModule(BaseDataModule):
     def __init__(
         self,
         num_dataset_graph_permutations: int = 1,
+        num_dataset_graph_permutations_val: int = None,
+        num_dataset_graph_permutations_test: int = None,
         train_val_test_split: list = None,
         train_val_test_permutation_split: Optional[list] = None,
         bfs: bool = False,
@@ -35,6 +37,20 @@ class AdjMatrixDataModule(BaseDataModule):
         if self.pickled_dataset_path is None:
             self.initialize_graphloader(use_labels=use_labels, **kwargs)
             self.num_dataset_graph_permutations = num_dataset_graph_permutations
+            if num_dataset_graph_permutations_val is None:
+                self.num_dataset_graph_permutations_val = num_dataset_graph_permutations
+            else:
+                self.num_dataset_graph_permutations_val = (
+                    num_dataset_graph_permutations_val
+                )
+            if num_dataset_graph_permutations_test is None:
+                self.num_dataset_graph_permutations_test = (
+                    num_dataset_graph_permutations
+                )
+            else:
+                self.num_dataset_graph_permutations_test = (
+                    num_dataset_graph_permutations_test
+                )
             self.train_val_test_split = train_val_test_split
             self.train_val_test_permutation_split = train_val_test_permutation_split
             self.save_dataset_to_pickle = save_dataset_to_pickle
@@ -85,12 +101,12 @@ class AdjMatrixDataModule(BaseDataModule):
             )
             val_graphs = flatten(
                 self.permute_adj_matrices(
-                    val_graphs, self.num_dataset_graph_permutations
+                    val_graphs, self.num_dataset_graph_permutations_val
                 )
             )
             test_graphs = flatten(
                 self.permute_adj_matrices(
-                    test_graphs, self.num_dataset_graph_permutations
+                    test_graphs, self.num_dataset_graph_permutations_test
                 )
             )
 
@@ -293,7 +309,21 @@ class AdjMatrixDataModule(BaseDataModule):
             dest="num_dataset_graph_permutations",
             default=10,
             type=int,
-            help="number of permuted copies of the same graphs to generate in the dataset",
+            help="number of permuted copies of the same graphs to generate in the datasets",
+        )
+        parser.add_argument(
+            "--num_dataset_graph_permutations_val",
+            dest="num_dataset_graph_permutations_val",
+            default=None,
+            type=int,
+            help="number of permuted copies of the same graphs to generate in the val dataset",
+        )
+        parser.add_argument(
+            "--num_dataset_graph_permutations_test",
+            dest="num_dataset_graph_permutations_test",
+            default=None,
+            type=int,
+            help="number of permuted copies of the same graphs to generate in the test dataset",
         )
         parser.add_argument(
             "--bfs",
