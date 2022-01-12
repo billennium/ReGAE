@@ -62,6 +62,8 @@ def get_lr_scheduler(name: str):
 
 
 def get_metrics(metrics: List[str]):
+    if metrics is None:
+        return []
     metrics_dict = {
         "EdgeAccuracy": EdgeAccuracy,
         "MaskAccuracy": MaskAccuracy,
