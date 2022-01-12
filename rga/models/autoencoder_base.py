@@ -20,9 +20,9 @@ from rga.models.utils.calc import torch_bincount
 class GraphAutoencoder(BaseModel):
     def __init__(
         self,
-        loss_function: str,
+        loss_function: str = "BCEWithLogits",
         recall_to_precision_bias: float = 0.5,
-        mask_loss_function: str = None,
+        mask_loss_function: str = "BCEWithLogits",
         mask_loss_weight=None,
         diagonal_embeddings_loss_weight: int = 0,
         weight_power_level: float = 1,

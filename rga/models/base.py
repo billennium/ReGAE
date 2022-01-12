@@ -19,12 +19,12 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
     def __init__(
         self,
         loss_function: str,
-        learning_rate: float,
-        optimizer: str,
-        lr_scheduler_name: str,
-        lr_scheduler_params: dict,
-        lr_scheduler_metric: str,
-        metrics: List[str],
+        learning_rate: float = 0.0001,
+        optimizer: str = "Adam",
+        metrics: List[str] = None,
+        lr_scheduler_name: str = None,
+        lr_scheduler_params: dict = None,
+        lr_scheduler_metric: str = "loss/train_avg",
         loss_weight: torch.Tensor = None,
         metric_update_interval: int = 1,
         # these are used for initializing the apropriate number of metrics
@@ -39,6 +39,8 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         self.learning_rate = learning_rate
         self.optimizer = get_optimizer(optimizer)
         self.lr_scheduler_name = lr_scheduler_name
+        if lr_scheduler_params is None:
+            lr_scheduler_params = {}
         self.lr_scheduler_params = lr_scheduler_params
         self.lr_scheduler_metric = lr_scheduler_metric
         self.initialize_metrics(
@@ -211,7 +213,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
             "--lr",
             "--learning_rate",
             dest="learning_rate",
-            default=0.01,
+            default=0.0001,
             type=float,
             metavar="LR",
             help="initial learning rate",
@@ -243,7 +245,7 @@ class BaseModel(pl.LightningModule, metaclass=ABCMeta):
         parser.add_argument(
             "--lr_scheduler_name",
             dest="lr_scheduler_name",
-            default="ReduceLROnPlateau",
+            default="none",
             type=str,
             help="name of learning rate scheduler",
         )
