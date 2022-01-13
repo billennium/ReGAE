@@ -20,6 +20,12 @@ def adj_matrix_to_diagonal_representation(
     The diagonal representation for this graph will be:
     011101 + -1 padding
     """
+    if adj_matrix.shape[0] == adj_matrix.shape[1] == 1:
+        empty_tensor = torch.empty(
+            (0, 1), device=adj_matrix.device, dtype=adj_matrix.dtype
+        )
+        return empty_tensor
+
     diagonals = []
     for diagonal_offset in range(1, num_nodes):
         diagonal = torch.diagonal(
@@ -29,7 +35,7 @@ def adj_matrix_to_diagonal_representation(
         diagonal = diagonal.transpose(1, 0)
         diagonals.append(diagonal)
     # concat over the not-edge-shape dimension, that is, the second highest
-    diagonal_dimension = len(diagonals[0].shape) - 2
+    diagonal_dimension = diagonals[0].ndim - 2
     concatenated_diagonals = torch.cat(diagonals, dim=diagonal_dimension)
 
     if max_num_nodes_padding is not None and max_num_nodes_padding > num_nodes:
