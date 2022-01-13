@@ -107,6 +107,12 @@ def diagonal_block_to_adj_matrix_representation(
 
     to a shape [y, x, edge_size]
     """
+    if num_nodes == 1:
+        return torch.tensor(
+            [[[0.0]]],
+            device=diagonal_block_graph.device,
+            dtype=diagonal_block_graph.dtype,
+        )
 
     num_blocks = diagonal_block_graph.shape[0]
     block_size = diagonal_block_graph.shape[1]
