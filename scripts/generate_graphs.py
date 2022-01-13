@@ -32,7 +32,8 @@ class GraphGenerator:
         hparams["pickled_dataset_path"] = args.dataset_pickle_path
         data_module = DiagonalRepresentationGraphDataModule(**hparams)
 
-        predictor = pl.Trainer(gpus=[args.gpu])
+        gpus = [args.gpu] if args.gpu not in ["none", "None", None] else None
+        predictor = pl.Trainer(gpus=gpus)
         model_output = predictor.predict(
             model, dataloaders=data_module.test_dataloader()
         )
@@ -65,7 +66,7 @@ class GraphGenerator:
         parser.add_argument("--checkpoint_path", type=str)
         parser.add_argument("--dataset_pickle_path", type=str)
         parser.add_argument("--output_graphs_path", type=str, default="")
-        parser.add_argument("--gpu", type=int, default=0)
+        parser.add_argument("--gpu", type=int, default=None)
         parser.add_argument("--evaluate", type=bool, default=True)
         return parser
 
