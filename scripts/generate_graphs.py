@@ -16,23 +16,29 @@ from rga.metrics.adjency_matrices_metrics import calculate_metrics
 
 
 class GraphGenerator:
-    def run(self, args):
+    def run(
+        self,
+        checkpoint_path: str,
+        dataset_pickle_path: str,
+        output_graphs_path: str = None,
+        gpu: int = None,
+        evaluate: bool = True,
+        **kwargs,
+    ):
         pl.seed_everything(0)
 
-        hparams_path = args.checkpoint_path.removesuffix(".ckpt") + "_hparams.yaml"
+        hparams_path = checkpoint_path.removesuffix(".ckpt") + "_hparams.yaml"
         hparams = load_hparams(hparams_path)
-        model = load_model(
-            hparams_path, args.checkpoint_path, RecursiveGraphAutoencoder
-        )
+        model = load_model(hparams_path, checkpoint_path, RecursiveGraphAutoencoder)
 
         print("Model loaded.")
         # model.summarize()
         # pl.utilities.model_summary.summarize(model)
 
-        hparams["pickled_dataset_path"] = args.dataset_pickle_path
+        hparams["pickled_dataset_path"] = dataset_pickle_path
         data_module = DiagonalRepresentationGraphDataModule(**hparams)
 
-        gpus = [args.gpu] if args.gpu not in ["none", "None", None] else None
+        gpus = [gpu] if gpu not in ["none", "None", None] else None
         predictor = pl.Trainer(gpus=gpus)
         model_output = predictor.predict(
             model, dataloaders=data_module.test_dataloader()
@@ -52,13 +58,13 @@ class GraphGenerator:
                 g[..., None], test_dataset[i][2]
             )[..., 0]
 
-        if args.output_graphs_path != "":
+        if output_graphs_path != "":
             with open(self.output_graphs_path, "wb") as output:
                 pickle.dump((predictions, targets), output)
 
-        if args.evaluate:
-            for k, v in calculate_metrics(targets, predictions).items():
-                print(k, ":", v)
+        if evaluate:
+            return calculate_metrics(targets, predictions)
+        return None
 
     def add_argparse_arguments(
         self, parser: argparse.ArgumentParser
@@ -141,4 +147,6 @@ if __name__ == "__main__":
     parser = generator.add_argparse_arguments(parser)
     args = parser.parse_args()
 
-    generator.run(args)
+    metrics = generator.run(**vars(args))
+    for k, v in metrics.items():
+        print(f"{k} {v.item():.4f}")
