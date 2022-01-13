@@ -58,8 +58,8 @@ class GraphGenerator:
                 g[..., None], test_dataset[i][2]
             )[..., 0]
 
-        if output_graphs_path != "":
-            with open(self.output_graphs_path, "wb") as output:
+        if output_graphs_path is not None:
+            with open(output_graphs_path, "wb") as output:
                 pickle.dump((predictions, targets), output)
 
         if evaluate:
@@ -71,7 +71,7 @@ class GraphGenerator:
     ) -> argparse.ArgumentParser:
         parser.add_argument("--checkpoint_path", type=str)
         parser.add_argument("--dataset_pickle_path", type=str)
-        parser.add_argument("--output_graphs_path", type=str, default="")
+        parser.add_argument("--output_graphs_path", type=str, default=None)
         parser.add_argument("--gpu", type=int, default=None)
         parser.add_argument("--evaluate", type=bool, default=True)
         return parser
@@ -149,4 +149,4 @@ if __name__ == "__main__":
 
     metrics = generator.run(**vars(args))
     for k, v in metrics.items():
-        print(f"{k} {v.item():.4f}")
+        print(f"{k}:{v.item():.4f}")
