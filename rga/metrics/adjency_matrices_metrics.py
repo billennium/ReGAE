@@ -51,10 +51,36 @@ def f1(precision, recall):
     return 2 / (1 / precision + 1 / recall)
 
 
-def average_num_node_mistake(target, predicted):
+def average_num_node_error(target, predicted):
     target_sizes = torch.tensor([el.shape[0] for el in target])
     predicted_sizes = torch.tensor([el.shape[0] for el in predicted])
     return ((target_sizes - predicted_sizes).abs() / target_sizes).mean()
+
+
+def fraction_graph_size_errors(target, predicted):
+    target_sizes = torch.tensor([el.shape[0] for el in target])
+    predicted_sizes = torch.tensor([el.shape[0] for el in predicted])
+    return (target_sizes != predicted_sizes).sum() / len(target)
+
+
+def average_num_node_difference_on_size_error(target, predicted):
+    target_sizes = torch.tensor([el.shape[0] for el in target])
+    predicted_sizes = torch.tensor([el.shape[0] for el in predicted])
+    indices_size_error = target_sizes != predicted_sizes
+    target_sizes = target_sizes[indices_size_error]
+    predicted_sizes = predicted_sizes[indices_size_error]
+    size_differences = (target_sizes - predicted_sizes).abs()
+    return size_differences.float().mean()
+
+
+def average_size_difference_on_size_error(target, predicted):
+    target_sizes = torch.tensor([el.shape[0] for el in target])
+    predicted_sizes = torch.tensor([el.shape[0] for el in predicted])
+    indices_size_error = target_sizes != predicted_sizes
+    target_sizes = target_sizes[indices_size_error]
+    predicted_sizes = predicted_sizes[indices_size_error]
+    size_differences = (target_sizes - predicted_sizes).abs()
+    return (size_differences / target_sizes).mean()
 
 
 def calculate_metrics(target, predictions):
@@ -67,8 +93,10 @@ def calculate_metrics(target, predictions):
         recall_values.append(
             metric(target, predictions, torchmetrics.Recall, power=power)
         )
+    accuracy_value = metric(target, predictions, torchmetrics.Accuracy, power=power)
 
     return {
+        "accuracy": accuracy_value,
         "precision_d0": precision_values[0],
         "recall_d0": recall_values[0],
         "f1_d0": f1(precision_values[0], recall_values[0]),
@@ -78,5 +106,12 @@ def calculate_metrics(target, predictions):
         "precision_d2": precision_values[2],
         "recall_d2": recall_values[2],
         "f1_d2": f1(precision_values[2], recall_values[2]),
-        "average_num_node_mistake": average_num_node_mistake(target, predictions),
+        "average_num_node_error": average_num_node_error(target, predictions),
+        "fraction_graph_size_errors": fraction_graph_size_errors(target, predictions),
+        "average_num_node_difference_on_size_error": average_num_node_difference_on_size_error(
+            target, predictions
+        ),
+        "average_size_difference_on_size_error": average_size_difference_on_size_error(
+            target, predictions
+        ),
     }
