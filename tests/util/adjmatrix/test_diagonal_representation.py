@@ -1,12 +1,9 @@
 import pytest
 
-import numpy as np
 import torch
 from rga.util.adjmatrix.diagonal_representation import (
     adj_matrix_to_diagonal_representation,
 )
-
-from rga.util.adjmatrix.pad import minimize_and_pad
 
 
 @pytest.mark.parametrize(

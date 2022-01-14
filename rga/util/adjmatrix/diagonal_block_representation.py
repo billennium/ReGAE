@@ -1,3 +1,4 @@
+import math
 import torch
 from torch.functional import Tensor
 
@@ -106,6 +107,12 @@ def diagonal_block_to_adj_matrix_representation(
 
     to a shape [y, x, edge_size]
     """
+    if num_nodes == 1:
+        return torch.tensor(
+            [[[0.0]]],
+            device=diagonal_block_graph.device,
+            dtype=diagonal_block_graph.dtype,
+        )
 
     num_blocks = diagonal_block_graph.shape[0]
     block_size = diagonal_block_graph.shape[1]
@@ -116,7 +123,9 @@ def diagonal_block_to_adj_matrix_representation(
     diagonal_block_graph = diagonal_block_graph[:num_unpadded_blocks]
     num_blocks = num_unpadded_blocks
 
-    num_missing_blocks_for_full_matrix = num_columns * num_columns - num_blocks
+    num_missing_blocks_for_full_matrix = (
+        num_columns * num_columns - diagonal_block_graph.shape[0]
+    )
     diagonal_block_graph = torch.nn.functional.pad(
         diagonal_block_graph, (0, 0, 0, 0, 0, 0, 0, num_missing_blocks_for_full_matrix)
     )
@@ -170,3 +179,7 @@ def diagonal_block_to_adj_matrix_representation(
 
 def divide_integer_round_up(dividend, divisor) -> int:
     return int((dividend + divisor - 1) / divisor)
+
+
+def block_count_to_num_block_diagonals(block_count):
+    return int((math.sqrt(block_count * 8 + 1) - 1) / 2)

@@ -1,7 +1,10 @@
 "__pychache__/" 
 tb_logs*/
+lightning_logs/
 .vscode/
 *.pyc
 guild
 figures/
 datasets/
+best_checkpoints/
+*.pkl
