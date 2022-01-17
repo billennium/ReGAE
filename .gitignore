@@ -4,6 +4,7 @@ lightning_logs/
 .vscode/
 *.pyc
 guild
+guild*/
 figures/
 datasets/
 best_checkpoints/
