@@ -267,8 +267,8 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
         parser.add_argument(
             "--subgraph_stride",
             dest="subgraph_stride",
-            default=1,
-            type=int,
+            default=0.5,
+            type=float,
             help="stride between subgraphs",
         )
         parser.add_argument(

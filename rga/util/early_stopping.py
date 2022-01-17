@@ -137,6 +137,11 @@ class ProgressiveSubgraphTrainingEarlyStopping(EarlyStoppingBase):
     ) -> Tuple[bool, str]:
         logs = trainer.callback_metrics
         if self.preogressive_subgraph_training_enabled:
+            if self.monitored_graph_size_metric not in logs:
+                print(
+                    f"early stopping could not find the metric {self.monitored_graph_size_metric} for progressive subgraph training; ignoring"
+                )
+                return should_stop, reason
             new_biggest_graph = logs[self.monitored_graph_size_metric].squeeze()
             if self.curr_biggest_graph == new_biggest_graph:
                 self.same_graph_size_wait_count += 1
