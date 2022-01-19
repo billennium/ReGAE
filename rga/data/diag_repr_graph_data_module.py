@@ -13,6 +13,7 @@ from rga.util.adjmatrix.diagonal_block_representation import (
     adj_matrix_to_diagonal_block_representation,
     calculate_num_blocks,
 )
+from rga import util
 from rga.util.callbacks import MetricMonitor, SteppingGraphSizeMonitor
 from rga.data.subgraphs import (
     get_subgraph_size_scheduler,
@@ -104,7 +105,7 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
             matrix = graph_info[0]
             num_nodes = graph_info[1]
             diag_block_graph = adj_matrix_to_diagonal_block_representation(
-                matrix, num_nodes, self.block_size, pad_value=-1
+                util.to_dense_if_not(matrix), num_nodes, self.block_size, pad_value=-1
             )
             adj_matrix_mask = torch.tril(
                 torch.ones((num_nodes, num_nodes)), diagonal=-1
@@ -113,7 +114,11 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
                 adj_matrix_mask, num_nodes, self.block_size
             )
 
-            processed_example = (diag_block_graph, diag_block_mask, num_nodes)
+            processed_example = (
+                util.to_sparse_if_not(diag_block_graph),
+                diag_block_mask,
+                num_nodes,
+            )
             if self.use_labels:
                 processed_example = (processed_example, graph_info_set[1])
 
@@ -183,6 +188,7 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
         for graph, mask, num_nodes in zip(graphs, graph_masks, num_nodes):
             num_blocks = calculate_num_blocks(torch.tensor(num_nodes), self.block_size)
             if num_blocks > self.minimal_subgraph_size:
+                graph = util.to_dense_if_not(graph)
                 current_subgraph_size = max(
                     int(target_subgraph_size * num_blocks), self.minimal_subgraph_size
                 )
@@ -199,7 +205,7 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
                     probability=1.0,
                 )
 
-                splitted_graphs.extend(subgrpahs)
+                splitted_graphs.extend([util.to_sparse_if_not(g) for g in subgrpahs])
                 splitted_graph_masks.extend(subgraph_masks)
                 splitted_graphs_sizes.extend(subgraph_sizes)
             else:
@@ -214,7 +220,12 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
         # represent the end of the graphs.
 
         graphs = torch.nn.utils.rnn.pad_sequence(
-            [g[0][0] if self.use_labels else g[0] for g in batch],
+            [
+                util.to_dense_if_not(g[0][0])
+                if self.use_labels
+                else util.to_dense_if_not(g[0])
+                for g in batch
+            ],
             batch_first=True,
             padding_value=0.0,
         )

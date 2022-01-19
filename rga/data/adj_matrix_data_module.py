@@ -9,6 +9,7 @@ import torch
 
 from rga.data.data_module import BaseDataModule
 from rga.data.graph_loaders import BaseGraphLoader
+from rga import util
 from rga.util import adjmatrix, split_dataset_train_val_test, flatten, errors
 from rga.util.convert_size import convert_size
 from rga.data.util.print_dataset_statistics import print_dataset_statistics
@@ -185,9 +186,17 @@ class AdjMatrixDataModule(BaseDataModule):
             tqdm(graphs, desc=f"preparing dataset {dataset_name} for autoencoder")
         ):
             if self.bfs:
-                adj_matrix = adjmatrix.bfs_ordering(adj_matrix)
-            adj_matrix = adjmatrix.minimize_adj_matrix(adj_matrix)
-            adj_matrices.append((adj_matrix, adj_matrix.shape[0]))
+                bfs_adj_matrix = adjmatrix.bfs_ordering(adj_matrix)
+                del adj_matrix
+                adj_matrix = bfs_adj_matrix
+            torch_adj_matrix = adjmatrix.minimize_adj_matrix(adj_matrix)
+            del adj_matrix
+            adj_matrices.append(
+                (
+                    util.to_sparse_if_not(torch_adj_matrix),
+                    torch_adj_matrix.shape[0],
+                )
+            )
             if labels is not None:
                 adj_matrix_labels.append(labels[index])
 
