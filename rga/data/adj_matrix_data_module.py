@@ -247,11 +247,11 @@ class AdjMatrixDataModule(BaseDataModule):
             self.train_dataset = list(zip(train_graph_dataset, train_label_dataset))
             self.val_datasets = [
                 list(zip(val_graph_datasets[i], val_label_datasets[i]))
-                for i in len(val_graph_datasets)
+                for i in range(len(val_graph_datasets))
             ]
             self.test_datasets = [
                 list(zip(test_graph_datasets[i], test_label_datasets[i]))
-                for i in len(test_graph_datasets)
+                for i in range(len(test_graph_datasets))
             ]
         else:
             self.train_dataset = train_graph_dataset
