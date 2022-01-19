@@ -85,6 +85,26 @@
                 - "rga/*"
             exclude:
                 - "**/__pycache__"
+    reddit_multi_5k:
+        main: 'rga.experiments.reddit_multi_5k.{{ name }}_training'
+        flags:
+            $include: generic-flags
+        output-scalars: off
+        sourcecode:
+            select:
+                - "rga/*"
+            exclude:
+                - "**/__pycache__"
+    reddit_multi_12k:
+        main: 'rga.experiments.reddit_multi_12k.{{ name }}_training'
+        flags:
+            $include: generic-flags
+        output-scalars: off
+        sourcecode:
+            select:
+                - "rga/*"
+            exclude:
+                - "**/__pycache__"
     collab:
         main: 'rga.experiments.collab.{{ name }}_training'
         flags:
