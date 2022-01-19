@@ -69,7 +69,7 @@ class RealGraphLoader(BaseGraphLoader):
         dataset_name: str = "",
         use_labels: bool = False,
         max_graph_size: int = None,
-        **kwargs
+        **kwargs,
     ):
         self.dataset_dir = Path(datasets_dir)
         self.dataset_name = dataset_name
@@ -80,35 +80,15 @@ class RealGraphLoader(BaseGraphLoader):
         super().__init__(**kwargs)
 
     def load_graphs(self) -> Dict:
-        with open(
-            self.dataset_folder / Path(self.dataset_name + "_graph_indicator.txt")
-        ) as file:
-            graph_indicator = file.read().splitlines()
-            graph_indicator = np.array([int(el) for el in graph_indicator])
-
-        graphs_index, graphs_sizes = np.unique(graph_indicator, return_counts=True)
-        graph_size_cumulative = [sum(graphs_sizes[: el - 1]) for el in graphs_index]
-
-        adj_matrices = []
-        for i in graphs_sizes:
-            adj_matrices.append(np.zeros((i, i)))
-
-        with open(self.dataset_folder / Path(self.dataset_name + "_A.txt")) as file:
-            for line in tqdm(file, desc="reading edges"):
-                edge_first_node, edge_second_node = line.strip().split(",")
-                edge_first_node = int(edge_first_node)
-                edge_second_node = int(edge_second_node)
-                current_graph = graph_indicator[edge_first_node - 1]
-                edge_first_node = (
-                    edge_first_node - graph_size_cumulative[current_graph - 1]
-                )
-                edge_second_node = (
-                    edge_second_node - graph_size_cumulative[current_graph - 1]
-                )
-
-                adj_matrices[current_graph - 1][
-                    edge_first_node - 1, edge_second_node - 1
-                ] = 1
+        print(f"Loading graphs from {self.dataset_folder / Path(self.dataset_name)}")
+        data_adj = np.loadtxt(
+            self.dataset_folder / Path(self.dataset_name + "_A.txt"), delimiter=","
+        ).astype(int)
+        data_graph_indicator = np.loadtxt(
+            self.dataset_folder / Path(self.dataset_name + "_graph_indicator.txt"),
+            delimiter=",",
+        ).astype(int)
+        data_tuple = list(map(tuple, data_adj))
 
         if self.use_labels:
             with open(
@@ -118,12 +98,25 @@ class RealGraphLoader(BaseGraphLoader):
         else:
             graphs_labels = None
 
+        print("Processing loaded graph edges")
+        G = nx.Graph()
+        G.add_edges_from(data_tuple)
+        G.remove_nodes_from(list(nx.isolates(G)))
+        graph_num = data_graph_indicator.max()
+        node_list = np.arange(data_graph_indicator.shape[0]) + 1
+        graphs = []
+        for i in range(graph_num):
+            # find the nodes for each graph
+            nodes = node_list[data_graph_indicator == i + 1]
+            G_sub: nx.Graph = G.subgraph(nodes)
+            graphs.append(nx.to_scipy_sparse_matrix(G_sub, dtype=np.int32))
+
         if self.max_graph_size:
             adj_matrices, graphs_labels = filter_out_big_graphs(
-                adj_matrices, graphs_labels, self.max_graph_size
+                graphs, graphs_labels, self.max_graph_size
             )
 
-        return {"graphs": adj_matrices, "labels": graphs_labels}
+        return {"graphs": graphs, "labels": graphs_labels}
 
     @classmethod
     def add_model_specific_args(cls, parent_parser: ArgumentParser):
