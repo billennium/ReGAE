@@ -1,5 +1,5 @@
 import numpy as np
-import torch
+from scipy import sparse
 from torch import Tensor
 
 
@@ -17,4 +17,8 @@ def get_unique_indices(graphs: list) -> list[int]:
 def hash_graph(g):
     if isinstance(g, Tensor):
         g = g.numpy()
+    if isinstance(g, sparse.csr_matrix):
+        g = g.todense()
+    if isinstance(g, sparse.coo_matrix):
+        g = g.todense()
     return hash(g.tobytes())
