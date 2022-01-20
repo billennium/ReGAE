@@ -11,7 +11,7 @@ def print_separator(name: str = "", size: int = 60):
 
 if __name__ == "__main__":
     NUM_DATASETS = 5
-    DATASET_NAMES = ["GRID-MEDIUM", "IMDB-BINARY", "IMDB-MULTI"]
+    DATASET_NAMES = ["IMDB-BINARY"]
     DATASETS_PATH = "/usr/local/datasets/"
     CHECKPOINTS_PATH = "./best_checkpoints/"
 
@@ -36,7 +36,10 @@ if __name__ == "__main__":
         for k in all_metrics[0]:
             dataset_agg_metrics[k] = [m[k].item() for m in all_metrics]
         df = pd.DataFrame.from_dict(dataset_agg_metrics, orient="index").round(4)
-        df["average"] = df.mean(numeric_only=True, axis=1)
+        df_mean = df.mean(numeric_only=True, axis=1)
+        df_std = df.std(numeric_only=True, axis=1)
+        df["mean"] = df_mean
+        df["std"] = df_std
         aggregated_metrics[dataset] = df
 
     for k in aggregated_metrics:
