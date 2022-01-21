@@ -7,9 +7,10 @@ from rga.data import (
     RealGraphLoader,
 )
 from rga.models.autoencoder_base import RecursiveGraphAutoencoder
+from rga.models.vae import RecursiveGraphVAE
 
 
-class ExperimentModel(RecursiveGraphAutoencoder):
+class ExperimentModel(RecursiveGraphVAE):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
         parser = RecursiveGraphAutoencoder.add_model_specific_args(parent_parser)
@@ -37,11 +38,12 @@ class ExperimentModel(RecursiveGraphAutoencoder):
                 "EdgePrecision",
                 "EdgeRecall",
                 "EdgeF1",
-                "MaskPrecision",
-                "MaskRecall",
+                # "MaskPrecision",
+                # "MaskRecall",
                 "MeanReconstructionLoss",
                 "MeanEmbeddingsLoss",
                 "MeanClassificationLoss",
+                "MeanKLDLoss",
                 "Accuracy",
             ],
             max_epochs=10000,
@@ -60,6 +62,8 @@ class ExperimentModel(RecursiveGraphAutoencoder):
             gpus="0,",
             workers=0,
             pickled_dataset_path="datasets/imdb_multi_labels.pkl",
+            checkpoint_monitor="loss_classifiaction/val",
+            kld_loss_weight=0.5,
         )
         return parser
 

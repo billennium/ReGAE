@@ -36,7 +36,7 @@ class MeanKLDLoss(torchmetrics.MeanMetric):
 
 
 class MeanClassificationLoss(torchmetrics.MeanMetric):
-    label = "loss_clasifiaction"
+    label = "loss_classifiaction"
 
     def update(
         self,
