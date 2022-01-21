@@ -6,16 +6,28 @@ DATASET_PATH=$3
 TARGET_CHECKPOINT_DIR=$4
 GPU=${5:-0}
 
+current_seed=${6:-0}
+
 DATASET_NAMES=("0.pkl" "1.pkl" "2.pkl" "3.pkl" "4.pkl")
-current_seed=0
+DATASET_NAMES_RAW=${7}
+
+if [ ! -z "${DATASET_NAMES_RAW}" ] #check if not empty
+then
+    echo "Specified custom datasets"
+    IFS=',' read -r -a DATASET_NAMES <<< "${DATASET_NAMES_RAW}"
+fi
+
 
 best_checkpoint_paths=()
+
+echo "GPU ${GPU}"
+echo "Specified datasets: ${DATASET_NAMES[@]}"
 
 for dataset in "${DATASET_NAMES[@]}"; do
     echo "Starting experiment ${MODEL_NAME} on dataset ${dataset} with seed ${current_seed}"
 
     return_value=$(python3.9 -m ${MODEL_TRAIN_MODULE} \
-      --gpus "${GPU}," \
+      --gpus="${GPU}" \
       --pickled_dataset_path="${DATASET_PATH}/${dataset}" \
       --early_stopping=True \
       --es_patience=20 \
@@ -29,7 +41,7 @@ for dataset in "${DATASET_NAMES[@]}"; do
 
     mkdir -p "${TARGET_CHECKPOINT_DIR}"
     target_ckpt_path="${TARGET_CHECKPOINT_DIR}/${dataset%.*}.ckpt"
-    mv "${best_checkpoint}" "${target_ckpt_path}"
+    cp "${best_checkpoint}" "${target_ckpt_path}"
 
     checkpoints_dir="$(dirname "${best_checkpoint}")"
     logs_dir="$(dirname "${checkpoints_dir}")"
@@ -37,7 +49,7 @@ for dataset in "${DATASET_NAMES[@]}"; do
     target_hparams_path="${TARGET_CHECKPOINT_DIR}/${dataset%.*}_hparams.yaml"
     cp "${hparams_file_path}" "${target_hparams_path}"
 
-    echo "Moved the checkpoint to ${target_ckpt_path}"
+    echo "Copied the checkpoint to ${target_ckpt_path}"
 
     ((current_seed++))
 done
