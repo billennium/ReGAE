@@ -206,7 +206,7 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
                     probability=1.0,
                 )
 
-                splitted_graphs.extend([util.to_sparse_if_not(g) for g in subgrpahs])
+                splitted_graphs.extend(subgrpahs)
                 splitted_graph_masks.extend(subgraph_masks)
                 splitted_graphs_sizes.extend(subgraph_sizes)
             else:
