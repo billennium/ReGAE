@@ -11,6 +11,7 @@ from torch.functional import Tensor
 from rga.data.diag_repr_graph_data_module import DiagonalRepresentationGraphDataModule
 from rga.models.utils.load import load_hparams, load_model
 from rga.models.autoencoder_base import RecursiveGraphAutoencoder
+from rga import util
 from rga.util import adjmatrix
 from rga.metrics.adjency_matrices_metrics import calculate_metrics
 
@@ -128,6 +129,7 @@ def diag_block_graphs_to_tril_adj_matrices(
 ) -> List[Tensor]:
     adj_matrices = []
     for (graph, _, num_nodes) in data:
+        graph = util.to_dense_if_not(graph)
         graph = graph.clamp(min=0)
         adj_matrix = adjmatrix.diagonal_block_to_adj_matrix_representation(
             graph, num_nodes
