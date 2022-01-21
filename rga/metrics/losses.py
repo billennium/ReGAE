@@ -33,3 +33,14 @@ class MeanKLDLoss(torchmetrics.MeanMetric):
         **kwargs,
     ):
         super().update(loss_kld)
+
+
+class MeanClassificationLoss(torchmetrics.MeanMetric):
+    label = "loss_clasifiaction"
+
+    def update(
+        self,
+        loss_classification: torch.Tensor,
+        **kwargs,
+    ):
+        super().update(loss_classification)

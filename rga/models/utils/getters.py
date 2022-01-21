@@ -11,6 +11,7 @@ from rga.metrics.losses import (
     MeanEmbeddingsLoss,
     MeanKLDLoss,
     MeanReconstructionLoss,
+    MeanClassificationLoss,
 )
 from rga.metrics.graph_drawer import GraphDrawer
 from rga.metrics.precision_recall import *
@@ -79,6 +80,7 @@ def get_metrics(metrics: List[str]):
         "MaxGraphSize": MaxGraphSize,
         "MeanReconstructionLoss": MeanReconstructionLoss,
         "MeanEmbeddingsLoss": MeanEmbeddingsLoss,
+        "MeanClassificationLoss": MeanClassificationLoss,
         "MeanKLDLoss": MeanKLDLoss,
         "GraphDrawer": GraphDrawer,
         "Accuracy": torchmetrics.Accuracy,
