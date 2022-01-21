@@ -163,6 +163,7 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
             )
         elif scheduled_subgraph_size >= 1 and self.current_training_dataset_lvl < 1:
             self.current_training_dataset_lvl = 1
+            del self.current_training_dataloader
             self.current_training_dataloader = data.DataLoader(
                 self.train_dataset,
                 batch_size=self.batch_size,
@@ -205,7 +206,7 @@ class DiagonalRepresentationGraphDataModule(AdjMatrixDataModule):
                     probability=1.0,
                 )
 
-                splitted_graphs.extend([util.to_sparse_if_not(g) for g in subgrpahs])
+                splitted_graphs.extend(subgrpahs)
                 splitted_graph_masks.extend(subgraph_masks)
                 splitted_graphs_sizes.extend(subgraph_sizes)
             else:
