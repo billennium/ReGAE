@@ -9,3 +9,5 @@ figures/
 datasets/
 best_checkpoints/
 *.pkl
+plot_run*
+*.yaml
