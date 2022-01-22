@@ -6,14 +6,19 @@ from rga.data import (
     DiagonalRepresentationGraphDataModule,
     RealGraphLoader,
 )
+from rga.models.autoencoder_with_classifier import (
+    RecursiveGraphAutoencoderWithClassifier,
+)
 from rga.models.autoencoder_base import RecursiveGraphAutoencoder
 from rga.models.vae import RecursiveGraphVAE
 
 
-class ExperimentModel(RecursiveGraphVAE):
+class ExperimentModel(RecursiveGraphAutoencoderWithClassifier):
     @staticmethod
     def add_model_specific_args(parent_parser: ArgumentParser):
-        parser = RecursiveGraphAutoencoder.add_model_specific_args(parent_parser)
+        parser = RecursiveGraphAutoencoderWithClassifier.add_model_specific_args(
+            parent_parser
+        )
         parser.set_defaults(
             loss_function="BCEWithLogits",
             mask_loss_function="BCEWithLogits",
@@ -43,16 +48,15 @@ class ExperimentModel(RecursiveGraphVAE):
                 "MeanReconstructionLoss",
                 "MeanEmbeddingsLoss",
                 "MeanClassificationLoss",
-                "MeanKLDLoss",
+                # "MeanKLDLoss",
                 "Accuracy",
             ],
             max_epochs=10000,
-            check_val_every_n_epoch=3,
-            metric_update_interval=3,
+            check_val_every_n_epoch=1,
+            metric_update_interval=1,
             early_stopping=True,
             bfs=True,
             num_dataset_graph_permutations=1,
-            train_val_test_permutation_split=[1.0, 0.0, 0.0],
             dataset_name="IMDB-MULTI",
             use_labels=True,
             class_count=3,
@@ -61,9 +65,11 @@ class ExperimentModel(RecursiveGraphVAE):
             classifier_dropout=0,
             gpus="0,",
             workers=0,
-            pickled_dataset_path="datasets/imdb_multi_labels.pkl",
+            # pickled_dataset_path="datasets/imdb_multi_labels.pkl",
             checkpoint_monitor="loss_classifiaction/val",
-            kld_loss_weight=0.5,
+            # kld_loss_weight=0.5,
+            # load_from_checkpoint_path="./best_checkpoints/IMDB-MULTI/0.ckpt",
+            # load_with_hparams_path="./best_checkpoints/IMDB-MULTI/0_hparams.yaml",
         )
         return parser
 
