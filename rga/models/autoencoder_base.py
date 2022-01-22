@@ -4,13 +4,12 @@ import math
 
 import torch
 from torch import Tensor
-import torchmetrics
+
 from rga.models.base import BaseModel
 from rga.models.autoencoder_components import GraphEncoder, GraphDecoder
 from rga.models.edge_encoders.memory_standard import MemoryEdgeEncoder
 from rga.models.edge_decoders.memory_standard import MemoryEdgeDecoder
 from rga.models.utils.getters import get_loss
-from rga.models.classifier_components import MLPClassifier
 
 from rga.util.adjmatrix.diagonal_block_representation import (
     calculate_num_blocks,
@@ -40,14 +39,11 @@ class GraphAutoencoder(BaseModel):
         self.weight_power_level = weight_power_level
 
     def step(self, batch, metrics: List[Callable] = []) -> Tensor:
-        y_pred, diagonal_embeddings_norm, prediction_labels = self(batch)
+        y_pred, diagonal_embeddings_norm = self(batch)
 
         y_edge, y_mask, y_pred_edge, y_pred_mask = self.adjust_y_to_prediction(
             batch, y_pred
         )
-
-        labels = batch[-1] - 1
-        loss_classification = torch.nn.CrossEntropyLoss()(prediction_labels, labels)
 
         loss_reconstruction = self.calc_reconstruction_loss(
             y_edge, y_mask, y_pred_edge, y_pred_mask, batch[2]
@@ -55,24 +51,20 @@ class GraphAutoencoder(BaseModel):
         loss_embeddings = (
             diagonal_embeddings_norm * self.diagonal_embeddings_loss_weight
         )
-        loss = loss_reconstruction + loss_embeddings + loss_classification
+        loss = loss_reconstruction + loss_embeddings
 
         shared_metric_state = {}
         for metric in metrics:
-            if isinstance(metric, torchmetrics.Accuracy):
-                metric.update(prediction_labels, labels)
-            else:
-                metric.update(
-                    edges_predicted=y_pred_edge,
-                    edges_target=y_edge,
-                    mask_predicted=y_pred_mask,
-                    mask_target=y_mask,
-                    num_nodes=batch[2],
-                    loss_reconstruction=loss_reconstruction,
-                    loss_embeddings=loss_embeddings,
-                    loss_classification=loss_classification,
-                    shared_metric_state=shared_metric_state,
-                )
+            metric.update(
+                edges_predicted=y_pred_edge,
+                edges_target=y_edge,
+                mask_predicted=y_pred_mask,
+                mask_target=y_mask,
+                num_nodes=batch[2],
+                loss_reconstruction=loss_reconstruction,
+                loss_embeddings=loss_embeddings,
+                shared_metric_state=shared_metric_state,
+            )
 
         return loss
 
@@ -226,7 +218,6 @@ class RecursiveGraphAutoencoder(GraphAutoencoder):
     edge_encoder_class = MemoryEdgeEncoder
     graph_decoder_class = GraphDecoder
     edge_decoder_class = MemoryEdgeDecoder
-    classifier_class = MLPClassifier
 
     def __init__(self, **kwargs):
         super(RecursiveGraphAutoencoder, self).__init__(**kwargs)
@@ -235,7 +226,6 @@ class RecursiveGraphAutoencoder(GraphAutoencoder):
             edge_decoder_class=self.edge_decoder_class,
             **kwargs,
         )
-        self.classifier = self.classifier_class(**kwargs)
 
     def forward(self, batch: Tensor) -> Tensor:
         num_nodes_batch = batch[2]
@@ -243,14 +233,12 @@ class RecursiveGraphAutoencoder(GraphAutoencoder):
 
         graph_embeddings = self.encoder(batch)
 
-        labels = self.classifier(graph_embeddings)
-
         reconstructed_graph_diagonals, diagonal_embeddings_norm = self.decoder(
             graph_encoding_batch=graph_embeddings,
             max_number_of_nodes=max_num_nodes_in_graph_batch,
         )
 
-        return reconstructed_graph_diagonals, diagonal_embeddings_norm, labels
+        return reconstructed_graph_diagonals, diagonal_embeddings_norm
 
     # override
     def adjust_y_to_prediction(self, batch, y_predicted) -> Tuple[Tensor, Tensor]:
