@@ -13,6 +13,7 @@ from rga import util
 from rga.util import adjmatrix, split_dataset_train_val_test, flatten, errors
 from rga.util.convert_size import convert_size
 from rga.data.util.print_dataset_statistics import print_dataset_statistics
+from rga.data.util.pickled_data import load_pickled_data
 
 
 class AdjMatrixDataModule(BaseDataModule):
@@ -243,32 +244,9 @@ class AdjMatrixDataModule(BaseDataModule):
         return [item for sublist in l for item in sublist]
 
     def load_pickled_data(self):
-        with open(self.pickled_dataset_path, "rb") as input:
-            (
-                train_graph_dataset,
-                val_graph_datasets,
-                test_graph_datasets,
-                train_label_dataset,
-                val_label_datasets,
-                test_label_datasets,
-            ) = pickle.load(input)
-        if self.use_labels:
-            self.train_dataset = list(zip(train_graph_dataset, train_label_dataset))
-            self.val_datasets = [
-                list(zip(val_graph_datasets[i], val_label_datasets[i]))
-                for i in range(len(val_graph_datasets))
-            ]
-            self.test_datasets = [
-                list(zip(test_graph_datasets[i], test_label_datasets[i]))
-                for i in range(len(test_graph_datasets))
-            ]
-        else:
-            self.train_dataset = train_graph_dataset
-            self.val_datasets = val_graph_datasets
-            self.test_datasets = test_graph_datasets
-
-        print("Dataset successfully loaded!")
-        print("File path:", self.pickled_dataset_path)
+        self.train_dataset, self.val_datasets, self.test_datasets = load_pickled_data(
+            self.pickled_dataset_path, self.use_labels
+        )
 
     def pickle_dataset(self):
         val_graph_datasets, val_label_datasets = [], []
