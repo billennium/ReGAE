@@ -75,9 +75,6 @@ class BaseDataModule(pl.LightningDataModule):
     def output_size(self) -> Optional[int]:
         raise NotImplementedError
 
-    def loss_weight(self) -> Optional[Tensor]:
-        return None
-
     def num_train_dataloaders(self) -> int:
         return 1
 
