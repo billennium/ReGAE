@@ -1,8 +1,9 @@
 from argparse import ArgumentParser
-from typing import Callable, List, Tuple
+from typing import IO, Callable, Dict, List, Optional, Union
 
 import torch
 from torch import Tensor
+from rga.models.autoencoder_base import RecursiveGraphAutoencoder
 
 from rga.models.base import BaseModel
 from rga.models.autoencoder_components import GraphEncoder
@@ -50,7 +51,10 @@ class RecursiveEncoderGraphClassifier(GraphClassifierBase):
     classifier_network_class = MLPClassifier
 
     def __init__(
-        self, freeze_encoder: bool = False, checkpoint_path: str = "", **kwargs
+        self,
+        freeze_encoder: bool = False,
+        # checkpoint_path: str = "",
+        **kwargs,
     ):
         super(RecursiveEncoderGraphClassifier, self).__init__(**kwargs)
 
@@ -58,14 +62,14 @@ class RecursiveEncoderGraphClassifier(GraphClassifierBase):
         self.classifier_network = self.classifier_network_class(**kwargs)
         self.freeze_encoder = freeze_encoder
 
-        if checkpoint_path:
-            checkpoint = torch.load(checkpoint_path)
-            encoder_checkpoint = {
-                k.replace("encoder.edge_encoder.", "edge_encoder."): v
-                for (k, v) in checkpoint["state_dict"].items()
-                if "encoder" in k
-            }
-            self.encoder.load_state_dict(encoder_checkpoint)
+        # if checkpoint_path:
+        #     checkpoint = torch.load(checkpoint_path)
+        #     encoder_checkpoint = {
+        #         k.replace("encoder.edge_encoder.", "edge_encoder."): v
+        #         for (k, v) in checkpoint["state_dict"].items()
+        #         if "encoder" in k
+        #     }
+        #     self.encoder.load_state_dict(encoder_checkpoint)
 
     def forward(self, batch: Tensor) -> Tensor:
         if self.freeze_encoder:
@@ -99,11 +103,41 @@ class RecursiveEncoderGraphClassifier(GraphClassifierBase):
             action="store_true",
             help="freeze encoder part",
         )
-        parser.add_argument(
-            "--checkpoint_path",
-            dest="checkpoint_path",
-            default="",
-            type=str,
-            help="path to encoder checkpoint",
-        )
+        # parser.add_argument(
+        #     "--checkpoint_path",
+        #     dest="checkpoint_path",
+        #     default="",
+        #     type=str,
+        #     help="path to encoder checkpoint",
+        # )
         return parent_parser
+
+    @classmethod
+    def load_from_checkpoint(
+        cls,
+        checkpoint_path: Union[str, IO],
+        map_location: Optional[
+            Union[Dict[str, str], str, torch.device, int, Callable]
+        ] = None,
+        hparams_file: Optional[str] = None,
+        **kwargs,
+    ):
+        classifier_exception = None
+        try:
+            return cls.load_from_checkpoint(
+                checkpoint_path, map_location, hparams_file, True, **kwargs
+            )
+        except Exception as e:
+            classifier_exception = e
+        try:
+            ae_model = RecursiveGraphAutoencoder.load_from_checkpoint(
+                checkpoint_path, map_location, hparams_file, True, **kwargs
+            )
+            m = cls(**kwargs)
+            m.encoder = ae_model.encoder
+            return m
+        except Exception as e:
+            raise Exception(
+                f"neither the classifier nor the transfer learining encoder could be loaded: "
+                f"classifier exception: {classifier_exception}"
+            ) from e
