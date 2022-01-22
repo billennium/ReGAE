@@ -54,7 +54,7 @@ class ExperimentModel(RecursiveGraphAutoencoderWithClassifier):
             max_epochs=10000,
             check_val_every_n_epoch=1,
             metric_update_interval=1,
-            early_stopping=True,
+            early_stopping=False,
             bfs=True,
             num_dataset_graph_permutations=1,
             dataset_name="IMDB-MULTI",

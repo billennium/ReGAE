@@ -17,7 +17,7 @@ class RecursiveGraphAutoencoderWithClassifier(RecursiveGraphAutoencoder):
         super().__init__(**kwargs)
         self.classifier = self.classifier_class(**kwargs)
         self.classification_loss = torch.nn.CrossEntropyLoss()
-        self.classification_loss.weight = 0.0
+        self.classification_loss_weight = 0.0
 
     def step(self, batch, metrics: List[Callable] = []) -> Tensor:
         y_pred, diagonal_embeddings_norm, prediction_labels = self(batch)
@@ -58,7 +58,8 @@ class RecursiveGraphAutoencoderWithClassifier(RecursiveGraphAutoencoder):
 
     def calc_classification_loss(self, predictions, targets) -> Tensor:
         loss = self.classification_loss(predictions, targets)
-        self.classification_loss.weight += 0.0001
+        loss *= self.classification_loss_weight
+        self.classification_loss_weight += 0.00001
         return loss
 
     def forward(self, batch: Tensor) -> Tensor:
