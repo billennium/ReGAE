@@ -10,7 +10,7 @@ class MeanReconstructionLoss(torchmetrics.MeanMetric):
         loss_reconstruction: torch.Tensor,
         **kwargs,
     ):
-        super().update(loss_reconstruction)
+        super().update(loss_reconstruction.item())
 
 
 class MeanEmbeddingsLoss(torchmetrics.MeanMetric):
@@ -21,7 +21,7 @@ class MeanEmbeddingsLoss(torchmetrics.MeanMetric):
         loss_embeddings: torch.Tensor,
         **kwargs,
     ):
-        super().update(loss_embeddings)
+        super().update(loss_embeddings.item())
 
 
 class MeanKLDLoss(torchmetrics.MeanMetric):
@@ -32,7 +32,7 @@ class MeanKLDLoss(torchmetrics.MeanMetric):
         loss_kld: torch.Tensor,
         **kwargs,
     ):
-        super().update(loss_kld)
+        super().update(loss_kld.item())
 
 
 class MeanClassificationLoss(torchmetrics.MeanMetric):
@@ -43,4 +43,4 @@ class MeanClassificationLoss(torchmetrics.MeanMetric):
         loss_classification: torch.Tensor,
         **kwargs,
     ):
-        super().update(loss_classification)
+        super().update(loss_classification.item())
