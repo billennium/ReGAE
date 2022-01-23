@@ -26,7 +26,7 @@ class ExperimentModel(RecursiveGraphAutoencoder):
             learning_rate=0.0003,
             gradient_clip_val=1.0,
             batch_size=32,
-            embedding_size=256,
+            embedding_size=200,
             encoder_hidden_layer_sizes=[2048],
             encoder_activation_function="ELU",
             decoder_hidden_layer_sizes=[2048],
