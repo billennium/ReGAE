@@ -74,7 +74,7 @@ class ExperimentModel(RecursiveGraphAutoencoderWithClassifier):
             classifier_activation_function="ReLU",
             classifier_dropout=0,
             # pickled_dataset_path="datasets/imdb_multi_labels.pkl",
-            checkpoint_monitor="loss_classifiaction/val",
+            checkpoint_monitor="accuracy/val",
             precision=16,
             # kld_loss_weight=0.5,
             # load_from_checkpoint_path="./best_checkpoints/IMDB-MULTI/0.ckpt",
