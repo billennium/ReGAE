@@ -44,7 +44,7 @@ class RecursiveGraphAutoencoderWithClassifier(RecursiveGraphAutoencoder):
         loss_embeddings = (
             diagonal_embeddings_norm * self.diagonal_embeddings_loss_weight
         )
-        loss = loss_reconstruction + loss_embeddings + loss_classification
+        loss = (loss_reconstruction + loss_embeddings) * (1-self.classification_loss_weight) + loss_classification
 
         shared_metric_state = {}
         for metric in metrics:
@@ -73,6 +73,8 @@ class RecursiveGraphAutoencoderWithClassifier(RecursiveGraphAutoencoder):
 
         loss *= self.classification_loss_weight
         self.classification_loss_weight += 0.00001
+        if self.classification_loss_weight >= 0.8:
+            self.classification_loss_weight = 0.8
         return loss
 
     def forward(self, batch: Tensor) -> Tensor:
