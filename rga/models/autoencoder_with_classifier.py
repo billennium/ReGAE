@@ -13,11 +13,15 @@ class RecursiveGraphAutoencoderWithClassifier(RecursiveGraphAutoencoder):
 
     classifier_class = MLPClassifier
 
-    def __init__(self, **kwargs):
+    def __init__(self, class_count: int, **kwargs):
         super().__init__(**kwargs)
-        self.classifier = self.classifier_class(**kwargs)
-        self.classification_loss = torch.nn.CrossEntropyLoss()
+        self.classifier = self.classifier_class(class_count=class_count, **kwargs)
+        if class_count == 2:
+            self.classification_loss = torch.nn.BCELoss()
+        else:
+            self.classification_loss = torch.nn.CrossEntropyLoss()
         self.classification_loss_weight = 0.0
+        self.class_count = class_count
 
     def step(self, batch, metrics: List[Callable] = []) -> Tensor:
         y_pred, diagonal_embeddings_norm, prediction_labels = self(batch)
@@ -26,8 +30,13 @@ class RecursiveGraphAutoencoderWithClassifier(RecursiveGraphAutoencoder):
             batch, y_pred
         )
 
-        labels = batch[-1] - 1
+        labels = batch[-1] - min(batch[-1])
         loss_classification = self.calc_classification_loss(prediction_labels, labels)
+
+        if self.class_count == 2:
+            prediction_labels = torch.round(prediction_labels[:, 0]).int()
+        else:
+            prediction_labels = torch.argmax(prediction_labels, dim=1)
 
         loss_reconstruction = self.calc_reconstruction_loss(
             y_edge, y_mask, y_pred_edge, y_pred_mask, batch[2]
@@ -57,7 +66,11 @@ class RecursiveGraphAutoencoderWithClassifier(RecursiveGraphAutoencoder):
         return loss
 
     def calc_classification_loss(self, predictions, targets) -> Tensor:
-        loss = self.classification_loss(predictions, targets)
+        if self.class_count == 2:
+            loss = self.classification_loss(predictions[:, 0], targets.float())
+        else:
+            loss = self.classification_loss(predictions, targets)
+
         loss *= self.classification_loss_weight
         self.classification_loss_weight += 0.00001
         return loss
