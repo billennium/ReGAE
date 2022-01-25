@@ -10,8 +10,6 @@
       type: float
     seed:
       type: int
-    # encoder_hidden_layer_sizes: [512]
-    # decoder_hidden_layer_sizes: [512]
 
 - config: model-base
   operations:
@@ -37,16 +35,6 @@
                 - "**/__pycache__"
     synthetic_barabasi_small:
         main: 'rga.experiments.synthetic_barabasi_small.{{ name }}_training'
-        flags:
-            $include: generic-flags
-        output-scalars: off
-        sourcecode:
-            select:
-                - "rga/*"
-            exclude:
-                - "**/__pycache__"
-    synthetic_barabasi_one_100:
-        main: 'rga.experiments.synthetic_barabasi_one_100.{{ name }}_training'
         flags:
             $include: generic-flags
         output-scalars: off
@@ -135,10 +123,10 @@
   params:
     name: recursive_autoencoder
 
-- model: recursive_vae
-  extends: model-base
-  params:
-    name: recursive_vae
+# - model: recursive_vae
+#   extends: model-base
+#   params:
+#     name: recursive_vae
 
 - model: encoder_num_edges
   extends: model-partial
