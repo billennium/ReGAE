@@ -6,11 +6,11 @@ from rga.data import (
     DiagonalRepresentationGraphDataModule,
     RealGraphLoader,
 )
-from rga.models.autoencoder_base import RecursiveGraphAutoencoder
 from rga.models.autoencoder_with_classifier import (
     RecursiveGraphAutoencoderWithClassifier,
 )
-from rga.util.early_stopping import TimeBasedEarlyStopping
+from rga.models.autoencoder_base import RecursiveGraphAutoencoder
+from rga.models.vae import RecursiveGraphVAE
 
 
 class ExperimentModel(RecursiveGraphAutoencoderWithClassifier):
@@ -24,24 +24,21 @@ class ExperimentModel(RecursiveGraphAutoencoderWithClassifier):
             mask_loss_function="BCEWithLogits",
             mask_loss_weight=0.5,
             diagonal_embeddings_loss_weight=0.2,
-            recall_to_precision_bias=0.5,
+            recall_to_precision_bias=0.3,
             optimizer="AdamWAMSGrad",
             lr_monitor=True,
-            lr_scheduler_name="none",
+            lr_scheduler_name="NoSched",
             lr_scheduler_metric="loss/train_avg",
-            learning_rate=0.0001,
-            gradient_clip_val=1.0,
-            batch_size=64,
-            embedding_size=160,
-            block_size=4,
-            encoder_hidden_layer_sizes=[1024, 768],
+            learning_rate=0.00001,
+            gradient_clip_val=0.5,
+            batch_size=16,
+            accumulate_grad_batches=2,
+            embedding_size=604,
+            block_size=16,
+            encoder_hidden_layer_sizes=[2048, 1536],
             encoder_activation_function="ELU",
-            decoder_hidden_layer_sizes=[2048],
+            decoder_hidden_layer_sizes=[4096],
             decoder_activation_function="ELU",
-            use_labels=True,
-            classifier_hidden_layer_sizes=[128],
-            classifier_activation_function="ELU",
-            classifier_dropout=0.6,
             metrics=[
                 "Accuracy",
                 "MeanClassificationLoss",
@@ -57,20 +54,19 @@ class ExperimentModel(RecursiveGraphAutoencoderWithClassifier):
             ],
             max_steps=10000,
             max_epochs=10000,
-            check_val_every_n_epoch=3,
-            metric_update_interval=3,
-            early_stopping=False,
+            check_val_every_n_epoch=1,
+            metric_update_interval=1,
+            early_stopping=True,
             bfs=True,
             num_dataset_graph_permutations=10,
-            train_val_test_permutation_split=[1.0, 0.0, 0.0],
-            dataset_name="IMDB-BINARY",
+            dataset_name="COLLAB",
             use_labels=True,
-            class_count=2,
-            classifier_hidden_layer_sizes=[64, 32, 16, 8],
+            class_count=3,
+            classifier_hidden_layer_sizes=[2048, 1024, 512, 256, 16],
             classifier_activation_function="ReLU",
             classifier_dropout=0,
-            workers=0,
             checkpoint_monitor="Accuracy/val",
+            precision=16,
         )
         return parser
 
