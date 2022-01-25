@@ -38,10 +38,6 @@ class ExperimentModel(RecursiveGraphAutoencoderWithClassifier):
             encoder_activation_function="ELU",
             decoder_hidden_layer_sizes=[2048],
             decoder_activation_function="ELU",
-            use_labels=True,
-            classifier_hidden_layer_sizes=[128],
-            classifier_activation_function="ELU",
-            classifier_dropout=0.6,
             metrics=[
                 "Accuracy",
                 "MeanClassificationLoss",
