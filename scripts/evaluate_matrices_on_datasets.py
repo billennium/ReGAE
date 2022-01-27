@@ -79,7 +79,7 @@ def evaluate_single_dataset(dataset_path, predictions_path, q: Queue):
     q.put(metrics)
 
 if __name__ == "__main__":
-    NUM_DATASETS = 4
+    NUM_DATASETS = 5
     DATASET_NAMES = ["REDDIT-MULTI-12K"]
     DATASETS_PATH = "/usr/local/datasets"
     PREDICTIONS_PATH = "path"
