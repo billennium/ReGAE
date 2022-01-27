@@ -105,24 +105,24 @@ def calculate_metrics(target, predictions):
         )
 
     return {
-        "Accuracy_w0": accuracy_values[0],
-        "Precision_w0": precision_values[0],
-        "Recall_w0": recall_values[0],
-        "F1_w0": f1(precision_values[0], recall_values[0]),
-        "Accuracy_w1": accuracy_values[1],
-        "Precision_w1": precision_values[1],
-        "Recall_w1": recall_values[1],
-        "F1_w1": f1(precision_values[1], recall_values[1]),
-        "Accuracy_w2": accuracy_values[2],
-        "Precision_w2": precision_values[2],
-        "Recall_w2": recall_values[2],
-        "F1_w2": f1(precision_values[2], recall_values[2]),
-        "Size accuracy": size_accuracy(target, predictions),
-        "Mean size error": mean_size_error(target, predictions),
+        "Accuracy_w0": accuracy_values[0].item(),
+        "Precision_w0": precision_values[0].item(),
+        "Recall_w0": recall_values[0].item(),
+        "F1_w0": f1(precision_values[0].item(), recall_values[0]).item(),
+        "Accuracy_w1": accuracy_values[1].item(),
+        "Precision_w1": precision_values[1].item(),
+        "Recall_w1": recall_values[1].item(),
+        "F1_w1": f1(precision_values[1].item(), recall_values[1]).item(),
+        "Accuracy_w2": accuracy_values[2].item(),
+        "Precision_w2": precision_values[2].item(),
+        "Recall_w2": recall_values[2].item(),
+        "F1_w2": f1(precision_values[2].item(), recall_values[2].item()),
+        "Size accuracy": size_accuracy(target, predictions).item(),
+        "Mean size error": mean_size_error(target, predictions).item(),
         "Num node error on size error": num_node_error_on_size_error(
             target, predictions
-        ),
+        ).item(),
         "Mean size error on size error": mean_size_error_on_size_error(
             target, predictions
-        ),
+        ).item(),
     }
