@@ -4,12 +4,13 @@ from argparse import ArgumentParser
 import torch
 from torch import Tensor
 from torch import nn
+import torchmetrics
 
 from rga.models.autoencoder_base import RecursiveGraphAutoencoder
 
 
 class RecursiveGraphVAE(RecursiveGraphAutoencoder):
-    model_name = ""
+    model_name = "RecursiveGraphVAE"
 
     def __init__(self, kld_loss_weight: float, **kwargs):
         super(RecursiveGraphVAE, self).__init__(**kwargs)
@@ -20,13 +21,16 @@ class RecursiveGraphVAE(RecursiveGraphAutoencoder):
         self.kld_loss_weight = kld_loss_weight
 
     def step(self, batch, metrics: List[Callable] = []) -> Tensor:
-        y_pred, mu, log_var, diagonal_embeddings_norm = self(batch)
+        y_pred, mu, log_var, diagonal_embeddings_norm, prediction_labels = self(batch)
         y_edge, y_mask, y_pred_edge, y_pred_mask = self.adjust_y_to_prediction(
             batch, y_pred
         )
 
+        labels = batch[-1] - 1
+        loss_classification = torch.nn.CrossEntropyLoss()(prediction_labels, labels)
+
         loss_reconstruction = self.calc_reconstruction_loss(
-            y_edge, y_mask, y_pred_edge, y_pred_mask
+            y_edge, y_mask, y_pred_edge, y_pred_mask, batch[2]
         )
         loss_embeddings = (
             diagonal_embeddings_norm * self.diagonal_embeddings_loss_weight
@@ -35,19 +39,28 @@ class RecursiveGraphVAE(RecursiveGraphAutoencoder):
         # if self.trainer.current_epoch > 650:
         #     self.loss_kld_weight = min(0.004, self.loss_kld_weight * 1.003)
 
-        loss = loss_reconstruction + loss_embeddings + loss_kld * self.kld_loss_weight
+        loss = (
+            loss_reconstruction
+            + loss_embeddings
+            + loss_kld * self.kld_loss_weight
+            + loss_classification * 1
+        )
 
         for metric in metrics:
-            metric(
-                edges_predicted=y_pred_edge,
-                edges_target=y_edge,
-                mask_predicted=y_pred_mask,
-                mask_target=y_mask,
-                num_nodes=batch[2],
-                loss_reconstruction=loss_reconstruction,
-                loss_embeddings=loss_embeddings,
-                loss_kld=loss_kld,
-            )
+            if isinstance(metric, torchmetrics.Accuracy):
+                metric.update(prediction_labels, labels)
+            else:
+                metric(
+                    edges_predicted=y_pred_edge,
+                    edges_target=y_edge,
+                    mask_predicted=y_pred_mask,
+                    mask_target=y_mask,
+                    num_nodes=batch[2],
+                    loss_reconstruction=loss_reconstruction,
+                    loss_embeddings=loss_embeddings,
+                    loss_classification=loss_classification,
+                    loss_kld=loss_kld,
+                )
         self.log("loss_kld_weight", self.kld_loss_weight, on_step=False, on_epoch=True)
 
         return loss
@@ -57,6 +70,8 @@ class RecursiveGraphVAE(RecursiveGraphAutoencoder):
         max_num_nodes_in_graph_batch = max(num_nodes_batch)
 
         raw_graph_embdeddings = self.encoder(batch)
+
+        labels = self.classifier(raw_graph_embdeddings)
 
         log_var = self.nn_log_var(raw_graph_embdeddings)
         graph_embeddings = self.reparameterize(
@@ -73,6 +88,7 @@ class RecursiveGraphVAE(RecursiveGraphAutoencoder):
             raw_graph_embdeddings,
             log_var,
             diagonal_embeddings_norm,
+            labels,
         )
 
     def distribute_latent_gaussian(self, x_hat: Tensor) -> Tuple[Tensor, Tensor]:
@@ -85,9 +101,12 @@ class RecursiveGraphVAE(RecursiveGraphAutoencoder):
         :param log_var: Standard deviation of the latent Gaussian
         :return: Reparametrized Tensor of original shape.
         """
-        std = torch.exp(0.5 * log_var)
-        eps = torch.randn_like(std)
-        return eps * std + mu
+        if self.training:
+            std = torch.exp(0.5 * log_var)
+            eps = torch.randn_like(std)
+            return eps * std + mu
+        else:
+            return mu
 
     def calc_kld_loss(self, mu: Tensor, log_var: Tensor) -> Tensor:
         in_batch_dims = tuple(range(1, mu.ndim))

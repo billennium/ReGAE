@@ -62,14 +62,24 @@ class Experiment:
 
         self.data_module: BaseDataModule = self.data_module(**vars(args))
 
-        model = self.model(
-            **vars(args),
-            loss_weight=self.data_module.loss_weight(),
-            data_module=self.data_module,
-            num_train_dataloaders=self.data_module.num_train_dataloaders(),
-            num_val_dataloaders=self.data_module.num_val_dataloaders(),
-            num_test_dataloaders=self.data_module.num_test_dataloaders(),
-        )
+        if args.load_from_checkpoint_path is not None:
+            model = self.model.load_from_checkpoint(
+                checkpoint_path=args.load_from_checkpoint_path,
+                hparams_file=args.load_with_hparams_path,
+                **vars(args),
+                data_module=self.data_module,
+                num_train_dataloaders=self.data_module.num_train_dataloaders(),
+                num_val_dataloaders=self.data_module.num_val_dataloaders(),
+                num_test_dataloaders=self.data_module.num_test_dataloaders(),
+            )
+        else:
+            model = self.model(
+                **vars(args),
+                data_module=self.data_module,
+                num_train_dataloaders=self.data_module.num_train_dataloaders(),
+                num_val_dataloaders=self.data_module.num_val_dataloaders(),
+                num_test_dataloaders=self.data_module.num_test_dataloaders(),
+            )
 
         logger = self.create_logger(logger_name=args.logger_name)
         trainer = pl.Trainer.from_argparse_args(args, logger=logger)
@@ -119,7 +129,7 @@ class Experiment:
 
         if not args.no_evaluate:
             if args.checkpoint_monitor:
-                if checkpoint_callback.best_model_path == '':
+                if checkpoint_callback.best_model_path == "":
                     print(f"No checkpoints saved; skipping test")
                 else:
                     trainer.test(
@@ -224,5 +234,19 @@ class Experiment:
             type=bool,
             default=False,
             help="Enable learning rate monitor",
+        )
+        parser.add_argument(
+            "--load_from_checkpoint_path",
+            dest="load_from_checkpoint_path",
+            type=str,
+            default=None,
+            help="Load and train the model from the specified checkpoint instead of starting from scratch",
+        )
+        parser.add_argument(
+            "--load_with_hparams_path",
+            dest="load_with_hparams_path",
+            type=str,
+            default=None,
+            help="If loading from checkpoint, optionally specify the hparams file",
         )
         return parent_parser

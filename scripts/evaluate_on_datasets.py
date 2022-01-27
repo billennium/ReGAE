@@ -30,11 +30,11 @@ if __name__ == "__main__":
             all_metrics.append(metrics)
 
             for k, v in metrics.items():
-                print(f"{k} {v.item():.4f}")
+                print(f"{k} {v:.4f}")
 
         dataset_agg_metrics = {}
         for k in all_metrics[0]:
-            dataset_agg_metrics[k] = [m[k].item() for m in all_metrics]
+            dataset_agg_metrics[k] = [m[k] for m in all_metrics]
         df = pd.DataFrame.from_dict(dataset_agg_metrics, orient="index").round(4)
         df_mean = df.mean(numeric_only=True, axis=1)
         df_std = df.std(numeric_only=True, axis=1)
