@@ -7,6 +7,7 @@ import torchmetrics
 from rga.models.autoencoder_base import RecursiveGraphAutoencoder
 from rga.models.classifier_components import MLPClassifier
 
+# Prototype RGA with embedded classifier. Still a work in progress.
 
 class RecursiveGraphAutoencoderWithClassifier(RecursiveGraphAutoencoder):
     model_name = "RecursiveGraphAutoencoderWithClassifier"
