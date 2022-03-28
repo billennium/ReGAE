@@ -5,11 +5,14 @@ import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
+import argparse
 
 from rga.data.util.pickled_data import load_pickled_data
 from rga import util
 from rga.util import adjmatrix
 from rga.metrics.adjency_matrices_metrics import calculate_metrics
+
+import lzma
 
 
 def print_separator(name: str = "", size: int = 60):
@@ -21,7 +24,7 @@ def evaluate_single_dataset(dataset_path, predictions_path, q: Queue):
     _, _, targets = load_pickled_data(dataset_path, False)
     if isinstance(targets, list):
         targets = targets[0]
-    with open(predictions_path, "rb") as input:
+    with lzma.open(predictions_path, "rb") as input:
         predictions = pickle.load(input)
         print(f"Loaded predictions from {predictions_path}")
 
@@ -127,5 +130,6 @@ if __name__ == "__main__":
     print_separator("html_print")
     print(df.to_html())
 
-    print_separator("normal_print")
-    print(df)
+    with pd.option_context("display.max_rows", None, "display.max_columns", None):
+        print_separator("normal_print")
+        print(df)
