@@ -84,6 +84,7 @@ if __name__ == "__main__":
     DATASET_NAMES = ["REDDIT-MULTI-12K"]
     DATASETS_PATH = "/usr/local/datasets"
     PREDICTIONS_PATH = "path"
+    RESULT_SAVE_PATH = "path"
 
     aggregated_metrics = {}
     for dataset in DATASET_NAMES:
@@ -133,3 +134,5 @@ if __name__ == "__main__":
     with pd.option_context("display.max_rows", None, "display.max_columns", None):
         print_separator("normal_print")
         print(df)
+
+    df.to_excel(RESULT_SAVE_PATH)
