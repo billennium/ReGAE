@@ -84,7 +84,7 @@ if __name__ == "__main__":
     DATASET_NAMES = ["REDDIT-MULTI-12K"]
     DATASETS_PATH = "/usr/local/datasets"
     PREDICTIONS_PATH = "path"
-    RESULT_SAVE_PATH = "path"
+    RESULT_SAVE_PATH = PREDICTIONS_PATH + "/metrics.csv"
 
     aggregated_metrics = {}
     for dataset in DATASET_NAMES:
@@ -135,4 +135,4 @@ if __name__ == "__main__":
         print_separator("normal_print")
         print(df)
 
-    df.to_excel(RESULT_SAVE_PATH)
+    df.to_csv(RESULT_SAVE_PATH)
