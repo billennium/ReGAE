@@ -72,7 +72,7 @@ class RecursiveGraphTransformer(RecursiveGraphAutoencoder):
                 edges_target=y_edge,
                 mask_predicted=y_pred_mask,
                 mask_target=y_mask,
-                num_nodes=batch[2],
+                num_nodes=batch[1][2],
                 loss_reconstruction=loss_reconstruction,
                 loss_embeddings=loss_embeddings,
                 shared_metric_state=shared_metric_state,
