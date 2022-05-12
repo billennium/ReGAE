@@ -42,6 +42,52 @@ class MemoryEdgeDecoder(nn.Module):
             activation_f,
         )
 
+        # self.kernel_count = 50
+        # self.kernel_size = 1
+        # self.rate = 0.00
+
+        # self.kernels = nn.ModuleList()
+        # for _ in range(self.kernel_count):
+        #     self.kernels.append(
+        #         sequential_from_layer_sizes(
+        #             nn_input_size,
+        #             self.kernel_size,
+        #             [int((nn_input_size + self.kernel_size) / 2)],
+        #             dropout=0.1,
+        #         )
+        #     )
+
+        # self.aggregator = sequential_from_layer_sizes(
+        #     nn_input_size + self.kernel_count * self.kernel_size,
+        #     nn_input_size,
+        #     hidden_sizes=[
+        #         int(nn_input_size + self.kernel_count * self.kernel_size / 2)
+        #     ],
+        # )
+        # V3
+        # ===================================================================
+        self.rate = 0.005
+        self.kernel_count = 10
+        # self.kernel_size = 32
+        self.kernels = nn.ModuleList()
+        for _ in range(self.kernel_count):
+            self.kernels.append(
+                sequential_from_layer_sizes(
+                    nn_input_size,
+                    nn_input_size + 1,
+                    [nn_input_size],
+                    dropout=0.1,
+                )
+            )
+
+        # self.aggregator = sequential_from_layer_sizes(
+        #     nn_input_size,
+        #     self.kernel_count,
+        #     [int(embedding_size / 2)],
+        #     dropout=0.1,
+        # )
+        # ===================================================================
+
     def forward(
         self, embedding_l: Tensor, embedding_r: Tensor
     ) -> Tuple[Tensor, Tensor, Tensor]:
@@ -72,6 +118,57 @@ class MemoryEdgeDecoder(nn.Module):
         doubled_embeddings = weighted_average(
             doubled_embeddings, prev_doubled_embeddings, mem_overwrite_ratio
         )
+
+        # # O tutaj!
+        # if doubled_embeddings.shape[1] != 1:
+        #     kernel_results = torch.cat(
+        #         [kernel(doubled_embeddings).mean(dim=1) for kernel in self.kernels],
+        #         dim=-1,
+        #     )[:, None, :]
+        #     kernel_results = kernel_results.expand(-1, doubled_embeddings.shape[1], -1)
+
+        #     kernel_changes = self.aggregator(
+        #         torch.cat((doubled_embeddings, kernel_results), dim=-1)
+        #     )
+        #     doubled_embeddings = (
+        #         doubled_embeddings * (1 - self.rate) + self.rate * kernel_changes
+        #     )
+
+        # V3
+        # ===================================================================
+        if doubled_embeddings.shape[1] != 1:
+            kernel_results = torch.stack(
+                [kernel(doubled_embeddings) for kernel in self.kernels],
+                dim=1,
+            )
+
+            attention = torch.sigmoid(kernel_results[:, :, :, -1:])
+            kernel_changes = kernel_results[:, :, :, :-1]
+
+            attention = attention / attention.sum(dim=2)[:, :, None, :]
+
+            changes = torch.matmul(
+                kernel_changes.transpose(-2, -1), attention
+            )  # CZY TO MA SENS?!
+
+            aggreagted_changes = (
+                torch.mean(changes, dim=1)
+                .transpose(-2, -1)
+                .expand(-1, doubled_embeddings.shape[1], -1)
+            )  # TODO agregator bazujacy na embeddingu - czego on chce
+
+            # graph_kernel = self.aggregator(doubled_embeddings)[:, :, :, None]
+            # changes = changes.permute(0, 3, 2, 1).expand(
+            #     -1, doubled_embeddings.shape[1], -1, -1
+            # )
+
+            # aggreagted_changes = torch.matmul(changes, graph_kernel)[..., 0]
+
+            doubled_embeddings = (
+                doubled_embeddings * (1 - self.rate) + aggreagted_changes * self.rate
+            )
+
+        # ===================================================================
 
         new_embedding_l, new_embedding_r = torch.split(
             doubled_embeddings,
