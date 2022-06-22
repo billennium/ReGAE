@@ -1,8 +1,9 @@
 import networkx as nx
+from typing import List
 
 # loads or generates graphs of type specified by the config.graph_type
 # returns a graph list and an appropriate max_prev_nodes for nn training
-def create_synthetic_graphs(graph_type: str) -> list[nx.Graph]:
+def create_synthetic_graphs(graph_type: str) -> List[nx.Graph]:
     graph_generator_func = {
         "ladder": ladder_graphs,
         "ladder_small": ladder_small_graphs,
@@ -23,21 +24,21 @@ def create_synthetic_graphs(graph_type: str) -> list[nx.Graph]:
     return graph_generator_func()
 
 
-def ladder_graphs() -> list[nx.Graph]:
+def ladder_graphs() -> List[nx.Graph]:
     graphs = []
     for num_nodes in range(100, 201):
         graphs.append(nx.ladder_graph(num_nodes))
     return graphs
 
 
-def ladder_small_graphs() -> list[nx.Graph]:
+def ladder_small_graphs() -> List[nx.Graph]:
     graphs = []
     for i in range(2, 11):
         graphs.append(nx.ladder_graph(i))
     return graphs
 
 
-def tree_graphs() -> list[nx.Graph]:
+def tree_graphs() -> List[nx.Graph]:
     graphs = []
     for i in range(2, 5):
         for j in range(3, 5):
@@ -45,7 +46,7 @@ def tree_graphs() -> list[nx.Graph]:
     return graphs
 
 
-def caveman_graphs() -> list[nx.Graph]:
+def caveman_graphs() -> List[nx.Graph]:
     graphs = []
     for i in range(2, 3):
         for j in range(6, 11):
@@ -55,7 +56,7 @@ def caveman_graphs() -> list[nx.Graph]:
     return graphs
 
 
-def caveman_small_graphs() -> list[nx.Graph]:
+def caveman_small_graphs() -> List[nx.Graph]:
     graphs = []
     for i in range(2, 3):
         for j in range(30, 81):
@@ -65,12 +66,12 @@ def caveman_small_graphs() -> list[nx.Graph]:
     return graphs
 
 
-def community_graphs() -> list[nx.Graph]:
+def community_graphs() -> List[nx.Graph]:
     # TODO:
     raise NotImplementedError("community type graphs are yet to be implemented")
 
 
-def grid_graphs() -> list[nx.Graph]:
+def grid_graphs() -> List[nx.Graph]:
     graphs = []
     for i in range(10, 20):
         for j in range(10, 20):
@@ -78,7 +79,7 @@ def grid_graphs() -> list[nx.Graph]:
     return graphs
 
 
-def grid_big_graphs() -> list[nx.Graph]:
+def grid_big_graphs() -> List[nx.Graph]:
     graphs = []
     for i in range(36, 46):
         for j in range(36, 46):
@@ -86,7 +87,7 @@ def grid_big_graphs() -> list[nx.Graph]:
     return graphs
 
 
-def grid_medium_graphs() -> list[nx.Graph]:
+def grid_medium_graphs() -> List[nx.Graph]:
     graphs = []
     for i in range(2, 9):
         for j in range(2, 9):
@@ -94,7 +95,7 @@ def grid_medium_graphs() -> list[nx.Graph]:
     return graphs
 
 
-def grid_small_graphs() -> list[nx.Graph]:
+def grid_small_graphs() -> List[nx.Graph]:
     graphs = []
     for i in range(2, 5):
         for j in range(2, 5):
@@ -102,7 +103,7 @@ def grid_small_graphs() -> list[nx.Graph]:
     return graphs
 
 
-def barabasi_graphs() -> list[nx.Graph]:
+def barabasi_graphs() -> List[nx.Graph]:
     graphs = []
     for i in range(100, 200):
         for j in range(4, 5):
@@ -111,7 +112,7 @@ def barabasi_graphs() -> list[nx.Graph]:
     return graphs
 
 
-def barabasi_small_graphs() -> list[nx.Graph]:
+def barabasi_small_graphs() -> List[nx.Graph]:
     graphs = []
     for i in range(4, 21):
         for j in range(3, 4):

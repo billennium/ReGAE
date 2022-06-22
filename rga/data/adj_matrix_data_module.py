@@ -240,7 +240,7 @@ class AdjMatrixDataModule(BaseDataModule):
 
         return permuted_graphs
 
-    def flatten(self, l: list[list]) -> list:
+    def flatten(self, l: List[List]) -> List:
         return [item for sublist in l for item in sublist]
 
     def load_pickled_data(self):

@@ -1,14 +1,15 @@
 import numpy as np
 from scipy import sparse
 from torch import Tensor
+from typing import List
 
 
-def remove_duplicates(graphs: list):
+def remove_duplicates(graphs: List):
     indices = get_unique_indices(graphs)
     return [graphs[i] for i in indices]
 
 
-def get_unique_indices(graphs: list) -> list[int]:
+def get_unique_indices(graphs: List) -> List[int]:
     hashes = [hash_graph(g) for g in graphs]
     _, indices = np.unique(hashes, return_index=True)
     return indices

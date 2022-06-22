@@ -1,7 +1,9 @@
 import numpy as np
+from typing import List
 
 from .bfs import bfs_ordering
 from .remove_duplicates import remove_duplicates
+
 
 def random_permute(adjacency_matrix: np.ndarray) -> np.ndarray:
     x_idx = np.random.permutation(adjacency_matrix.shape[0])
@@ -9,7 +11,7 @@ def random_permute(adjacency_matrix: np.ndarray) -> np.ndarray:
     return adjacency_matrix
 
 
-def permute_unique_bfs(matrix: np.ndarray, num_permutations: int) -> list[np.ndarray]:
+def permute_unique_bfs(matrix: np.ndarray, num_permutations: int) -> List[np.ndarray]:
     matrices = [matrix]
     for _ in range(num_permutations - 1):
         matrices.append(random_permute(matrix))

@@ -1,9 +1,10 @@
 import torch
+from typing import List, Tuple
 
 
 def split_dataset_train_val_test(
-    dataset: list, size_fractions: list[float]
-) -> tuple[list]:
+    dataset: List, size_fractions: List[float]
+) -> Tuple[List]:
     if len(size_fractions) != 3:
         raise ValueError("the size_fractions argument has to be a list of length 3")
 
