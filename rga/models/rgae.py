@@ -11,6 +11,11 @@ from rga.util.generate_graphs import (
 
 
 class RGAE:
+        """
+        Easier to use wrapper around the somewhat more complex RGAE internals. Among others, this wrapper converts the 
+        input adjacency matrices to the models native format on-line, which may be quite inefficient. For proper, large
+        scale training, the training dataloaders should pass graphs in the `diagonal` format.
+        """
     def __init__(self, path_hparams: str, path_ckpt: str):
         self.hparams = load_model.load_hparams(path_hparams)
         self.engine = load_model.load_model(
@@ -64,7 +69,10 @@ class RGAE:
         embeds : torch.FloatTensor
             Tensor with graph embeddings. Shape (B, E) where B is the number of embedded graphs and E is the embedding size (based on the loaded model).
         max_graph_size : int
-            Graph size limit (in blocks) to prevent before infinite loops. Default 999
+            Graph size limit (in blocks) that ensures that the resulting graph will be finite.
+            Infinitely large graphs may occur if the network for some reason does not decide to end the graph, 
+            which should not happen with a properly trained network.
+            Default 999
 
         Returns
         -------
