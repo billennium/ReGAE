@@ -10,7 +10,13 @@ python -m pip install -r requirements.txt
 The `requirements.txt` lists a standard "CPU" version on `pytorch`. In order to use a GPU, a version of `pytorch` specific
 to the device will be required.
 
-## General usage
+Install R-GAE as a python module:
+```
+pip install . 
+```
+in a folder of the cloned repository.
+
+## Training models
 The specific combinations of model-dataset-default_hyperparameters are defined as *experiments* in the `experiments/` subdirectory. There, a generic `Experiment` class is defined in `experiment.py` that describes the general training procedure. Apart from this class, individual experiment configurations are defined inside the subdirectories specifying a dataset. Each one runs the generic `Experiment` with the model-dataset-default_hyperparameters individual to the file. These files are runnable and are the intended way to run any training.
 
 Example experiment run:
@@ -21,6 +27,39 @@ python -m rga.experiments.synthetic_grid_medium.recursive_autoencoder_training
 As may be seen from the experiment definitions, all hyperparameters and run configurations are passed with run argument flags. Each module involved in the run (data, model, schedulers) define their flags, together with their descriptions and default values. Their full summary for a given experiment is displayed with the use of the `--help`/`-h` flag:
 ```
 python -m rga.experiments.synthetic_grid_medium.recursive_autoencoder_training -h
+```
+
+To use own data:
+1. Create a new experiment
+2. Write new class inherited from BaseGraphLoader (rga.data.graph_loaders)
+3. Assign a new data loader to graphloader_class
+4. Customize parameters to your needs
+
+## Use trained models 
+
+To use trained autoencoder model install R-GAE as a python module:
+```
+pip install .
+```
+and import RGAE class from rga.models.rgae
+
+```
+from rga.models.rgae import RGAE
+
+model = RGAE(path_hparams='...', path_ckpt='...')
+
+#Show model parameters
+
+print(model.hparams)
+
+#Graph to embeddings
+
+graphs = ... (list of torch.FloatTensor which represent adjacency matrices and (N, N) shape)
+embeds = model.encode(graphs)
+
+#Embeddings to graphs
+
+reconstructed_graphs = model.decode(embeds)
 ```
 
 ## Running experiments with guild
