@@ -1,4 +1,8 @@
-# Recursive Graph Autoencoder
+# R-GAE
+
+Source code for paper ["R-GAE: Graph autoencoder based on recursiveneural networks"](https://arxiv.org/abs/2201.12165).
+
+The paper was developed in collaboration with [Institute of Computer Science (FEIT/WUT)](http://www.ii.pw.edu.pl).
 
 ## Environment installation
 **Note : Use Python 3.7 or newer**
@@ -141,4 +145,16 @@ The GRID-MEDIUM dataset is a synthetic dataset that doesn't require any outside 
         ├── "dataset_name"_A.txt
         ├── "dataset_name"_graph_indicator.txt
         └── "dataset_name"_graph_labels.txt
+```
+
+## Cite
+Please cite our paper if you use this code in your own work:
+
+```
+@article{malkowski2022graph,
+  title={Graph autoencoder with constant dimensional latent space},
+  author={Ma{\l}kowski, Adam and Grzechoci{\'n}ski, Jakub and Wawrzy{\'n}ski, Pawe{\l}},
+  journal={arXiv preprint arXiv:2201.12165},
+  year={2022}
+}
 ```
