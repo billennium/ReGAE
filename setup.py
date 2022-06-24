@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="rgae",
+    name="rga",
     version="1.0.0",
     python_requires=">3.7",
     author_email="adam.malkowski@billennium.com",
