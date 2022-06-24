@@ -11,11 +11,11 @@ from rga.util.generate_graphs import (
 
 
 class RGAE:
-        """
-        Easier to use wrapper around the somewhat more complex RGAE internals. Among others, this wrapper converts the 
-        input adjacency matrices to the models native format on-line, which may be quite inefficient. For proper, large
-        scale training, the training dataloaders should pass graphs in the `diagonal` format.
-        """
+    """
+    Easier to use wrapper around the somewhat more complex RGAE internals. Among others, this wrapper converts the 
+    input adjacency matrices to the models native format on-line, which may be quite inefficient. For proper, large
+    scale training, the training dataloaders should pass graphs in the `diagonal` format.
+    """
     def __init__(self, path_hparams: str, path_ckpt: str):
         self.hparams = load_model.load_hparams(path_hparams)
         self.engine = load_model.load_model(
