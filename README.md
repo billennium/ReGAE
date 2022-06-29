@@ -1,6 +1,6 @@
-# R-GAE
+# ReGAE
 
-Source code for paper ["R-GAE: Graph autoencoder based on recursiveneural networks"](https://arxiv.org/abs/2201.12165).
+Source code for paper ["ReGAE: Graph autoencoder based on recursiveneural networks"](https://arxiv.org/abs/2201.12165).
 
 The paper was developed in collaboration with [Institute of Computer Science (FEIT/WUT)](http://www.ii.pw.edu.pl).
 
@@ -14,7 +14,7 @@ python -m pip install -r requirements.txt
 The `requirements.txt` lists a standard "CPU" version on `pytorch`. In order to use a GPU, a version of `pytorch` specific
 to the device will be required.
 
-Install R-GAE as a python module:
+Install ReGAE as a python module:
 ```
 pip install . 
 ```
