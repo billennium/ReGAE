@@ -63,6 +63,16 @@
                 - "rga/*"
             exclude:
                 - "**/__pycache__"
+    mutag:
+        main: 'rga.experiments.mutag.{{ name }}_training'
+        flags:
+            $include: generic-flags
+        output-scalars: off
+        sourcecode:
+            select:
+                - "rga/*"
+            exclude:
+                - "**/__pycache__"
     reddit_binary:
         main: 'rga.experiments.reddit_binary.{{ name }}_training'
         flags:

@@ -90,7 +90,7 @@ guild run recursive_autoencoder:synthetic_grid_medium --force-flags seed=0 lr=0.
 
 To run a hyperparameter grid-search:
 ```
-guild run recursive_autoencoder:synthetic_grid_medium --force-flags seed=0 lr=[0.001,0.003,0.005,0.01] batch_size=[32,64]
+guild run recursive_autoencoder:synthetic_grid_medium --force-flags seed=0 lr="[0.001,0.003,0.005,0.01]" batch_size="[32,64]"
 ```
 
 ## Metrics and logging
